@@ -7,6 +7,9 @@ de partir (*churn*).
 > 🎯 **Objectif : apprendre en construisant.** Le fichier [`PARCOURS.md`](PARCOURS.md) est
 > un parcours de compétences en 6 modules, avec des exercices progressifs et une checklist
 > pour suivre votre progression.
+>
+> 🥋 **Nouveau : katas auto-corrigés.** Écrivez le code, les tests vous corrigent tout de suite :
+> `pytest exercices -q -rs`. Mode d'emploi dans [`exercices/README.md`](exercices/README.md).
 
 ## Ce que vous allez pratiquer
 
@@ -19,6 +22,7 @@ de partir (*churn*).
 | Interprétabilité (importance par permutation) | `src/churn/model.py` |
 | Tableau de bord interactif | `app.py` (Streamlit + Plotly) |
 | Tests automatisés | `tests/test_churn.py` (pytest) |
+| Pratique guidée avec correction immédiate | `exercices/` (katas) |
 
 ## Démarrage rapide
 
@@ -29,6 +33,7 @@ pip install -r requirements.txt
 python scripts/train.py          # entraîne et compare les modèles
 streamlit run app.py             # ouvre le tableau de bord sur http://localhost:8501
 pytest -q                        # lance les tests
+pytest exercices -q -rs          # 🥋 lance le correcteur des katas
 ```
 
 Les données sont **synthétiques** et générées au premier lancement dans `data/customers.csv`
@@ -65,7 +70,10 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
 │   └── model.py            # Entraînement, évaluation, seuil, importance
-├── tests/test_churn.py     # Tests
+├── tests/                  # Tests du projet (pytest -q)
+├── exercices/              # 🥋 Katas auto-corrigés (pytest exercices -q -rs)
+├── solutions/              # Corrigés des katas (à ouvrir en dernier recours !)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
+├── JOURNAL.md              # 📓 Votre journal d'apprentissage (portfolio)
 └── requirements.txt
 ```

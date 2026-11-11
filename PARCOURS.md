@@ -7,8 +7,10 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 
 1. Travaillez sur une branche par module : `git checkout -b module-3-exercices`.
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
-3. Notez vos résultats (avant / après) dans un fichier `JOURNAL.md` : c'est votre portfolio.
+3. Notez vos résultats (avant / après) dans [`JOURNAL.md`](JOURNAL.md) : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
+5. Quand un module a des **katas** 🥋, commencez par eux : `pytest exercices -q -rs` vous corrige
+   instantanément (voir [`exercices/README.md`](exercices/README.md)).
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
@@ -18,6 +20,8 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : connaître ses variables, vérifier la qualité, formuler des hypothèses.
 
+- [ ] 🥋 0 — Katas : complétez `exercices/module1_donnees.py` jusqu'à 19/19 ✅ (taux, `groupby`,
+  valeurs manquantes, lift, `pd.cut`, segmentation). Comptez 1 à 2 heures.
 - [ ] 🟢 1.1 — Chargez `data/customers.csv` avec pandas. Affichez `df.describe()` et `df["churn"].mean()`.
 - [ ] 🟢 1.2 — Calculez le taux de churn par `contract` et par `internet_service` avec `groupby`.
 - [ ] 🟡 1.3 — Ajoutez une règle à `validate()` : une facture mensuelle doit être entre 0 et 500 €. Écrivez le test correspondant.
