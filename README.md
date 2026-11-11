@@ -1,13 +1,17 @@
 # 📉 Churn Prediction Dashboard
 
+[![Tests](https://github.com/LallaAichaEly/churn-prediction-dashboard/actions/workflows/tests.yml/badge.svg)](https://github.com/LallaAichaEly/churn-prediction-dashboard/actions/workflows/tests.yml)
+
 Un projet complet **et pédagogique** pour développer ses compétences en data science :
 des données brutes jusqu'à un tableau de bord interactif et une API qui prédisent quels
 clients risquent de partir (*churn*).
 
-> 🎯 **Objectif : apprendre en construisant.** Le fichier [`PARCOURS.md`](PARCOURS.md) est
-> un parcours de compétences en 6 modules, avec des exercices progressifs et une checklist
-> pour suivre votre progression. Les corrigés sont dans [`CORRIGES.md`](CORRIGES.md) :
-> à ouvrir **après** avoir essayé.
+> 🎯 **Objectif : apprendre en construisant.**
+>
+> 1. [`PARCOURS.md`](PARCOURS.md) — 6 modules, 31 exercices progressifs et une checklist.
+> 2. [`CORRIGES.md`](CORRIGES.md) — un indice puis une solution pour chaque exercice
+>    (à ouvrir **après** avoir cherché), complétés par des scripts exécutables dans `solutions/`.
+> 3. [`JOURNAL.md`](JOURNAL.md) — votre carnet de bord : mesures avant / après et ce que vous avez compris.
 
 ## Ce que vous allez pratiquer
 
@@ -20,7 +24,8 @@ clients risquent de partir (*churn*).
 | Interprétabilité (importance par permutation) | `src/churn/model.py` |
 | Tableau de bord interactif | `app.py` (Streamlit + Plotly) |
 | Mise en production : API REST | `api.py` (FastAPI) |
-| Tests automatisés & intégration continue | `tests/` (pytest), `.github/workflows/tests.yml` |
+| Tests automatisés (modèle, API, tableau de bord, corrigés) | `tests/` (pytest + `streamlit.testing`) |
+| Intégration continue | `.github/workflows/tests.yml` (GitHub Actions) |
 
 ## Démarrage rapide
 
@@ -31,8 +36,11 @@ pip install -r requirements.txt
 python scripts/train.py          # entraîne et compare les modèles
 streamlit run app.py             # tableau de bord sur http://localhost:8501
 uvicorn api:app --reload         # API sur http://localhost:8000/docs
-pytest -q                        # lance les tests (~40 s)
+pytest -q                        # lance les tests (≈ 1 min, dont le tableau de bord)
 ```
+
+À chaque `git push`, GitHub Actions réinstalle le projet, entraîne les modèles et relance tous les
+tests : si un exercice casse quelque chose, vous le saurez tout de suite.
 
 Les données sont **synthétiques** et générées au premier lancement dans `data/customers.csv`
 (5 000 clients, ~35 % de churn). Aucune connexion ni donnée personnelle n'est nécessaire.
@@ -89,9 +97,14 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── features.py         # Préparation des variables
 │   └── model.py            # Entraînement, évaluation, seuil, importance
 ├── solutions/              # Corrigés exécutables des modules 1 à 5
-├── tests/                  # Tests : cœur, API, tableau de bord, corrigés
+├── tests/
+│   ├── test_churn.py       # Données, variables et modèles
+│   ├── test_api.py         # API
+│   ├── test_app.py         # Tableau de bord (sans navigateur)
+│   └── test_solutions.py   # Les affirmations des corrigés restent vraies
 ├── .github/workflows/      # Intégration continue (pytest à chaque push)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
-├── CORRIGES.md             # 📗 Corrigés commentés + exemple de rapport final
+├── CORRIGES.md             # ✅ Indices, solutions et exemple de rapport final
+├── JOURNAL.md              # 📓 Votre journal de progression
 └── requirements.txt
 ```

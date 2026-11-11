@@ -1,4 +1,6 @@
-# Module 6 — Intégration continue : les tests tournent à chaque push et pull request.
+# Intégration continue : à chaque push et pull request, GitHub installe le projet,
+# lance tous les tests (cœur, API, tableau de bord, corrigés) puis entraîne les modèles.
+# Exercice 6.3 : étendez ce fichier (Python 3.13, étape de lint avec ruff…).
 name: Tests
 
 on:
@@ -6,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -14,13 +16,17 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+
       - name: Installer les dépendances
         run: pip install -r requirements.txt
+
       - name: Lancer les tests
         run: pytest -q
+
       - name: Entraîner les modèles (vérifie le script de bout en bout)
         run: python scripts/train.py
