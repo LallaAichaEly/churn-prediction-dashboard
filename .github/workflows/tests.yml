@@ -1,0 +1,28 @@
+# Intégration continue : à chaque push et pull request, GitHub installe le projet,
+# entraîne les modèles et lance tous les tests (y compris ceux du tableau de bord).
+# Exercice 6.3 : étendez ce fichier (matrice de versions Python, étape de lint…).
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Entraîner les modèles (vérifie que le script fonctionne)
+        run: python scripts/train.py
+
+      - name: Lancer les tests
+        run: pytest -q

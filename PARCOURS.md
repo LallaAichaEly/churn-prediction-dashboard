@@ -7,8 +7,9 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 
 1. Travaillez sur une branche par module : `git checkout -b module-3-exercices`.
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
-3. Notez vos résultats (avant / après) dans un fichier `JOURNAL.md` : c'est votre portfolio.
+3. Notez vos résultats (avant / après) dans [`JOURNAL.md`](JOURNAL.md) (modèle fourni) : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
+5. Bloqué·e ? Ouvrez [`CORRIGES.md`](CORRIGES.md) : d'abord l'**indice**, la solution seulement après avoir cherché.
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
@@ -89,9 +90,9 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
 
-- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
+- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test (`tests/test_churn.py` et `tests/test_app.py`) et dites ce qu'il protège.
 - [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
+- [ ] 🟡 6.3 — Lisez la GitHub Action `.github/workflows/tests.yml` puis étendez-la : matrice Python 3.11 / 3.12 / 3.13 et étape de lint (`ruff`). Cassez volontairement un test sur une branche pour voir la CI échouer.
 - [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
 - [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
 

@@ -1,0 +1,908 @@
+# ✅ Corrigés du parcours
+
+> **Mode d'emploi.** Cherchez d'abord seul·e (au moins 20 minutes par exercice). Si vous bloquez,
+> lisez l'**indice**. Ouvrez la **solution** seulement après avoir essayé : c'est l'effort de recherche
+> qui construit la compétence, pas la lecture du corrigé.
+>
+> Tous les chiffres ci-dessous ont été **mesurés** sur les données par défaut (5 000 clients,
+> `seed=42`, découpage 75/25) avec scikit-learn 1.9. Avec d'autres versions, ils peuvent varier
+> légèrement ; les conclusions restent les mêmes. Chaque extrait de code a été exécuté et testé.
+
+Sommaire : [Module 1](#module-1--comprendre-les-données) · [Module 2](#module-2--préparer-les-variables) ·
+[Module 3](#module-3--modéliser) · [Module 4](#module-4--évaluer-et-décider) ·
+[Module 5](#module-5--interpréter-et-communiquer) · [Module 6](#module-6--industrialiser) ·
+[Projet final](#-projet-final)
+
+---
+
+## Module 1 — Comprendre les données
+
+### 1.1 — Premier contact 🟢
+
+💡 *Indice :* `pd.read_csv`, puis `.describe()` et `.mean()` sur une colonne 0/1.
+
+<details><summary>Solution</summary>
+
+```python
+import pandas as pd
+
+df = pd.read_csv("data/customers.csv")
+print(df.describe().round(1))
+print(f"Taux de churn : {df['churn'].mean():.1%}")
+```
+
+Résultat : **35,5 %** de churn. Ancienneté moyenne 21,3 mois (1 à 72), facture moyenne 61 €
+(15 à 118 €), 1,3 appel au support en moyenne (0 à 7).
+
+👉 La moyenne d'une colonne 0/1 est une proportion : c'est le réflexe le plus utile en analyse de churn.
+</details>
+
+### 1.2 — Taux de churn par segment 🟢
+
+💡 *Indice :* `df.groupby("colonne")["churn"].mean()`.
+
+<details><summary>Solution</summary>
+
+```python
+print(df.groupby("contract")["churn"].mean().sort_values())
+print(df.groupby("internet_service")["churn"].mean().sort_values())
+```
+
+| Contrat | Churn | | Internet | Churn |
+|---|---|---|---|---|
+| Biannuel | 8,9 % | | Aucun | 25,0 % |
+| Annuel | 21,5 % | | ADSL | 28,8 % |
+| Mensuel | **50,9 %** | | Fibre | **45,4 %** |
+
+Un client au mois part presque 6 fois plus qu'un client sous contrat de 2 ans : c'est **le** levier métier.
+</details>
+
+### 1.3 — Une nouvelle règle de validation 🟡
+
+💡 *Indice :* `Series.between(a, b)` renvoie un booléen par ligne ; `.all()` les agrège.
+
+<details><summary>Solution</summary>
+
+Dans `validate()` (`src/churn/data.py`), avant le contrôle des identifiants :
+
+```python
+    if not df["monthly_charges"].between(0, 500).all():
+        problems.append("Facture mensuelle hors de l'intervalle [0, 500] €")
+```
+
+Le test, dans `tests/test_churn.py` :
+
+```python
+def test_validate_detects_absurd_monthly_charges(df):
+    broken = df.copy()
+    broken.loc[0, "monthly_charges"] = 9999
+    assert any("Facture" in p for p in validate(broken))
+```
+
+⚠️ `between` renvoie `False` pour une valeur manquante (`NaN`) : une facture vide déclenche donc
+**aussi** cette règle. Ce n'est pas grave (le message « Valeurs manquantes » apparaît également),
+mais c'est le genre de détail à connaître.
+</details>
+
+### 1.4 — Formuler des hypothèses 🟡
+
+💡 *Indice :* un coefficient positif dans `_churn_logit` augmente le risque ; regardez aussi **combien
+de clients** sont concernés par chaque variable.
+
+<details><summary>Solution (exemples d'hypothèses)</summary>
+
+1. **Le contrat sera la variable n° 1** : gros coefficient (+1,6 pour Mensuel) *et* 55 % des clients concernés.
+2. **Ancienneté et appels au support seront dans le trio de tête** : petits coefficients, mais les
+   valeurs varient beaucoup (1 à 72 mois → jusqu'à −2,5 sur le logit).
+3. **`senior` et `payment_method` paraîtront peu importants** malgré des coefficients réels
+   (+0,3 et +0,7), car peu de clients sont concernés (18 % de seniors, 15 % de paiements par chèque).
+
+Ces hypothèses se vérifient à l'exercice 5.1. L'intérêt : apprendre que l'importance d'une variable
+dépend de **l'effet × la fréquence**, pas seulement de l'effet.
+</details>
+
+### 1.5 — Passer à de vraies données 🔴
+
+💡 *Indice :* le fichier Kaggle s'appelle `WA_Fn-UseC_-Telco-Customer-Churn.csv`. Deux colonnes du
+projet n'y existent pas : `support_calls` et `num_products`.
+
+<details><summary>Solution (esquisse — non exécutée ici, le fichier Kaggle demande un compte)</summary>
+
+```python
+raw = pd.read_csv("data/WA_Fn-UseC_-Telco-Customer-Churn.csv")
+services = ["PhoneService", "OnlineSecurity", "OnlineBackup", "DeviceProtection",
+            "TechSupport", "StreamingTV", "StreamingMovies"]
+df = pd.DataFrame({
+    "customer_id": raw["customerID"],
+    "tenure_months": raw["tenure"],
+    "monthly_charges": raw["MonthlyCharges"],
+    # Piège n° 1 : TotalCharges est du texte, avec " " pour les clients de 0 mois.
+    "total_charges": pd.to_numeric(raw["TotalCharges"], errors="coerce").fillna(0),
+    "num_products": (raw[services] == "Yes").sum(axis=1),  # remplaçant raisonnable
+    "contract": raw["Contract"].map({"Month-to-month": "Mensuel", "One year": "Annuel", "Two year": "Biannuel"}),
+    "payment_method": raw["PaymentMethod"],  # ⇒ mettre à jour PAYMENT_METHODS dans data.py
+    "internet_service": raw["InternetService"].map({"Fiber optic": "Fibre", "DSL": "ADSL", "No": "Aucun"}),
+    "tech_support": raw["TechSupport"].map({"Yes": "Oui"}).fillna("Non"),
+    "senior": raw["SeniorCitizen"].map({1: "Oui", 0: "Non"}),
+    "churn": (raw["Churn"] == "Yes").astype(int),
+})
+```
+
+Puis retirez `support_calls` de `NUMERIC_FEATURES` (et du formulaire de `app.py`), et lancez
+`pytest` : les tests vous diront tout ce qui casse. Taux de churn attendu : environ **26,5 %**
+(1 869 clients sur 7 043). Piège n° 2 : 11 clients ont 0 mois d'ancienneté ; c'est pour ça que
+`add_engineered_features` utilise `.clip(lower=1)`.
+</details>
+
+### Auto-évaluation
+
+<details><summary>Pourquoi connaître la « vraie » cause du churn quand on apprend ?</summary>
+
+Parce qu'on peut **noter le modèle sur le fond**, pas seulement sur un score. Avec de vraies données,
+on ne sait jamais si le modèle a trouvé les vraies causes ou des corrélations trompeuses. Ici, on peut
+comparer : c'est un entraînement de l'intuition, comme un exercice de maths dont on connaît la réponse.
+</details>
+
+---
+
+## Module 2 — Préparer les variables
+
+### 2.1 — `StandardScaler` et `OneHotEncoder` 🟢
+
+<details><summary>Solution</summary>
+
+- **`StandardScaler`** transforme chaque variable numérique en `(x − moyenne) / écart-type`. Une
+  ancienneté (0–72) et une facture totale (0–8 000) deviennent comparables. La régression logistique
+  en a besoin : sa régularisation pénalise tous les coefficients de la même façon, et l'optimisation
+  converge mieux.
+- **`OneHotEncoder`** transforme une catégorie en colonnes 0/1 : `contract = "Mensuel"` devient
+  `contract_Mensuel=1, contract_Annuel=0, contract_Biannuel=0`. Un modèle ne sait manipuler que des
+  nombres, et coder `Mensuel=1, Annuel=2, Biannuel=3` inventerait un ordre et des distances qui n'existent pas.
+</details>
+
+### 2.2 — Les variables dérivées changent-elles l'AUC ? 🟢
+
+<details><summary>Solution</summary>
+
+| Modèle | Sans | Avec |
+|---|---|---|
+| Logistique | 0,8345 | 0,8345 |
+| Boosting | 0,807 | 0,811 |
+
+**Presque rien ne change.** Pourquoi ? `avg_charge_per_month` ≈ `monthly_charges` (le total est
+généré comme facture × ancienneté), donc aucune information nouvelle. Et `calls_per_year` ne
+correspond pas à la vraie cause : `_churn_logit` utilise le nombre **brut** d'appels.
+
+👉 Leçon : une variable dérivée n'aide que si elle exprime quelque chose que le modèle ne peut pas
+déjà voir. Avec de vraies données, c'est souvent là que se gagnent les meilleurs points.
+</details>
+
+### 2.3 — `is_new_customer` 🟡
+
+💡 *Indice :* deux lignes à modifier dans `features.py` : la fonction et la liste `ENGINEERED_FEATURES`.
+
+<details><summary>Solution</summary>
+
+```python
+    out["is_new_customer"] = (out["tenure_months"] < 6).astype(int)
+...
+ENGINEERED_FEATURES = ["avg_charge_per_month", "calls_per_year", "is_new_customer"]
+```
+
+Mesure (avec les variables dérivées activées) : logistique **0,8345 → 0,8347**, boosting
+**0,811 → 0,811**. L'effet est nul, et c'est logique : dans la « vérité cachée », l'ancienneté agit
+de façon **linéaire** (−0,035 par mois), sans seuil particulier à 6 mois.
+
+👉 Un résultat négatif est un vrai résultat : notez-le dans votre `JOURNAL.md`.
+</details>
+
+### 2.4 — Pourquoi `handle_unknown="ignore"` ? 🟡
+
+<details><summary>Solution</summary>
+
+En production, une modalité inconnue finit toujours par arriver (nouveau moyen de paiement « Crypto »,
+faute de frappe…). Par défaut, `OneHotEncoder` **lève une erreur** : l'application plante pour ce
+client. Avec `"ignore"`, toutes les colonnes `payment_method_*` valent 0 : le modèle prédit avec les
+autres variables. Le test `test_unknown_category_is_ignored` garantit ce comportement ; si quelqu'un
+retire l'option, le test échoue.
+
+Bonne pratique complémentaire : **refuser** les valeurs inconnues à l'entrée de l'API (exercice 6.4)
+et surveiller leur fréquence. Ignorer en silence évite le plantage mais peut masquer un problème.
+</details>
+
+### 2.5 — Provoquer une fuite de données 🔴
+
+💡 *Indice :* normalisez `df[NUMERIC_FEATURES]` **avant** `train_test_split`. Puis essayez une fuite
+plus grave : sélectionner des variables avant la validation croisée.
+
+<details><summary>Solution</summary>
+
+**Expérience 1 — normaliser avant le split :**
+
+```python
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from churn.data import CATEGORICAL_FEATURES, FEATURES, NUMERIC_FEATURES, TARGET
+
+X = df[FEATURES].copy()
+X[NUMERIC_FEATURES] = StandardScaler().fit_transform(X[NUMERIC_FEATURES])   # ❌ voit le test
+X = pd.get_dummies(X, columns=CATEGORICAL_FEATURES)
+X_tr, X_te, y_tr, y_te = train_test_split(X, df[TARGET], test_size=0.25, stratify=df[TARGET], random_state=42)
+model = LogisticRegression(max_iter=1000).fit(X_tr, y_tr)
+print(roc_auc_score(y_te, model.predict_proba(X_te)[:, 1]))
+```
+
+Résultat : **0,8345**, exactement comme sans fuite. Surprise ? Avec 5 000 lignes, la moyenne et
+l'écart-type calculés avec ou sans le test sont quasi identiques.
+
+**Expérience 2 — une fuite qui fait mal** (sélection de variables sur du **bruit pur**) :
+
+```python
+import numpy as np
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.model_selection import cross_val_score
+from sklearn.pipeline import make_pipeline
+
+small = df.sample(300, random_state=0)
+noise = pd.DataFrame(np.random.default_rng(0).normal(size=(300, 2000)))  # 2 000 colonnes aléatoires
+y = small[TARGET].to_numpy()
+
+selected = SelectKBest(f_classif, k=20).fit_transform(noise, y)          # ❌ sélection sur tout
+leaky = cross_val_score(LogisticRegression(max_iter=1000), selected, y, cv=5, scoring="roc_auc")
+clean = cross_val_score(make_pipeline(SelectKBest(f_classif, k=20), LogisticRegression(max_iter=1000)),
+                        noise, y, cv=5, scoring="roc_auc")                # ✅ dans le pipeline
+print(leaky.mean(), clean.mean())
+```
+
+Résultat : **0,82 avec fuite** contre **0,53 sans fuite**, sur des données qui ne contiennent
+**aucune** information. Le modèle « fuité » a l'air bon ; en production, il ferait du hasard.
+
+👉 Pourquoi c'est dangereux : les métriques sont trop optimistes, on déploie un modèle qui déçoit,
+et on ne comprend pas pourquoi. Règle d'or : **tout ce qui apprend des données** (scaler, imputation,
+sélection, encodage de la cible…) **va dans le `Pipeline`**.
+</details>
+
+### Auto-évaluation
+
+<details><summary>Qu'est-ce que la data leakage et comment un Pipeline la prévient-il ?</summary>
+
+C'est quand une information indisponible au moment de la prédiction (le jeu de test, le futur, la
+cible elle-même) se glisse dans l'entraînement. Un `Pipeline` appelle `fit` uniquement sur les données
+d'entraînement de chaque découpage (y compris dans `cross_val_score` et `GridSearchCV`), puis
+seulement `transform` sur les données de test.
+</details>
+
+---
+
+## Module 3 — Modéliser
+
+### 3.1 — Quel modèle gagne ? 🟢
+
+<details><summary>Solution</summary>
+
+La **régression logistique** : ROC-AUC 0,834 contre 0,807 pour le gradient boosting, et meilleure
+sur toutes les métriques. Voir 3.3 pour comprendre pourquoi.
+</details>
+
+### 3.2 — Ajouter une forêt aléatoire 🟢
+
+<details><summary>Solution</summary>
+
+Dans `src/churn/model.py` :
+
+```python
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+
+MODELS = {
+    "logistic": "Régression logistique (référence interprétable)",
+    "gboost": "Gradient boosting (plus puissant, moins lisible)",
+    "rf": "Forêt aléatoire (beaucoup d'arbres indépendants)",
+}
+...
+    elif model_name == "rf":
+        clf = RandomForestClassifier(n_estimators=300, min_samples_leaf=5, random_state=seed, n_jobs=-1)
+```
+
+Ajoutez aussi `"rf"` dans `@pytest.mark.parametrize("model_name", [...])` de `test_models_beat_random`.
+Le tableau de bord le propose automatiquement (il lit `MODELS`).
+
+Résultat : ROC-AUC **0,811**, rappel 56 %. Toujours derrière la logistique.
+</details>
+
+### 3.3 — Pourquoi le modèle simple gagne-t-il ? 🟡
+
+💡 *Indice :* relisez `generate_customers`. Comment la probabilité de churn est-elle calculée à partir du logit ?
+
+<details><summary>Solution</summary>
+
+Les données sont **générées par une régression logistique** : un logit **linéaire** + du bruit,
+puis `1 / (1 + exp(−logit))`. La régression logistique est donc le modèle *exactement adapté*
+(« bien spécifié ») : elle n'a que ~20 coefficients à estimer.
+
+Le boosting, lui, approxime chaque effet linéaire par des **marches d'escalier** (des arbres) : il
+lui faut beaucoup plus de données pour une précision égale, et il apprend une partie du bruit.
+
+On peut le vérifier : les coefficients appris retrouvent la vérité (écart entre modalités) :
+
+| Effet | Vérité | Appris |
+|---|---|---|
+| Chèque vs Prélèvement | +0,70 | +0,67 |
+| Support technique Oui vs Non | −0,80 | −0,76 |
+| Fibre vs sans internet | +0,50 | +0,46 |
+| Senior Oui vs Non | +0,30 | +0,28 |
+
+👉 Sur de vraies données (effets non linéaires, interactions), le boosting gagne souvent. C'est
+pourquoi on teste **toujours** les deux.
+</details>
+
+### 3.4 — Validation croisée 🟡
+
+<details><summary>Solution</summary>
+
+```python
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from churn.model import build_pipeline
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+for name in ["logistic", "gboost"]:
+    scores = cross_val_score(build_pipeline(name), df[FEATURES], df[TARGET], cv=cv, scoring="roc_auc")
+    print(f"{name}: {scores.round(3)}  moyenne {scores.mean():.3f} ± {scores.std():.3f}")
+```
+
+| | Plis | Moyenne ± écart-type |
+|---|---|---|
+| Logistique | 0,817 · 0,822 · 0,811 · 0,825 · 0,822 | **0,819 ± 0,005** |
+| Boosting | 0,796 · 0,801 · 0,789 · 0,816 · 0,796 | 0,799 ± 0,009 |
+
+L'écart (0,02) est **2 à 4 fois plus grand** que la variabilité, et la logistique gagne sur **chacun**
+des 5 plis : la différence est solide.
+
+Remarque importante : le découpage unique donnait 0,834, la validation croisée 0,819. Le découpage
+unique était un peu « chanceux » : c'est pour ça qu'on ne se fie jamais à un seul découpage.
+</details>
+
+### 3.5 — `GridSearchCV` 🔴
+
+<details><summary>Solution</summary>
+
+```python
+from sklearn.model_selection import GridSearchCV
+from churn.model import split
+
+X_train, X_test, y_train, y_test = split(df)
+grid = GridSearchCV(
+    build_pipeline("gboost"),
+    {"clf__learning_rate": [0.02, 0.05, 0.1], "clf__max_depth": [2, 3, None], "clf__max_iter": [100, 300]},
+    cv=cv, scoring="roc_auc", n_jobs=-1,
+).fit(X_train, y_train)                         # ⚠️ uniquement sur le train
+print(grid.best_params_, grid.best_score_)
+print(roc_auc_score(y_test, grid.predict_proba(X_test)[:, 1]))
+```
+
+Meilleurs paramètres : `learning_rate=0.05, max_depth=2, max_iter=300` → AUC de test **0,825**
+(contre 0,807 par défaut). Mieux, mais **toujours sous la logistique (0,834)**.
+
+👉 Le réglage choisit des arbres de profondeur 2, les plus simples possibles : une confirmation de
+plus que la structure est additive. Notez le préfixe `clf__` : c'est la syntaxe pour régler une étape
+d'un `Pipeline`.
+</details>
+
+### 3.6 — `class_weight="balanced"` 🔴
+
+<details><summary>Solution</summary>
+
+```python
+pipe = build_pipeline("logistic").set_params(clf__class_weight="balanced").fit(X_train, y_train)
+print(evaluate(y_test, pipe.predict_proba(X_test)[:, 1]))
+```
+
+| Seuil 0,5 | ROC-AUC | Précision | Rappel |
+|---|---|---|---|
+| Par défaut | 0,8345 | 68,9 % | 63,4 % |
+| `balanced` | 0,8348 | 60,2 % | **80,1 %** |
+
+L'AUC ne bouge pas : le **classement** des clients est le même. `balanced` pousse surtout toutes les
+probabilités vers le haut, ce qui revient presque à **baisser le seuil**. Le prix à payer : les
+probabilités ne sont plus fiables (voir 4.5 : moyenne prédite 46,6 % pour un churn réel de 35,5 %).
+
+👉 Pour privilégier le rappel, préférez souvent : modèle non pondéré + seuil choisi selon les coûts (4.3).
+</details>
+
+### Auto-évaluation
+
+<details><summary>Pourquoi commence-t-on toujours par un modèle simple ?</summary>
+
+Il donne une **référence** (tout modèle complexe doit faire mieux, sinon il ne vaut pas sa
+complexité), il est rapide, il s'explique facilement au métier, et ses erreurs révèlent souvent des
+problèmes de données. Ici, il est même le meilleur.
+</details>
+
+---
+
+## Module 4 — Évaluer et décider
+
+### 4.1 — Bouger le seuil 🟢
+
+<details><summary>Solution</summary>
+
+Seuil plus **bas** → on signale plus de clients → **rappel ↑, précision ↓** (on attrape plus de
+partants, mais avec plus de fausses alertes). Seuil plus **haut** → l'inverse. La courbe F1 a un
+maximum intermédiaire. Il n'existe pas de « bon » seuil universel : c'est une décision métier (4.3).
+</details>
+
+### 4.2 — Pourquoi l'accuracy est-elle trompeuse ? 🟢
+
+<details><summary>Solution</summary>
+
+Un modèle qui prédit « reste » pour **tout le monde** obtient **64,6 %** d'accuracy sur le jeu de test,
+avec un rappel de **0 %** : il ne détecte aucun partant. Notre modèle (76,9 %) ne fait « que » 12 points
+de mieux en accuracy, alors qu'il détecte 63 % des départs. L'accuracy mélange les deux types
+d'erreurs et favorise la classe majoritaire.
+</details>
+
+### 4.3 — Le seuil optimal selon les coûts 🟡
+
+💡 *Indice :* un client avec une probabilité *p* coûte en moyenne *p* × 500 € si on ne fait rien,
+et (1 − *p*) × 50 € si on agit pour rien.
+
+<details><summary>Solution</summary>
+
+| Coûts (perdu / action inutile) | Seuil optimal | Précision | Rappel | Coût | Coût au seuil 0,5 |
+|---|---|---|---|---|---|
+| 500 € / 50 € | **0,10** | 43,9 % | 98,9 % | 30 450 € | 87 350 € |
+| 100 € / 100 € | **0,50** | 68,9 % | 63,4 % | 28 900 € | 28 900 € |
+
+La théorie le confirme : on agit si *p* × coût_perdu > (1 − *p*) × coût_action, soit
+**seuil = coût_action / (coût_perdu + coût_action)** = 50 / 550 ≈ **0,09** et 100 / 200 = **0,50**.
+Cela ne marche que si les probabilités sont fiables (4.5).
+
+Avec 500 € / 50 €, rater un client coûte 10 fois plus cher qu'une action inutile : on contacte 997
+clients sur 1 250 et on divise le coût par **près de 3**.
+
+**Aller plus loin :** la fonction `best_threshold_by_cost` suppose que l'action est gratuite pour les
+vrais positifs et qu'elle retient **100 %** des clients. Modifiez-la pour inclure le coût de l'action
+pour tous les clients contactés et un taux de succès (par ex. 30 %) : le seuil remonte nettement.
+</details>
+
+### 4.4 — Courbe précision-rappel 🟡
+
+<details><summary>Solution</summary>
+
+Dans l'onglet Performance de `app.py`, juste avant `st.subheader("Le compromis précision / rappel")` :
+
+```python
+    from sklearn.metrics import average_precision_score, precision_recall_curve
+
+    prec, rec, _ = precision_recall_curve(y_test, proba)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=rec, y=prec, mode="lines", name="Modèle", line=dict(color=BLUE, width=2),
+                             hovertemplate="Rappel %{x:.0%}<br>Précision %{y:.0%}<extra></extra>"))
+    fig.add_trace(go.Scatter(x=[metrics.recall], y=[metrics.precision], mode="markers", name="Seuil actuel",
+                             marker=dict(color=ORANGE, size=12)))
+    fig.add_hline(y=y_test.mean(), line_dash="dash", line_color="#898781", annotation_text="hasard")
+    fig.update_layout(title=f"Courbe précision-rappel (AP = {average_precision_score(y_test, proba):.3f})",
+                      xaxis_title="Rappel", yaxis_title="Précision", xaxis_tickformat=".0%",
+                      yaxis_tickformat=".0%", margin=dict(t=50, b=10))
+    st.plotly_chart(fig, width="stretch")
+```
+
+Average precision : **0,709** (logistique) contre 0,661 (boosting). La ligne « hasard » est au niveau
+du taux de churn (35 %), pas à 0,5 comme pour la courbe ROC. Le point orange suit le curseur de seuil.
+</details>
+
+### 4.5 — Calibration 🔴
+
+<details><summary>Solution</summary>
+
+```python
+    from sklearn.calibration import calibration_curve
+    from sklearn.metrics import brier_score_loss
+
+    frac_pos, mean_pred = calibration_curve(y_test, proba, n_bins=10, strategy="quantile")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=mean_pred, y=frac_pos, mode="lines+markers", name="Modèle",
+                             line=dict(color=BLUE, width=2),
+                             hovertemplate="Prédit %{x:.0%}<br>Observé %{y:.0%}<extra></extra>"))
+    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Calibration parfaite",
+                             line=dict(color="#898781", width=1, dash="dash"), hoverinfo="skip"))
+    fig.update_layout(title=f"Calibration (Brier = {brier_score_loss(y_test, proba):.3f})",
+                      xaxis_title="Probabilité prédite", yaxis_title="Taux de churn observé",
+                      xaxis_tickformat=".0%", yaxis_tickformat=".0%")
+    st.plotly_chart(fig, width="stretch")
+```
+
+Résultats (5 groupes de clients de même taille) :
+
+| Prédit → observé | Logistique | Boosting | Logistique `balanced` |
+|---|---|---|---|
+| Groupe 2 | 17 % → 13 % | 13 % → 16 % | 27 % → **12 %** |
+| Groupe 3 | 33 % → 34 % | 31 % → 38 % | 47 % → **34 %** |
+| Groupe 4 | 52 % → 56 % | 53 % → 50 % | 67 % → **57 %** |
+| Brier (plus bas = mieux) | **0,158** | 0,171 | 0,171 |
+
+**Oui, pour la logistique, 0,7 veut à peu près dire 70 %** : ses points suivent la diagonale. La
+version `balanced` surestime systématiquement le risque, de 6 à 15 points selon les groupes. Si vous avez besoin de
+probabilités fiables (calcul de coûts, 4.3), vérifiez toujours la calibration, et corrigez-la au
+besoin avec `CalibratedClassifierCV`.
+</details>
+
+### Auto-évaluation
+
+<details><summary>Expliquer « rappel de 63 % » à un manager</summary>
+
+« Sur 100 clients qui vont réellement partir, le modèle en repère 63 à l'avance. Les 37 autres nous
+échappent. On peut en repérer davantage, mais au prix de plus de fausses alertes : c'est à vous de
+choisir l'équilibre, selon ce que coûte une action de rétention. »
+</details>
+
+---
+
+## Module 5 — Interpréter et communiquer
+
+### 5.1 — Le modèle retrouve-t-il la vérité ? 🟢
+
+<details><summary>Solution</summary>
+
+Classement par permutation (logistique) : **contrat** (0,123) ≫ ancienneté (0,051) > appels au
+support (0,042) > facture mensuelle (0,023) > support technique (0,020) > nombre de produits (0,011)
+> internet (0,010) > paiement (0,006) > facture totale (0,002) > senior (0,000).
+
+- **Retrouvé** : le trio contrat / ancienneté / appels, exactement comme prévu en 1.4.
+- **Sous-estimés** : `senior` (effet réel +0,3, mais seulement 18 % de clients concernés) et
+  `payment_method` (seule la modalité Chèque compte, 15 % des clients).
+- **Bien vu** : `total_charges` est à ~0, et il **n'est pas** dans la vérité. Il est redondant avec
+  ancienneté × facture mensuelle.
+
+👉 L'importance par permutation mesure ce que la variable apporte **au score**, pas la force de sa
+relation causale. Et deux variables corrélées se « partagent » l'importance.
+</details>
+
+### 5.2 — Churn par service internet 🟢
+
+<details><summary>Solution</summary>
+
+À la fin de l'onglet « Vue d'ensemble », avant l'`expander` des données brutes :
+
+```python
+    by_internet = df.groupby("internet_service")[TARGET].mean().reindex(INTERNET_SERVICES).reset_index()
+    st.plotly_chart(bar(by_internet, "internet_service", TARGET, "Taux de churn par service internet"),
+                    width="stretch")
+```
+
+La fonction `bar` existe déjà : réutiliser plutôt que copier-coller, c'est aussi une compétence.
+</details>
+
+### 5.3 — Les 3 variables qui pèsent le plus 🟡
+
+💡 *Indice :* `pipeline[:-1]` est le pipeline **sans** le classifieur : il donne les variables
+transformées. Les coefficients sont dans `pipeline.named_steps["clf"].coef_`.
+
+<details><summary>Solution</summary>
+
+Dans l'onglet « Prédire un client », après `st.progress(p)` :
+
+```python
+        if model_name == "logistic":
+            z = pipeline[:-1].transform(client)          # toutes les étapes sauf le classifieur
+            z = z.toarray() if hasattr(z, "toarray") else z
+            names = pipeline.named_steps["prep"].get_feature_names_out()
+            contrib = pd.Series(z[0] * pipeline.named_steps["clf"].coef_[0], index=names)
+            top = contrib[contrib != 0].sort_values(key=abs, ascending=False).head(3)
+            st.write("**Ce qui pèse le plus dans cette prédiction :**")
+            for name, value in top.items():
+                sens = "⬆️ augmente" if value > 0 else "⬇️ diminue"
+                st.write(f"- `{name}` {sens} le risque ({value:+.2f} en logit)")
+```
+
+Fonctionne avec et sans variables dérivées (grâce à `pipeline[:-1]`).
+
+⚠️ **Limite à connaître** : pour le profil par défaut, l'application affiche « `senior_Non` diminue le
+risque ». C'est vrai mathématiquement, mais trompeur : ce calcul compare chaque modalité à « zéro »,
+pas à un client moyen. SHAP (5.5) corrige ce défaut.
+</details>
+
+### 5.4 — Filtre par contrat 🟡
+
+<details><summary>Solution</summary>
+
+Dans la barre latérale :
+
+```python
+selected_contracts = st.sidebar.multiselect("Contrats (vue d'ensemble)", CONTRACTS, default=CONTRACTS)
+```
+
+Au début de l'onglet « Vue d'ensemble », créez une **nouvelle** variable, puis remplacez `df` par
+`view` dans tout l'onglet :
+
+```python
+with tab_overview:
+    view = df[df["contract"].isin(selected_contracts or CONTRACTS)]  # liste vide = tout afficher
+    churned = view[view[TARGET] == 1]
+    ...
+```
+
+⚠️ **Le piège** : écrire `df = df[...]` semble marcher dans la vue d'ensemble, mais **casse l'onglet
+« Clients à risque »** (`KeyError` : `df.loc[X_test.index]` cherche des clients qui ont été filtrés).
+Un script Streamlit s'exécute de haut en bas : réassigner une variable globale a des effets plus loin.
+Le test `tests/test_app.py` attrape exactement ce genre d'erreur.
+</details>
+
+### 5.5 — SHAP 🔴
+
+<details><summary>Solution</summary>
+
+`pip install shap`, puis près des autres fonctions mises en cache :
+
+```python
+def to_dense(a):
+    return a.toarray() if hasattr(a, "toarray") else a
+
+
+@st.cache_resource
+def get_explainer(model_name: str, use_engineered: bool):
+    import shap
+
+    pipeline, X_test, *_ = get_model(model_name, use_engineered)
+    background = to_dense(pipeline[:-1].transform(X_test.sample(200, random_state=0)))
+    names = pipeline.named_steps["prep"].get_feature_names_out()
+    return shap.Explainer(pipeline[-1], background, feature_names=names)
+```
+
+Et dans l'onglet « Prédire un client », après la prédiction :
+
+```python
+        explanation = get_explainer(model_name, use_engineered)(to_dense(pipeline[:-1].transform(client)))
+        sv = pd.Series(explanation.values[0], index=explanation.feature_names)
+        sv = sv[sv.abs().sort_values().index].tail(6)  # les 6 plus fortes contributions
+        fig = px.bar(x=sv.values, y=sv.index, orientation="h", color=sv.values > 0,
+                     color_discrete_map={True: ORANGE, False: BLUE},
+                     title="Explication SHAP : écart à un client moyen (en logit)")
+        fig.update_layout(showlegend=False, xaxis_title="Contribution", yaxis_title=None)
+        st.plotly_chart(fig, width="stretch")
+```
+
+`shap.Explainer` choisit seul la bonne méthode : `LinearExplainer` pour la logistique,
+`TreeExplainer` pour le boosting. Les contributions sont mesurées **par rapport à un client moyen** :
+`contract_Mensuel` vaut +0,40 avec SHAP contre +1,01 avec la méthode naïve de 5.3, car 56 % des
+clients sont déjà au mois : être au mois est « normal », donc moins distinctif.
+</details>
+
+### Auto-évaluation
+
+<details><summary>3 actions de rétention, chiffres à l'appui</summary>
+
+1. **Convertir les contrats mensuels** (50,9 % de churn contre 21,5 % en annuel) : remise pour un
+   engagement d'un an. C'est la variable la plus importante du modèle.
+2. **Accompagner les 6 premiers mois** : 50,7 % de churn, contre 6,8 % au-delà de 4 ans (graphique par ancienneté).
+3. **Alerte après 3 appels au support** : chaque appel augmente le risque (+0,45 sur le logit) ;
+   proposer le support technique, qui le diminue (−0,8).
+
+Et pour chacune : estimer le coût, le nombre de clients concernés et un taux de succès, puis
+**mesurer** l'effet avec un groupe témoin (test A/B).
+</details>
+
+---
+
+## Module 6 — Industrialiser
+
+### 6.1 — Que protège chaque test ? 🟢
+
+<details><summary>Solution</summary>
+
+| Test | Ce qu'il protège |
+|---|---|
+| `test_generation_is_reproducible` | Même `seed` → mêmes données (sinon les résultats ne sont pas comparables) |
+| `test_generated_data_is_valid` | Le générateur produit des données valides avec un taux de churn réaliste |
+| `test_validate_detects_problems` | `validate()` repère vraiment ancienneté négative et valeurs manquantes |
+| `test_engineered_features_do_not_mutate_input` | La fonction ne modifie pas le DataFrame d'origine (bug très fréquent) |
+| `test_models_beat_random` | Chaque modèle × chaque option apprend quelque chose (AUC > 0,7) |
+| `test_model_learns_true_signal` | Le modèle a le bon **sens** : mensuel plus risqué que biannuel |
+| `test_evaluate_confusion_matrix_sums` | Les métriques sont justes sur un cas calculé à la main |
+| `test_costly_misses_lower_the_threshold` | La logique métier du seuil va dans le bon sens |
+| `test_unknown_model_raises` | Une faute de frappe donne une erreur claire, pas un comportement silencieux |
+| `test_unknown_category_is_ignored` | Une nouvelle modalité ne fait pas planter la prédiction |
+| `tests/test_app.py` | Chaque onglet du tableau de bord s'affiche sans erreur, quels que soient les réglages |
+</details>
+
+### 6.2 — Le modèle sauvegardé prédit-il pareil ? 🟡
+
+<details><summary>Solution</summary>
+
+```python
+from churn.model import load, save
+
+
+@pytest.mark.parametrize("engineered", [False, True])
+def test_saved_model_gives_same_predictions(df, tmp_path, engineered):
+    pipeline, X_test, _, proba, metrics = train(df, use_engineered=engineered)
+    path = save(pipeline, metrics, model_dir=tmp_path)
+    reloaded = load(path)
+    np.testing.assert_allclose(reloaded.predict_proba(X_test)[:, 1], proba)
+    assert (tmp_path / "churn_model_metrics.json").exists()
+```
+
+`tmp_path` est une *fixture* pytest : un dossier temporaire neuf, supprimé après le test. On ne
+touche jamais au vrai dossier `models/` dans un test. La version `engineered=True` vérifie que le
+`FunctionTransformer` survit lui aussi à la sauvegarde.
+</details>
+
+### 6.3 — Étendre l'intégration continue 🟡
+
+<details><summary>Solution</summary>
+
+Dans `.github/workflows/tests.yml` :
+
+```yaml
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt ruff
+      - name: Lint
+        run: ruff check --select E4,E7,E9,F .
+      - name: Entraîner les modèles
+        run: python scripts/train.py
+      - name: Lancer les tests
+        run: pytest -q
+```
+
+Le code actuel passe `ruff check --select E4,E7,E9,F .` sans erreur. Pour voir la CI échouer,
+cassez volontairement un test sur une branche, poussez, et observez la croix rouge sur GitHub.
+</details>
+
+### 6.4 — Une API FastAPI 🔴
+
+<details><summary>Solution</summary>
+
+`pip install fastapi uvicorn httpx`, puis `api.py` à la racine :
+
+```python
+"""API de prédiction du churn.  Lancer : uvicorn api:app --reload  →  http://localhost:8000/docs"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Literal
+
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "src"))
+
+import pandas as pd  # noqa: E402
+from fastapi import FastAPI  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
+
+from churn.data import FEATURES  # noqa: E402
+from churn.model import load  # noqa: E402
+
+MODEL_PATH = ROOT / "models" / "churn_model.joblib"
+if not MODEL_PATH.exists():
+    raise RuntimeError("Modèle introuvable : lancez d'abord `python scripts/train.py`.")
+MODEL = load(MODEL_PATH)
+THRESHOLD = 0.5
+
+
+class Customer(BaseModel):
+    tenure_months: int = Field(ge=1, le=120, examples=[12])
+    monthly_charges: float = Field(gt=0, le=500, examples=[70.0])
+    total_charges: float = Field(ge=0, examples=[840.0])
+    support_calls: int = Field(ge=0, examples=[2])
+    num_products: int = Field(ge=1, le=10, examples=[1])
+    contract: Literal["Mensuel", "Annuel", "Biannuel"]
+    payment_method: Literal["Prélèvement", "Carte bancaire", "Virement", "Chèque"]
+    internet_service: Literal["Fibre", "ADSL", "Aucun"]
+    tech_support: Literal["Oui", "Non"]
+    senior: Literal["Oui", "Non"]
+
+
+class Prediction(BaseModel):
+    churn_probability: float
+    at_risk: bool
+
+
+app = FastAPI(title="Churn API", version="1.0")
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
+
+
+@app.post("/predict", response_model=Prediction)
+def predict(customer: Customer) -> Prediction:
+    X = pd.DataFrame([customer.model_dump()])[FEATURES]
+    p = float(MODEL.predict_proba(X)[0, 1])
+    return Prediction(churn_probability=round(p, 4), at_risk=p >= THRESHOLD)
+```
+
+Et ses tests (`tests/test_api.py`) :
+
+```python
+from fastapi.testclient import TestClient
+
+from api import app
+
+client = TestClient(app)
+CLIENT = {"tenure_months": 3, "monthly_charges": 95.0, "total_charges": 285.0, "support_calls": 4,
+          "num_products": 1, "contract": "Mensuel", "payment_method": "Chèque",
+          "internet_service": "Fibre", "tech_support": "Non", "senior": "Oui"}
+
+
+def test_predict_risky_client():
+    r = client.post("/predict", json=CLIENT)
+    assert r.status_code == 200
+    assert r.json()["at_risk"] is True          # probabilité ≈ 0,98 pour ce profil
+
+
+def test_invalid_input_is_rejected():
+    assert client.post("/predict", json={**CLIENT, "contract": "Hebdo"}).status_code == 422
+    assert client.post("/predict", json={**CLIENT, "support_calls": -1}).status_code == 422
+```
+
+Pour que `from api import app` fonctionne dans `tests/`, lancez `pytest` depuis la racine du projet
+avec `python -m pytest` (qui ajoute le dossier courant au chemin d'import).
+
+👉 Pydantic **valide les entrées** et renvoie une erreur 422 explicite : c'est la « défense en
+profondeur » évoquée en 2.4. La documentation interactive est générée seule sur `/docs`.
+</details>
+
+### 6.5 — Déployer sur Streamlit Community Cloud 🔴
+
+<details><summary>Solution</summary>
+
+1. Poussez le dépôt sur GitHub (public, ou privé avec accès autorisé).
+2. Sur [share.streamlit.io](https://share.streamlit.io), connectez-vous avec GitHub → **Create app**.
+3. Choisissez le dépôt, la branche `main` et le fichier `app.py`. Dans les réglages avancés,
+   choisissez Python 3.11 ou plus.
+4. Déployez. Les dépendances viennent de `requirements.txt`, et les données sont **générées au
+   premier lancement** : il n'y a rien d'autre à configurer.
+5. Ajoutez le lien en haut du README, avec une capture d'écran.
+
+Si l'application plante au démarrage, lisez les journaux (*Manage app*) : c'est presque toujours une
+dépendance manquante dans `requirements.txt`.
+</details>
+
+### Auto-évaluation
+
+<details><summary>Détecter un data drift dans 6 mois</summary>
+
+- **Surveiller les entrées** : comparer chaque mois la distribution des variables à celle de
+  l'entraînement (moyennes, part de chaque modalité, test de Kolmogorov-Smirnov, PSI) et la part de
+  modalités inconnues.
+- **Surveiller les sorties** : la distribution des probabilités prédites et la part de clients signalés.
+- **Surveiller la performance réelle** dès que les vrais départs sont connus (AUC, rappel, calibration).
+- Prévoir un **ré-entraînement** régulier, validé par les mêmes tests avant mise en ligne.
+</details>
+
+---
+
+## 🏁 Projet final
+
+Pas de corrigé « tout fait » : le rapport doit être **le vôtre**. Voici une structure et les chiffres
+de référence à vérifier par vous-même.
+
+<details><summary>Structure conseillée (1 page)</summary>
+
+1. **Problème** — 35,5 % des clients partent ; quel coût mensuel ? (onglet Vue d'ensemble)
+2. **Données** — 5 000 clients, 10 variables, contrôles qualité réalisés, limites (données synthétiques).
+3. **Modèle retenu** — régression logistique : AUC 0,819 ± 0,005 en validation croisée, meilleure que
+   le boosting même optimisé, interprétable et bien calibrée.
+4. **Seuil choisi** — avec vos hypothèses de coûts (ex. 500 € / 50 € → seuil 0,10) et pourquoi.
+5. **Impact estimé** — coût total au seuil choisi contre seuil 0,5 contre « ne rien faire ».
+6. **Recommandations** — 3 actions de rétention (voir l'auto-évaluation du module 5).
+7. **Limites et suites** — taux de succès des actions inconnu (prévoir un test A/B), drift,
+   validation sur de vraies données (1.5).
+
+Un bon rapport se lit en 3 minutes par un manager **et** en 10 minutes par un data scientist.
+</details>
