@@ -26,13 +26,14 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | Série | Fichier à compléter | Thèmes | Défis |
 |---|---|---|---|
 | 01 — Les fondamentaux | `defis/serie_01.py` | pandas, qualité des données, fuite de données, précision/rappel, coût métier, validation croisée, lift | 10 (🟢×5 🟡×3 🔴×2) |
+| 02 — Explorer les données | `defis/serie_02.py` | lift d'un groupe, règle de validation, `pd.cut` et tranches, segmentation fiable (effectif minimum) | 4 (🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
 1. **Essayez seul·e au moins 15 minutes** avant toute aide. La difficulté fait partie de l'apprentissage.
 2. Si le message d'erreur ne suffit pas, lisez la vérification correspondante dans
-   `defis/checks_serie_01.py` : les cas testés sont des indices.
-3. Une fois ✅, ouvrez `defis/corrige_serie_01.py` et comparez. Souvent, on découvre une
+   `defis/checks_serie_XX.py` : les cas testés sont des indices.
+3. Une fois ✅, ouvrez `defis/corrige_serie_XX.py` et comparez. Souvent, on découvre une
    écriture plus courte ou un piège évité par chance.
 4. Notez dans votre `JOURNAL.md` : ce qui vous a bloqué, ce que vous avez appris.
 

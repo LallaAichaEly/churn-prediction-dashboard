@@ -30,7 +30,7 @@ clients risquent de partir (*churn*).
 | Surveillance en production : dérive des données (PSI) | `src/churn/monitoring.py` |
 | Tests automatisés (modèle, API, tableau de bord, corrigés) | `tests/` (pytest + `streamlit.testing`) |
 | Intégration continue | `.github/workflows/tests.yml` (GitHub Actions) |
-| Entraînement corrigé automatiquement | `defis/serie_01.py` + `scripts/defis.py` |
+| Entraînement corrigé automatiquement | `defis/serie_01.py`, `defis/serie_02.py` + `scripts/defis.py` |
 
 ## Démarrage rapide
 
@@ -103,9 +103,10 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── scripts/progression.py  # 🧭 Coach : vérifie vos exercices, propose la suite
 ├── scripts/defis.py        # ⚡ Correction automatique des défis
 ├── defis/
-│   ├── serie_01.py         # ✍️ 10 fonctions à compléter
-│   ├── corrige_serie_01.py # Corrigé commenté (après avoir essayé !)
-│   └── checks_serie_01.py  # Vérifications automatiques
+│   ├── serie_01.py         # ✍️ Série 01 — les fondamentaux (10 fonctions à compléter)
+│   ├── serie_02.py         # ✍️ Série 02 — explorer les données (4 fonctions)
+│   ├── corrige_serie_0X.py # Corrigés commentés (après avoir essayé !)
+│   └── checks_serie_0X.py  # Vérifications automatiques
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables

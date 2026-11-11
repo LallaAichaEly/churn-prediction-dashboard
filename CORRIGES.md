@@ -93,7 +93,9 @@ def test_validate_detects_absurd_monthly_charges(df):
 
 ⚠️ `between` renvoie `False` pour une valeur manquante (`NaN`) : une facture vide déclenche donc
 **aussi** cette règle. Ce n'est pas grave (le message « Valeurs manquantes » apparaît également),
-mais c'est le genre de détail à connaître.
+mais c'est le genre de détail à connaître. Pour ne compter chaque problème qu'une fois, écrivez
+`(s < 0) | (s > 500)` : toute comparaison avec `NaN` vaut `False`. C'est ce que vérifie le défi 12
+(`defis/serie_02.py`), et ce que fait `validate_v2` dans `solutions/module1_donnees.py`.
 </details>
 
 ### 1.4 — Formuler des hypothèses 🟡

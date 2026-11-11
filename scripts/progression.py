@@ -194,8 +194,9 @@ GUIDES: dict[str, Guide] = {
                  "est directement le taux de churn."),
     "1.2": Guide("`df.groupby(\"contract\")[\"churn\"].mean().sort_values()`. Pour croiser deux variables : "
                  "`pd.crosstab(df.contract, df.internet_service, values=df.churn, aggfunc=\"mean\")`."),
-    "1.3": Guide("Inspirez-vous de la règle « Ancienneté négative » dans `validate()`. `Series.between(0, 500)` "
-                 "renvoie un booléen par ligne et `~` l'inverse. Pour le test, partez de "
+    "1.3": Guide("Inspirez-vous de la règle « Ancienneté négative » dans `validate()`. `(s < 0) | (s > 500)` "
+                 "renvoie un booléen par ligne (le défi 12 montre pourquoi c'est plus sûr que `~s.between(0, 500)`). "
+                 "Pour le test, partez de "
                  "`test_validate_detects_problems` et cassez une facture.",
                  _check_validate_rule,
                  "validate() signale une facture à 900 € et à -5 €, accepte les données saines, "

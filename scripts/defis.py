@@ -26,6 +26,7 @@ def main() -> None:
 
     total = reussis = 0
     prochain = None
+    largeur = max(len(d.fonction) for s in series() for d in s.defis)  # aligne la colonne « Parcours »
     for serie in series():
         resultats = evaluer(serie, corrige=args.corrige)
         if args.defi is not None:
@@ -38,7 +39,7 @@ def main() -> None:
         print(f"\n🧭 Série {serie.code} — {serie.titre}  ({ok}/{len(resultats)} réussis)  · {fichier.replace('.', '/')}.py\n")
         for r in resultats:
             d = r.defi
-            ligne = f"  {ICONES[r.statut]} {d.numero:>2} {d.niveau} {d.fonction:<24} Parcours {d.parcours}"
+            ligne = f"  {ICONES[r.statut]} {d.numero:>2} {d.niveau} {d.fonction:<{largeur}} Parcours {d.parcours}"
             print(ligne)
             if r.message:
                 print(f"        ↳ {r.message}")

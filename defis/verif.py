@@ -65,5 +65,6 @@ def evaluer(serie: Serie, corrige: bool = False) -> list[Resultat]:
 def series() -> list[Serie]:
     """Toutes les séries disponibles, dans l'ordre. Les nouvelles séries s'ajoutent ici."""
     from .checks_serie_01 import SERIE as serie_01
+    from .checks_serie_02 import SERIE as serie_02
 
-    return [serie_01]
+    return [serie_01, serie_02]

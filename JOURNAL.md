@@ -4,6 +4,9 @@
 > vous avez mesuré** (avant / après) et **ce que vous avez compris**. Un résultat négatif
 > (« ça n'a rien changé ») est un vrai résultat : notez-le aussi.
 >
+> En entretien, pouvoir dire « j'ai essayé X, j'ai mesuré Y, j'en ai conclu Z » vaut plus
+> qu'une liste d'outils sur un CV.
+>
 > Astuce : `python scripts/train.py` affiche les métriques à recopier ; `pytest -q` doit rester vert.
 
 ## Modèle de fiche (à copier pour chaque exercice)
@@ -22,6 +25,7 @@
 - **Ce que j'ai compris** (en une phrase, comme si je l'expliquais à quelqu'un) :
 - **Ce qui m'a bloqué·e et comment j'ai débloqué** :
 - **Corrigé consulté ?** non / indice seulement / solution — *et qu'est-ce que j'aurais dû voir ?*
+- **Question ouverte** : ce que je ne comprends pas encore (à creuser à la prochaine séance).
 
 ---
 
