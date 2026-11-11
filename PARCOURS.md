@@ -9,7 +9,16 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
 3. Notez vos résultats (avant / après) dans [`JOURNAL.md`](JOURNAL.md) (modèle fourni) : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
-5. Bloqué·e ? Ouvrez [`CORRIGES.md`](CORRIGES.md) : d'abord l'**indice**, la solution seulement après avoir cherché.
+5. Lancez le **coach** pour savoir où vous en êtes et quoi faire ensuite :
+
+   ```bash
+   python scripts/progression.py                 # bilan + prochain exercice avec un indice
+   python scripts/progression.py --exercice 3.2  # indice et critère de validation d'un exercice
+   ```
+
+   Les exercices de code sont **vérifiés automatiquement** (cocher ne suffit pas, il faut que ça
+   marche !). Les exercices de réflexion comptent quand leur case est cochée.
+6. Bloqué·e ? D'abord l'indice du coach, puis [`CORRIGES.md`](CORRIGES.md) : la solution seulement après avoir cherché.
    Les scripts de `solutions/` reproduisent les chiffres des corrigés (`python solutions/module3_modeliser.py`).
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
@@ -127,7 +136,7 @@ de 10 points le churn prédit. Que se passe-t-il, et que faites-vous ?
 
 ## 🏁 Projet final
 
-Rédigez un mini-rapport (1 page) : problème, données, modèle retenu, seuil choisi et pourquoi,
+Rédigez un mini-rapport (1 page) dans `RAPPORT.md` : problème, données, modèle retenu, seuil choisi et pourquoi,
 impact financier estimé, limites et **plan de surveillance** (module 7). Ajoutez-le au dépôt — c'est une pièce maîtresse pour un portfolio
 ou un entretien.
 

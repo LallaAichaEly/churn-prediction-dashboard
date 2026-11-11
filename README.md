@@ -38,6 +38,7 @@ python scripts/train.py          # entraîne et compare les modèles
 streamlit run app.py             # tableau de bord sur http://localhost:8501
 uvicorn api:app --reload         # API sur http://localhost:8000/docs
 pytest -q                        # lance les tests (≈ 1 min, dont le tableau de bord)
+python scripts/progression.py    # 🧭 votre progression + le prochain exercice, avec un indice
 ```
 
 À chaque `git push`, GitHub Actions réinstalle le projet, entraîne les modèles et relance tous les
@@ -94,6 +95,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── app.py                  # Tableau de bord Streamlit
 ├── api.py                  # API REST FastAPI
 ├── scripts/train.py        # Entraînement + comparaison en ligne de commande
+├── scripts/progression.py  # 🧭 Coach : vérifie vos exercices, propose la suite
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
