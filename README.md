@@ -1,12 +1,13 @@
 # 📉 Churn Prediction Dashboard
 
 Un projet complet **et pédagogique** pour développer ses compétences en data science :
-des données brutes jusqu'à un tableau de bord interactif qui prédit quels clients risquent
-de partir (*churn*).
+des données brutes jusqu'à un tableau de bord interactif et une API qui prédisent quels
+clients risquent de partir (*churn*).
 
 > 🎯 **Objectif : apprendre en construisant.** Le fichier [`PARCOURS.md`](PARCOURS.md) est
 > un parcours de compétences en 6 modules, avec des exercices progressifs et une checklist
-> pour suivre votre progression.
+> pour suivre votre progression. Les corrigés sont dans [`CORRIGES.md`](CORRIGES.md) :
+> à ouvrir **après** avoir essayé.
 
 ## Ce que vous allez pratiquer
 
@@ -18,7 +19,8 @@ de partir (*churn*).
 | Évaluation : ROC-AUC, précision, rappel, seuil métier | `src/churn/model.py` |
 | Interprétabilité (importance par permutation) | `src/churn/model.py` |
 | Tableau de bord interactif | `app.py` (Streamlit + Plotly) |
-| Tests automatisés | `tests/test_churn.py` (pytest) |
+| Mise en production : API REST | `api.py` (FastAPI) |
+| Tests automatisés & intégration continue | `tests/` (pytest), `.github/workflows/tests.yml` |
 
 ## Démarrage rapide
 
@@ -27,8 +29,9 @@ python -m venv .venv && source .venv/bin/activate   # Windows : .venv\Scripts\ac
 pip install -r requirements.txt
 
 python scripts/train.py          # entraîne et compare les modèles
-streamlit run app.py             # ouvre le tableau de bord sur http://localhost:8501
-pytest -q                        # lance les tests
+streamlit run app.py             # tableau de bord sur http://localhost:8501
+uvicorn api:app --reload         # API sur http://localhost:8000/docs
+pytest -q                        # lance les tests (~40 s)
 ```
 
 Les données sont **synthétiques** et générées au premier lancement dans `data/customers.csv`
@@ -46,6 +49,25 @@ Les données sont **synthétiques** et générées au premier lancement dans `da
 
 Dans la barre latérale : choix du modèle, activation des variables dérivées, seuil de décision.
 
+## L'API
+
+```bash
+curl -X POST "http://localhost:8000/predict?threshold=0.4" -H "Content-Type: application/json" -d '{
+  "tenure_months": 5, "monthly_charges": 95, "total_charges": 475, "support_calls": 4,
+  "num_products": 1, "contract": "Mensuel", "payment_method": "Chèque",
+  "internet_service": "Fibre", "tech_support": "Non", "senior": "Non"}'
+# → {"churn_probability": 0.9678, "at_risk": true, "threshold": 0.4}
+```
+
+| Route | Rôle |
+|---|---|
+| `GET /health` | État de l'API et métriques du modèle chargé |
+| `POST /predict` | Probabilité de churn d'un client (`threshold` optionnel) |
+
+Les entrées sont validées : une faute de frappe (`"contract": "Mensual"`) renvoie une erreur 422.
+Le modèle est lu dans `models/churn_model.joblib` (ou `$CHURN_MODEL_PATH`) et entraîné
+automatiquement s'il n'existe pas encore.
+
 ## Résultats de référence
 
 ```
@@ -60,12 +82,16 @@ gboost      0.807     0.746      0.655   0.596  0.624
 
 ```
 ├── app.py                  # Tableau de bord Streamlit
+├── api.py                  # API REST FastAPI
 ├── scripts/train.py        # Entraînement + comparaison en ligne de commande
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
 │   └── model.py            # Entraînement, évaluation, seuil, importance
-├── tests/test_churn.py     # Tests
+├── solutions/              # Corrigés exécutables des modules 1 à 5
+├── tests/                  # Tests : cœur, API, tableau de bord, corrigés
+├── .github/workflows/      # Intégration continue (pytest à chaque push)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
+├── CORRIGES.md             # 📗 Corrigés commentés + exemple de rapport final
 └── requirements.txt
 ```

@@ -12,6 +12,9 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
+> 📗 **Corrigés** : [`CORRIGES.md`](CORRIGES.md) et le dossier `solutions/` (scripts exécutables).
+> Ouvrez-les **après** avoir essayé : comparer sa réponse à un corrigé est l'étape où l'on apprend le plus.
+
 ---
 
 ## Module 1 — Comprendre les données (`src/churn/data.py`)
@@ -89,10 +92,13 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
 
-- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
-- [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
-- [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
+Le dépôt contient désormais une version de référence : test de sauvegarde (6.2),
+intégration continue (6.3) et API (6.4). Lisez-la, puis **étendez-la**.
+
+- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test (`tests/`) et dites ce qu'il protège.
+- [ ] 🟡 6.2 — Lisez `test_saved_model_gives_identical_predictions`. Enregistrez la version de scikit-learn dans `*_metrics.json` et affichez un avertissement au chargement si elle diffère de la version installée. Pourquoi est-ce un vrai risque en production ?
+- [ ] 🟡 6.3 — Lisez `.github/workflows/tests.yml`. Ajoutez une étape de lint (`pip install ruff && ruff check .`), corrigez ce qu'elle signale et ajoutez le badge « Tests » au README.
+- [ ] 🔴 6.4 — Lancez l'API (`uvicorn api:app --reload`) et testez-la sur http://localhost:8000/docs. Ajoutez `POST /predict/batch` (liste de clients) avec son test, puis renvoyez les 3 facteurs principaux de chaque prédiction (corrigé 5.3).
 - [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
