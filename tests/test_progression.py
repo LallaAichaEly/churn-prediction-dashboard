@@ -1,6 +1,7 @@
 """Tests du coach de progression (scripts/progression.py)."""
 
 import importlib.util
+import re
 import shutil
 import subprocess
 import sys
@@ -26,8 +27,8 @@ def project(tmp_path: Path) -> Path:
 def tick(project: Path, exercise_id: str) -> None:
     path = project / "PARCOURS.md"
     text = path.read_text(encoding="utf-8")
-    for level in progression.LEVELS:
-        text = text.replace(f"- [ ] {level} {exercise_id} —", f"- [x] {level} {exercise_id} —")
+    text, n = re.subn(rf"^- \[ \](?= \S+ {re.escape(exercise_id)}( ⚡)? — )", "- [x]", text, flags=re.M)
+    assert n == 1, f"exercice {exercise_id} introuvable dans PARCOURS.md"
     path.write_text(text, encoding="utf-8")
 
 
@@ -42,6 +43,22 @@ def test_every_exercise_has_a_guide_and_vice_versa():
     assert {e.id for e in exercises} == set(progression.GUIDES)
     assert set(modules) == {e.module for e in exercises}
     assert all(e.level in progression.LEVELS for e in exercises)
+
+
+def test_defi_marker_is_parsed_and_matches_the_defis():
+    """Un exercice marqué ⚡ doit avoir un défi associé, et chaque défi doit pointer vers un exercice ⚡."""
+    _, exercises = progression.parse_parcours("- [ ] 🟢 1.2 ⚡ — Faire ceci\n- [x] 🟡 1.3 — Faire cela\n")
+    assert [(e.id, e.has_defi, e.ticked) for e in exercises] == [("1.2", True, False), ("1.3", False, True)]
+
+    _, exercises = progression.parse_parcours((ROOT / "PARCOURS.md").read_text(encoding="utf-8"))
+    score = progression.defis_score(ROOT)
+    assert score is not None and not score.erreur and score.total >= 10
+    assert {e.id for e in exercises if e.has_defi} == set(score.par_exercice)
+
+
+def test_defis_are_optional(project):
+    assert progression.defis_score(project) is None
+    assert "Défis" not in progression.render(project)
 
 
 def test_parse_ticked_boxes():
@@ -81,8 +98,9 @@ def test_ticked_but_failing_is_flagged_and_comes_first(project):
 
 def test_next_exercise_follows_the_order(project):
     tick(project, "1.1")
+    tick(project, "1.2")  # marqué ⚡ dans le parcours
     _, statuses = progression.evaluate_progress(project)
-    assert progression.next_status(statuses).exercise.id == "1.2"
+    assert progression.next_status(statuses).exercise.id == "1.3"
 
 
 def test_ci_workflow_check(project):

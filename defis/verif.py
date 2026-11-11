@@ -1,0 +1,69 @@
+"""Moteur de correction des défis (vous n'avez pas besoin de modifier ce fichier).
+
+Chaque défi est associé à une fonction de vérification qui reçoit VOTRE fonction et lève
+une `AssertionError` avec un message explicatif si le résultat est faux.
+"""
+
+from __future__ import annotations
+
+import importlib
+import traceback
+from dataclasses import dataclass
+from types import ModuleType
+from typing import Callable
+
+A_FAIRE, REUSSI, ECHEC, ERREUR = "a_faire", "reussi", "echec", "erreur"
+ICONES = {REUSSI: "✅", ECHEC: "❌", ERREUR: "💥", A_FAIRE: "⬜"}
+
+
+@dataclass(frozen=True)
+class Defi:
+    numero: int
+    fonction: str          # nom de la fonction à écrire
+    niveau: str            # 🟢 🟡 🔴
+    parcours: str          # exercice correspondant dans PARCOURS.md ("—" si aucun)
+    verifier: Callable     # verifier(votre_fonction) -> None, lève AssertionError si faux
+
+
+@dataclass(frozen=True)
+class Resultat:
+    defi: Defi
+    statut: str
+    message: str = ""
+
+
+@dataclass(frozen=True)
+class Serie:
+    code: str
+    titre: str
+    module_eleve: str      # le fichier que vous complétez
+    module_corrige: str
+    defis: tuple[Defi, ...]
+
+
+def evaluer_defi(module: ModuleType, defi: Defi) -> Resultat:
+    fonction = getattr(module, defi.fonction, None)
+    if fonction is None:
+        return Resultat(defi, ERREUR, f"fonction `{defi.fonction}` introuvable dans {module.__name__}")
+    try:
+        defi.verifier(fonction)
+    except NotImplementedError:
+        return Resultat(defi, A_FAIRE)
+    except AssertionError as exc:
+        return Resultat(defi, ECHEC, str(exc) or "résultat incorrect")
+    except Exception as exc:  # votre code a planté : on montre où
+        ligne = traceback.extract_tb(exc.__traceback__)[-1]
+        return Resultat(defi, ERREUR, f"{type(exc).__name__}: {exc} (ligne {ligne.lineno})")
+    return Resultat(defi, REUSSI)
+
+
+def evaluer(serie: Serie, corrige: bool = False) -> list[Resultat]:
+    module = importlib.import_module(serie.module_corrige if corrige else serie.module_eleve)
+    return [evaluer_defi(module, d) for d in serie.defis]
+
+
+def series() -> list[Serie]:
+    """Toutes les séries disponibles, dans l'ordre. Les nouvelles séries s'ajoutent ici."""
+    from .checks_serie_01 import SERIE as serie_01
+
+    return [serie_01]

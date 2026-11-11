@@ -341,7 +341,9 @@ GUIDES: dict[str, Guide] = {
 # --------------------------------------------------------------------------- Parcours
 
 
-EXERCISE_RE = re.compile(r"^- \[(?P<tick>[ xX])\] (?P<level>\S+) (?P<id>\d+\.\d+) — (?P<title>.+)$", re.M)
+EXERCISE_RE = re.compile(
+    r"^- \[(?P<tick>[ xX])\] (?P<level>\S+) (?P<id>\d+\.\d+)(?P<defi> ⚡)? — (?P<title>.+)$", re.M
+)
 MODULE_RE = re.compile(r"^## Module (?P<num>\d+) — (?P<title>.+)$", re.M)
 LEVELS = {"🟢": "débutant", "🟡": "intermédiaire", "🔴": "avancé"}
 
@@ -352,6 +354,7 @@ class Exercise:
     level: str
     title: str
     ticked: bool
+    has_defi: bool = False  # marqué ⚡ dans PARCOURS.md : un défi auto-corrigé s'y prépare
 
     @property
     def module(self) -> int:
@@ -403,7 +406,8 @@ def parse_parcours(text: str) -> tuple[dict[int, str], list[Exercise]]:
         int(m["num"]): _clean(re.sub(r"\s*\(.*\)\s*$", "", m["title"])) for m in MODULE_RE.finditer(text)
     }
     exercises = [
-        Exercise(m["id"], m["level"], _clean(m["title"].strip()), m["tick"] != " ") for m in EXERCISE_RE.finditer(text)
+        Exercise(m["id"], m["level"], _clean(m["title"].strip()), m["tick"] != " ", bool(m["defi"]))
+        for m in EXERCISE_RE.finditer(text)
     ]
     return modules, exercises
 
@@ -437,6 +441,36 @@ def next_status(statuses: list[Status]) -> Status | None:
     return next((s for s in statuses if s.mismatch), None) or next((s for s in statuses if not s.done), None)
 
 
+# --------------------------------------------------------------------------- Défis (defis/)
+
+
+@dataclass(frozen=True)
+class DefiScore:
+    reussis: int
+    total: int
+    par_exercice: dict[str, list[str]]  # "2.5" -> ["✅ n°5 standardiser"]
+    erreur: str = ""
+
+
+def defis_score(root: Path = ROOT) -> DefiScore | None:
+    """Score aux défis auto-corrigés, ou None si le dossier defis/ n'existe pas."""
+    if not (root / "defis" / "verif.py").exists():
+        return None
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from defis.verif import ICONES, REUSSI, evaluer, series
+
+        resultats = [r for serie in series() for r in evaluer(serie)]
+    except Exception as exc:  # ex. erreur de syntaxe dans defis/serie_01.py
+        return DefiScore(0, 0, {}, f"{type(exc).__name__} : {exc}")
+    par_exercice: dict[str, list[str]] = {}
+    for r in resultats:
+        for ex_id in re.findall(r"\d+\.\d+", r.defi.parcours):
+            par_exercice.setdefault(ex_id, []).append(f"{ICONES[r.statut]} n°{r.defi.numero} {r.defi.fonction}")
+    return DefiScore(sum(r.statut == REUSSI for r in resultats), len(resultats), par_exercice)
+
+
 # --------------------------------------------------------------------------- Affichage
 
 
@@ -449,7 +483,7 @@ def _short(text: str, limit: int = 72) -> str:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
-def _detail(status: Status, modules: dict[int, str], indent: str = "   ") -> str:
+def _detail(status: Status, modules: dict[int, str], indent: str = "   ", defis: DefiScore | None = None) -> str:
     ex = status.exercise
     lines = [
         f"{ex.id} {ex.level} ({LEVELS.get(ex.level, '')}) — Module {ex.module} — {modules.get(ex.module, '')}",
@@ -459,6 +493,9 @@ def _detail(status: Status, modules: dict[int, str], indent: str = "   ") -> str
     ]
     if status.result:
         lines.append(f"{indent}{'✅' if status.result[0] else '⬜'} État actuel : {status.result[1]}")
+    if ex.has_defi:
+        lies = ", ".join(defis.par_exercice.get(ex.id, [])) if defis else ""
+        lines.append(f"{indent}⚡ Échauffement : le défi associé d'abord ({lies or 'voir defis/'}) — python scripts/defis.py")
     return "\n".join(lines)
 
 
@@ -471,7 +508,8 @@ def render(root: Path = ROOT) -> str:
         done = sum(s.done for s in items)
         out.append(f"Module {num} — {title}  {done}/{len(items)} {_bar(done, len(items), len(items))}")
         for s in items:
-            out.append(f"  {s.icon} {s.exercise.id} {s.exercise.level} {_short(s.exercise.title)}{s.note}")
+            defi = " ⚡ " if s.exercise.has_defi else "    "  # ⚡ occupe deux colonnes
+            out.append(f"  {s.icon} {s.exercise.id}{defi}{s.exercise.level} {_short(s.exercise.title)}{s.note}")
         out.append("")
 
     total = sum(s.done for s in statuses)
@@ -483,6 +521,12 @@ def render(root: Path = ROOT) -> str:
     pct = total / len(statuses) if statuses else 0
     out.append(f"Progression : {total}/{len(statuses)} exercices ({pct:.0%}) {_bar(total, len(statuses))}  {by_level}")
 
+    defis = defis_score(root)
+    if defis and defis.erreur:
+        out.append(f"⚡ Défis : 💥 impossible de les corriger ({defis.erreur}) — python scripts/defis.py")
+    elif defis:
+        out.append(f"⚡ Défis : {defis.reussis}/{defis.total} réussis {_bar(defis.reussis, defis.total)}"
+                   "  — détail : python scripts/defis.py")
     report_ok, report_msg = _run(_check_report, root)
     out.append(f"🏁 Projet final (RAPPORT.md) : {'✅' if report_ok else '⬜'} {report_msg}")
     if not (root / "JOURNAL.md").exists():
@@ -494,7 +538,7 @@ def render(root: Path = ROOT) -> str:
         out.append("🎉 Tous les exercices sont faits ! Il reste le projet final si ce n'est pas déjà fait.")
     else:
         prefix = "❗ À corriger d'abord : " if nxt.mismatch else "👉 Prochain exercice : "
-        out.append(prefix + _detail(nxt, modules))
+        out.append(prefix + _detail(nxt, modules, defis=defis))
         out.append(f"   Plus de détails : python scripts/progression.py --exercice {nxt.exercise.id}")
     return "\n".join(out)
 
@@ -516,7 +560,7 @@ def main(argv: list[str] | None = None) -> int:
             ids = ", ".join(s.exercise.id for s in statuses)
             print(f"Exercice inconnu : {args.exercice}. Choix possibles : {ids}", file=sys.stderr)
             return 2
-        print(_detail(match, modules))
+        print(_detail(match, modules, defis=defis_score(ROOT)))
         return 0
 
     print(render(ROOT))

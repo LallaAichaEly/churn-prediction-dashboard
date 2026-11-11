@@ -23,6 +23,12 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
+> ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
+> [défis](defis/README.md) : 10 fonctions courtes dans `defis/serie_01.py`, corrigées par
+> `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
+> faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
+> affiche aussi votre score aux défis.
+
 ---
 
 ## Module 1 — Comprendre les données (`src/churn/data.py`)
@@ -30,7 +36,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 **Objectifs** : connaître ses variables, vérifier la qualité, formuler des hypothèses.
 
 - [ ] 🟢 1.1 — Chargez `data/customers.csv` avec pandas. Affichez `df.describe()` et `df["churn"].mean()`.
-- [ ] 🟢 1.2 — Calculez le taux de churn par `contract` et par `internet_service` avec `groupby`.
+- [ ] 🟢 1.2 ⚡ — Calculez le taux de churn par `contract` et par `internet_service` avec `groupby`.
 - [ ] 🟡 1.3 — Ajoutez une règle à `validate()` : une facture mensuelle doit être entre 0 et 500 €. Écrivez le test correspondant.
 - [ ] 🟡 1.4 — Lisez `_churn_logit`. Écrivez 3 hypothèses sur ce que le modèle va trouver **avant** de l'entraîner.
 - [ ] 🔴 1.5 — Remplacez le générateur par le vrai jeu « Telco Customer Churn » (Kaggle). Adaptez les noms de colonnes.
@@ -43,11 +49,11 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : encodage, normalisation, pipelines, éviter la fuite de données.
 
-- [ ] 🟢 2.1 — Expliquez avec vos mots ce que font `StandardScaler` et `OneHotEncoder`.
+- [ ] 🟢 2.1 ⚡ — Expliquez avec vos mots ce que font `StandardScaler` et `OneHotEncoder`.
 - [ ] 🟢 2.2 — Activez « Variables dérivées » dans le tableau de bord. L'AUC change-t-elle ?
-- [ ] 🟡 2.3 — Créez une variable `is_new_customer` (ancienneté < 6 mois). Mesurez son effet.
+- [ ] 🟡 2.3 ⚡ — Créez une variable `is_new_customer` (ancienneté < 6 mois). Mesurez son effet.
 - [ ] 🟡 2.4 — Pourquoi `handle_unknown="ignore"` ? Lisez le test `test_unknown_category_is_ignored`.
-- [ ] 🔴 2.5 — Introduisez volontairement une fuite de données (normaliser **avant** le split) et mesurez la différence. Pourquoi est-ce dangereux en production ?
+- [ ] 🔴 2.5 ⚡ — Introduisez volontairement une fuite de données (normaliser **avant** le split) et mesurez la différence. Pourquoi est-ce dangereux en production ?
 
 **Auto-évaluation** : Qu'est-ce que la *data leakage* et comment un `Pipeline` la prévient-il ?
 
@@ -60,7 +66,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 - [ ] 🟢 3.1 — Lancez `python scripts/train.py`. Quel modèle gagne ?
 - [ ] 🟢 3.2 — Ajoutez un `RandomForestClassifier` dans `build_pipeline` et `MODELS`.
 - [ ] 🟡 3.3 — La régression logistique bat le gradient boosting. Expliquez pourquoi (indice : regardez comment les données sont générées).
-- [ ] 🟡 3.4 — Remplacez le split unique par une validation croisée à 5 plis (`cross_val_score`). Les écarts sont-ils significatifs ?
+- [ ] 🟡 3.4 ⚡ — Remplacez le split unique par une validation croisée à 5 plis (`cross_val_score`). Les écarts sont-ils significatifs ?
 - [ ] 🔴 3.5 — Optimisez les hyperparamètres du boosting avec `GridSearchCV`. Arrivez-vous à battre la logistique ?
 - [ ] 🔴 3.6 — Le churn est déséquilibré (~35 %). Testez `class_weight="balanced"` : quel effet sur précision et rappel ?
 
@@ -73,8 +79,8 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 **Objectifs** : choisir la bonne métrique, relier le modèle à la valeur métier.
 
 - [ ] 🟢 4.1 — Déplacez le curseur de seuil. Décrivez ce qui arrive à la précision et au rappel.
-- [ ] 🟢 4.2 — Pourquoi l'accuracy est-elle trompeuse ici ? (Indice : que vaut un modèle qui prédit « reste » pour tout le monde ?)
-- [ ] 🟡 4.3 — Avec un coût de 500 € par client perdu et 50 € par action inutile, quel seuil est optimal ? Et à 100 € / 100 € ?
+- [ ] 🟢 4.2 ⚡ — Pourquoi l'accuracy est-elle trompeuse ici ? (Indice : que vaut un modèle qui prédit « reste » pour tout le monde ?)
+- [ ] 🟡 4.3 ⚡ — Avec un coût de 500 € par client perdu et 50 € par action inutile, quel seuil est optimal ? Et à 100 € / 100 € ?
 - [ ] 🟡 4.4 — Ajoutez une courbe précision-rappel (`precision_recall_curve`) dans l'onglet Performance.
 - [ ] 🔴 4.5 — Vérifiez la **calibration** du modèle (`CalibrationDisplay`). Une probabilité de 0,7 signifie-t-elle vraiment 70 % ?
 

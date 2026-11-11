@@ -8,10 +8,13 @@ clients risquent de partir (*churn*).
 
 > 🎯 **Objectif : apprendre en construisant.**
 >
-> 1. [`PARCOURS.md`](PARCOURS.md) — 7 modules, 37 exercices progressifs et une checklist.
+> 1. [`PARCOURS.md`](PARCOURS.md) — 7 modules, 37 exercices progressifs et une checklist ;
+>    `python scripts/progression.py` vous dit où vous en êtes et quoi faire ensuite.
 > 2. [`CORRIGES.md`](CORRIGES.md) — un indice puis une solution pour chaque exercice
 >    (à ouvrir **après** avoir cherché), complétés par des scripts exécutables dans `solutions/`.
 > 3. [`JOURNAL.md`](JOURNAL.md) — votre carnet de bord : mesures avant / après et ce que vous avez compris.
+> 4. [`defis/`](defis/README.md) — ⚡ des fonctions courtes à compléter, corrigées instantanément
+>    par `python scripts/defis.py` (✅ / ❌ avec l'explication de l'erreur).
 
 ## Ce que vous allez pratiquer
 
@@ -27,6 +30,7 @@ clients risquent de partir (*churn*).
 | Surveillance en production : dérive des données (PSI) | `src/churn/monitoring.py` |
 | Tests automatisés (modèle, API, tableau de bord, corrigés) | `tests/` (pytest + `streamlit.testing`) |
 | Intégration continue | `.github/workflows/tests.yml` (GitHub Actions) |
+| Entraînement corrigé automatiquement | `defis/serie_01.py` + `scripts/defis.py` |
 
 ## Démarrage rapide
 
@@ -39,6 +43,7 @@ streamlit run app.py             # tableau de bord sur http://localhost:8501
 uvicorn api:app --reload         # API sur http://localhost:8000/docs
 pytest -q                        # lance les tests (≈ 1 min, dont le tableau de bord)
 python scripts/progression.py    # 🧭 votre progression + le prochain exercice, avec un indice
+python scripts/defis.py          # ⚡ vos défis auto-corrigés : ✅ / ❌ / ⬜
 ```
 
 À chaque `git push`, GitHub Actions réinstalle le projet, entraîne les modèles et relance tous les
@@ -96,6 +101,11 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── api.py                  # API REST FastAPI
 ├── scripts/train.py        # Entraînement + comparaison en ligne de commande
 ├── scripts/progression.py  # 🧭 Coach : vérifie vos exercices, propose la suite
+├── scripts/defis.py        # ⚡ Correction automatique des défis
+├── defis/
+│   ├── serie_01.py         # ✍️ 10 fonctions à compléter
+│   ├── corrige_serie_01.py # Corrigé commenté (après avoir essayé !)
+│   └── checks_serie_01.py  # Vérifications automatiques
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
@@ -107,6 +117,8 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── test_api.py         # API
 │   ├── test_app.py         # Tableau de bord (sans navigateur)
 │   ├── test_monitoring.py  # Surveillance de la dérive
+│   ├── test_progression.py # Le coach juge correctement les exercices
+│   ├── test_defis.py       # Le corrigé des défis réussit, les erreurs classiques sont détectées
 │   └── test_solutions.py   # Les affirmations des corrigés restent vraies
 ├── .github/workflows/      # Intégration continue (pytest à chaque push)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
