@@ -126,3 +126,163 @@ def test_les_numeros_de_defis_sont_uniques_et_consecutifs():
     """`python scripts/defis.py --defi N` doit désigner un seul défi, sans trou dans la numérotation."""
     numeros = [d.numero for _, d in TOUS_LES_DEFIS]
     assert numeros == list(range(1, len(numeros) + 1))
+
+
+# --------------------------------------------------------------------------- Série 03 : erreurs classiques
+
+
+def test_le_seuil_cible_les_probas_egales():
+    from defis.corrige_serie_03 import precision_rappel_par_seuil
+
+    def strict(y_true, proba, seuils):
+        decale = [s + 1e-9 for s in seuils]  # simule proba > seuil
+        return precision_rappel_par_seuil(y_true, proba, decale).assign(seuil=list(seuils))
+
+    resultat = _evaluer("precision_rappel_par_seuil", strict)
+    assert resultat.statut == ECHEC and ">=" in resultat.message
+
+
+def test_une_precision_non_definie_vaut_nan():
+    """La leçon du défi 15 : un 0 inventé fausse la courbe précision-rappel."""
+    from defis.corrige_serie_03 import precision_rappel_par_seuil
+
+    def zero_par_defaut(y_true, proba, seuils):
+        return precision_rappel_par_seuil(y_true, proba, seuils).fillna({"precision": 0.0})
+
+    resultat = _evaluer("precision_rappel_par_seuil", zero_par_defaut)
+    assert resultat.statut == ECHEC and "NaN" in resultat.message
+
+
+def _calibration(y_true, proba, n_tranches, tranche):
+    import numpy as np
+
+    df = pd.DataFrame({"tranche": tranche, "p": np.asarray(proba, dtype=float), "y": np.asarray(y_true)})
+    return (df.groupby("tranche", observed=True)
+            .agg(clients=("y", "size"), proba_moyenne=("p", "mean"), taux_reel=("y", "mean")).reset_index())
+
+
+def test_une_proba_de_1_reste_dans_la_derniere_tranche():
+    import numpy as np
+
+    def sans_borne(y_true, proba, n_tranches=10):
+        return _calibration(y_true, proba, n_tranches, (np.asarray(proba) * n_tranches).astype(int))
+
+    resultat = _evaluer("table_calibration", sans_borne)
+    assert resultat.statut == ECHEC and "n'existe pas" in resultat.message
+
+
+def test_les_tranches_incluent_leur_borne_gauche():
+    import numpy as np
+
+    def borne_droite(y_true, proba, n_tranches=10):
+        bornes = np.linspace(0, 1, n_tranches + 1)
+        tranche = pd.cut(np.asarray(proba), bornes, labels=False, include_lowest=True)  # ]a, b]
+        return _calibration(y_true, proba, n_tranches, tranche)
+
+    resultat = _evaluer("table_calibration", borne_droite)
+    assert resultat.statut == ECHEC and "right=False" in resultat.message
+
+
+def test_la_calibration_utilise_les_probas_predites():
+    from defis.corrige_serie_03 import table_calibration
+
+    def milieu(y_true, proba, n_tranches=10):
+        table = table_calibration(y_true, proba, n_tranches)
+        return table.assign(proba_moyenne=(table["tranche"] + 0.5) / n_tranches)
+
+    resultat = _evaluer("table_calibration", milieu)
+    assert resultat.statut == ECHEC and "MILIEU" in resultat.message
+
+
+def test_les_ex_aequo_comptent_pour_un_demi():
+    import numpy as np
+
+    def sans_ex_aequo(y_true, proba):
+        y_true, proba = np.asarray(y_true), np.asarray(proba)
+        partis, restes = proba[y_true == 1], proba[y_true == 0]
+        return float((partis[:, None] > restes[None, :]).mean())
+
+    resultat = _evaluer("auc_par_paires", sans_ex_aequo)
+    assert resultat.statut == ECHEC and "½" in resultat.message
+
+
+def test_l_auc_compare_dans_le_bon_sens():
+    from defis.corrige_serie_03 import auc_par_paires
+
+    resultat = _evaluer("auc_par_paires", lambda y_true, proba: 1 - auc_par_paires(y_true, proba))
+    assert resultat.statut == ECHEC and "RESTÉ" in resultat.message
+
+
+def test_les_contributions_se_trient_en_valeur_absolue():
+    """La leçon du défi 18 : ce qui retient un client compte autant que ce qui le pousse à partir."""
+    from defis.corrige_serie_03 import contributions_client
+
+    def tri_signe(pipeline, client, top=3):
+        toutes = contributions_client(pipeline, client, top=None)
+        trie = toutes.sort_values("contribution", ascending=False)
+        return (trie if top is None else trie.head(top)).reset_index(drop=True)
+
+    resultat = _evaluer("contributions_client", tri_signe)
+    assert resultat.statut == ECHEC and "valeur absolue" in resultat.message
+
+
+def test_les_contributions_utilisent_les_valeurs_transformees():
+    import numpy as np
+
+    def valeurs_brutes(pipeline, client, top=3):
+        noms = pipeline.named_steps["prep"].get_feature_names_out()
+        brut = np.ones(len(noms))  # tout sauf les valeurs transformées
+        contrib = pd.Series(brut * pipeline[-1].coef_[0], index=noms)
+        contrib = contrib.sort_values(key=abs, ascending=False)
+        contrib = contrib if top is None else contrib.head(top)
+        return contrib.rename_axis("variable").reset_index(name="contribution")
+
+    resultat = _evaluer("contributions_client", valeurs_brutes)
+    assert resultat.statut == ECHEC and "TRANSFORMÉES" in resultat.message
+
+
+def test_les_contributions_marchent_avec_les_variables_derivees():
+    from defis.corrige_serie_03 import contributions_client
+
+    def seulement_prep(pipeline, client, top=3):
+        prep = pipeline.named_steps["prep"]
+        prep.transform(client)  # plante si une étape de variables dérivées précède "prep"
+        return contributions_client(pipeline, client, top)
+
+    resultat = _evaluer("contributions_client", seulement_prep)
+    assert resultat.statut == ECHEC and "pipeline[:-1]" in resultat.message
+
+
+def test_une_tranche_vide_ne_rend_pas_le_psi_infini():
+    import numpy as np
+
+    def sans_plancher(ref, act):
+        ref, act = np.asarray(ref, dtype=float), np.asarray(act, dtype=float)
+        ref, act = ref / ref.sum(), act / act.sum()
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return float(np.sum((act - ref) * np.log(act / ref)))
+
+    resultat = _evaluer("psi_parts", sans_plancher)
+    assert resultat.statut == ECHEC and "0,0001" in resultat.message
+
+
+def test_le_psi_utilise_le_logarithme_naturel():
+    import numpy as np
+
+    def log10(ref, act):
+        ref, act = np.asarray(ref, dtype=float), np.asarray(act, dtype=float)
+        return float(np.sum((act - ref) * np.log10(act / ref)))
+
+    resultat = _evaluer("psi_parts", log10)
+    assert resultat.statut == ECHEC and "NATUREL" in resultat.message
+
+
+def test_le_psi_accepte_des_effectifs():
+    import numpy as np
+
+    def sans_normaliser(ref, act):
+        ref, act = np.clip(np.asarray(ref, dtype=float), 1e-4, None), np.clip(np.asarray(act, dtype=float), 1e-4, None)
+        return float(np.sum((act - ref) * np.log(act / ref)))
+
+    resultat = _evaluer("psi_parts", sans_normaliser)
+    assert resultat.statut == ECHEC and "somme" in resultat.message

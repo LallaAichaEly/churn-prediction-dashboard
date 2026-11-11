@@ -277,8 +277,9 @@ GUIDES: dict[str, Guide] = {
                  _grep([r"""groupby\(\s*["']internet_service["']"""], ("app.py",),
                        "graphique par service internet détecté", "pas encore de groupby sur internet_service dans app.py"),
                  "app.py calcule le taux de churn groupé par internet_service"),
-    "5.3": Guide("`pipeline.named_steps[\"prep\"].transform(client)` donne les valeurs transformées, "
-                 "`pipeline.named_steps[\"clf\"].coef_[0]` les poids, `get_feature_names_out()` les noms. "
+    "5.3": Guide("`pipeline[:-1].transform(client)` donne les valeurs transformées (toutes les étapes sauf le "
+                 "modèle, variables dérivées comprises), `pipeline.named_steps[\"clf\"].coef_[0]` les poids, "
+                 "`pipeline.named_steps[\"prep\"].get_feature_names_out()` les noms. "
                  "Contribution = valeur × poids : triez par valeur absolue.",
                  _grep([r"\.coef_\b"], ("app.py",),
                        "contributions par coefficients détectées", "coef_ pas encore utilisé dans app.py"),

@@ -24,7 +24,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 14 fonctions courtes dans `defis/serie_01.py` et `defis/serie_02.py`, corrigées par
+> [défis](defis/README.md) : 19 fonctions courtes dans `defis/serie_01.py` à `defis/serie_03.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -81,8 +81,8 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 - [ ] 🟢 4.1 — Déplacez le curseur de seuil. Décrivez ce qui arrive à la précision et au rappel.
 - [ ] 🟢 4.2 ⚡ — Pourquoi l'accuracy est-elle trompeuse ici ? (Indice : que vaut un modèle qui prédit « reste » pour tout le monde ?)
 - [ ] 🟡 4.3 ⚡ — Avec un coût de 500 € par client perdu et 50 € par action inutile, quel seuil est optimal ? Et à 100 € / 100 € ?
-- [ ] 🟡 4.4 — Ajoutez une courbe précision-rappel (`precision_recall_curve`) dans l'onglet Performance.
-- [ ] 🔴 4.5 — Vérifiez la **calibration** du modèle (`CalibrationDisplay`). Une probabilité de 0,7 signifie-t-elle vraiment 70 % ?
+- [ ] 🟡 4.4 ⚡ — Ajoutez une courbe précision-rappel (`precision_recall_curve`) dans l'onglet Performance.
+- [ ] 🔴 4.5 ⚡ — Vérifiez la **calibration** du modèle (`CalibrationDisplay`). Une probabilité de 0,7 signifie-t-elle vraiment 70 % ?
 
 **Auto-évaluation** : Expliquez à un manager non technique ce que signifie « rappel de 63 % ».
 
@@ -94,7 +94,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 - [ ] 🟢 5.1 — Dans « Facteurs de churn », comparez le classement à `_churn_logit`. Qu'est-ce qui est retrouvé ? sous-estimé ?
 - [ ] 🟢 5.2 — Ajoutez un graphique « taux de churn par service internet » dans la vue d'ensemble.
-- [ ] 🟡 5.3 — Dans « Prédire un client », affichez les 3 variables qui poussent le plus la prédiction (coefficients × valeurs pour la logistique).
+- [ ] 🟡 5.3 ⚡ — Dans « Prédire un client », affichez les 3 variables qui poussent le plus la prédiction (coefficients × valeurs pour la logistique).
 - [ ] 🟡 5.4 — Ajoutez un filtre par contrat dans la barre latérale qui s'applique à la vue d'ensemble.
 - [ ] 🔴 5.5 — Intégrez SHAP (`pip install shap`) pour des explications locales par client.
 
@@ -129,7 +129,7 @@ prix, nouveau mix de contrats, ou un concurrent qui change le **comportement** d
 L'outil central est le **PSI** (*Population Stability Index*) : < 0,10 stable · 0,10–0,25 à surveiller · > 0,25 dérive.
 
 - [ ] 🟢 7.1 — Onglet « Surveillance » : montez la hausse des prix à 20 %. Quelle variable passe en dérive ? `total_charges` augmente aussi de 20 %… pourquoi reste-t-elle « stable » ? (Indice : regardez les déciles des deux variables.)
-- [ ] 🟢 7.2 — Calculez **à la main** le PSI d'une variable qui passe de 50 % / 50 % à 70 % / 30 %, puis vérifiez avec `psi()`. Quel statut ?
+- [ ] 🟢 7.2 ⚡ — Calculez **à la main** le PSI d'une variable qui passe de 50 % / 50 % à 70 % / 30 %, puis vérifiez avec `psi()`. Quel statut ?
 - [ ] 🟡 7.3 — Sans **aucune** dérive (lots tirés du même monde avec `generate_customers(n, seed=...)`), quel PSI maximal obtenez-vous pour des lots de 200, 1 000 et 5 000 clients ? Qu'en concluez-vous sur la taille minimale d'un lot à surveiller ?
 - [ ] 🟡 7.4 — *Dérive ≠ dégradation* : passez à 75 % de contrats mensuels. L'AUC baisse-t-elle ? Le modèle se trompe-t-il pour autant (comparez churn prédit et réel) ? Réentraîner aiderait-il ? Mesurez-le.
 - [ ] 🔴 7.5 — *Dérive du concept* : activez « Un concurrent attire les clients fibre ». Que disent le PSI, l'AUC et l'écart prédit / réel ? Réentraînez sur des clients récents (`simulate_batch(n=5000, seed=99, fibre_competition=1.5)`) et mesurez à nouveau.

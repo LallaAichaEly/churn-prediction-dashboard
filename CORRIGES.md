@@ -482,6 +482,8 @@ pour tous les clients contactés et un taux de succès (par ex. 30 %) : le seuil
 
 ### 4.4 — Courbe précision-rappel 🟡
 
+⚡ *Échauffement :* le défi 15 (`defis/serie_03.py`) calcule ces points à la main, seuil par seuil.
+
 <details><summary>Solution</summary>
 
 Dans l'onglet Performance de `app.py`, juste avant `st.subheader("Le compromis précision / rappel")` :
@@ -507,6 +509,9 @@ du taux de churn (35 %), pas à 0,5 comme pour la courbe ROC. Le point orange su
 </details>
 
 ### 4.5 — Calibration 🔴
+
+⚡ *Échauffement :* le défi 16 construit la table de calibration à la main (tranches de même largeur,
+comme `calibration_curve(..., strategy="uniform")` ; la solution ci-dessous utilise des groupes de même taille).
 
 <details><summary>Solution</summary>
 
@@ -589,6 +594,9 @@ La fonction `bar` existe déjà : réutiliser plutôt que copier-coller, c'est a
 </details>
 
 ### 5.3 — Les 3 variables qui pèsent le plus 🟡
+
+⚡ *Échauffement :* le défi 18 vous fait écrire cette fonction et vérifie que intercept + Σ contributions
+redonne exactement le logit du modèle.
 
 💡 *Indice :* `pipeline[:-1]` est le pipeline **sans** le classifieur : il donne les variables
 transformées. Les coefficients sont dans `pipeline.named_steps["clf"].coef_`.
@@ -931,6 +939,8 @@ de tranche ». Surveillez aussi les moyennes des variables métier importantes (
 </details>
 
 ### 7.2 — PSI à la main 🟢
+
+⚡ *Échauffement :* le défi 19 (`psi_parts`) code cette formule, tranche vide comprise.
 
 💡 *Indice :* PSI = Σ (actuel − référence) × ln(actuel / référence), une fois par modalité.
 
