@@ -7,6 +7,9 @@ de partir (*churn*).
 > 🎯 **Objectif : apprendre en construisant.** Le fichier [`PARCOURS.md`](PARCOURS.md) est
 > un parcours de compétences en 6 modules, avec des exercices progressifs et une checklist
 > pour suivre votre progression.
+>
+> ⚡ **Nouveau : des [défis auto-corrigés](defis/README.md).** Complétez `defis/serie_01.py`,
+> lancez `python scripts/progression.py`, et voyez immédiatement ce qui est juste et pourquoi.
 
 ## Ce que vous allez pratiquer
 
@@ -19,6 +22,7 @@ de partir (*churn*).
 | Interprétabilité (importance par permutation) | `src/churn/model.py` |
 | Tableau de bord interactif | `app.py` (Streamlit + Plotly) |
 | Tests automatisés | `tests/test_churn.py` (pytest) |
+| **Entraînement corrigé automatiquement** | `defis/serie_01.py` + `scripts/progression.py` |
 
 ## Démarrage rapide
 
@@ -29,6 +33,7 @@ pip install -r requirements.txt
 python scripts/train.py          # entraîne et compare les modèles
 streamlit run app.py             # ouvre le tableau de bord sur http://localhost:8501
 pytest -q                        # lance les tests
+python scripts/progression.py    # vos défis auto-corrigés : ✅ / ❌ / ⬜
 ```
 
 Les données sont **synthétiques** et générées au premier lancement dans `data/customers.csv`
@@ -61,11 +66,16 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ```
 ├── app.py                  # Tableau de bord Streamlit
 ├── scripts/train.py        # Entraînement + comparaison en ligne de commande
+├── scripts/progression.py  # Correction automatique des défis
+├── defis/
+│   ├── serie_01.py         # ✍️ 10 fonctions à compléter
+│   ├── corrige_serie_01.py # Corrigé commenté (après avoir essayé !)
+│   └── checks_serie_01.py  # Vérifications automatiques
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
 │   └── model.py            # Entraînement, évaluation, seuil, importance
-├── tests/test_churn.py     # Tests
+├── tests/                  # Tests du projet et du moteur de défis
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
 └── requirements.txt
 ```
