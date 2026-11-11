@@ -9,6 +9,16 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
 3. Notez vos résultats (avant / après) dans un fichier `JOURNAL.md` : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
+5. Lancez le **coach** pour savoir où vous en êtes et quoi faire ensuite :
+
+   ```bash
+   python scripts/progression.py                 # bilan + prochain exercice avec un indice
+   python scripts/progression.py --exercice 3.2  # indice et critère de validation d'un exercice
+   ```
+
+   Les exercices de code sont **vérifiés automatiquement** (cocher ne suffit pas, il faut que ça
+   marche !). Les exercices de réflexion comptent quand leur case est cochée. Les indices mettent
+   sur la voie sans donner la solution : bloqué·e plus de 20 minutes ? Lisez l'indice.
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
@@ -101,7 +111,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 ## 🏁 Projet final
 
-Rédigez un mini-rapport (1 page) : problème, données, modèle retenu, seuil choisi et pourquoi,
+Rédigez un mini-rapport (1 page) dans `RAPPORT.md` : problème, données, modèle retenu, seuil choisi et pourquoi,
 impact financier estimé, limites. Ajoutez-le au dépôt — c'est une pièce maîtresse pour un portfolio
 ou un entretien.
 

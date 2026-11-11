@@ -1,0 +1,137 @@
+"""Tests du coach de progression (scripts/progression.py)."""
+
+import importlib.util
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+_spec = importlib.util.spec_from_file_location("progression", ROOT / "scripts" / "progression.py")
+progression = importlib.util.module_from_spec(_spec)
+sys.modules["progression"] = progression  # requis par @dataclass avant l'exécution du module
+_spec.loader.exec_module(progression)
+
+
+@pytest.fixture
+def project(tmp_path: Path) -> Path:
+    """Copie minimale du projet : le parcours et un dossier de code vide."""
+    shutil.copy(ROOT / "PARCOURS.md", tmp_path / "PARCOURS.md")
+    (tmp_path / "src").mkdir()
+    return tmp_path
+
+
+def tick(project: Path, exercise_id: str) -> None:
+    path = project / "PARCOURS.md"
+    text = path.read_text(encoding="utf-8")
+    for level in progression.LEVELS:
+        text = text.replace(f"- [ ] {level} {exercise_id} —", f"- [x] {level} {exercise_id} —")
+    path.write_text(text, encoding="utf-8")
+
+
+def status_of(project: Path, exercise_id: str):
+    _, statuses = progression.evaluate_progress(project)
+    return next(s for s in statuses if s.exercise.id == exercise_id)
+
+
+def test_every_exercise_has_a_guide_and_vice_versa():
+    """Si on ajoute un exercice au parcours, il faut aussi lui écrire un indice."""
+    modules, exercises = progression.parse_parcours((ROOT / "PARCOURS.md").read_text(encoding="utf-8"))
+    assert {e.id for e in exercises} == set(progression.GUIDES)
+    assert set(modules) == {e.module for e in exercises}
+    assert all(e.level in progression.LEVELS for e in exercises)
+
+
+def test_parse_ticked_boxes():
+    text = "## Module 1 — Données (`x.py`)\n- [x] 🟢 1.1 — Faire **ceci**\n- [ ] 🟡 1.2 — Faire `cela`\n"
+    modules, exercises = progression.parse_parcours(text)
+    assert modules == {1: "Données"}
+    assert [(e.id, e.ticked, e.title) for e in exercises] == [("1.1", True, "Faire ceci"), ("1.2", False, "Faire cela")]
+
+
+def test_reflection_exercise_counts_when_ticked(project):
+    assert not status_of(project, "1.1").done
+    tick(project, "1.1")
+    assert status_of(project, "1.1").done
+
+
+def test_journal_mention_is_detected(project):
+    (project / "JOURNAL.md").write_text("## Exercice 1.4\nMes hypothèses…\n", encoding="utf-8")
+    assert status_of(project, "1.4").in_journal
+    assert not status_of(project, "1.1").in_journal
+
+
+def test_comment_does_not_validate_code_exercise(project):
+    code = project / "src" / "tuning.py"
+    code.write_text("# TODO : utiliser GridSearchCV\n", encoding="utf-8")
+    assert not status_of(project, "3.5").done
+    code.write_text("from sklearn.model_selection import GridSearchCV\nsearch = GridSearchCV(None, {})\n", encoding="utf-8")
+    assert status_of(project, "3.5").done
+
+
+def test_ticked_but_failing_is_flagged_and_comes_first(project):
+    tick(project, "3.5")
+    _, statuses = progression.evaluate_progress(project)
+    flagged = next(s for s in statuses if s.exercise.id == "3.5")
+    assert flagged.mismatch and not flagged.done
+    assert progression.next_status(statuses).exercise.id == "3.5"
+
+
+def test_next_exercise_follows_the_order(project):
+    tick(project, "1.1")
+    _, statuses = progression.evaluate_progress(project)
+    assert progression.next_status(statuses).exercise.id == "1.2"
+
+
+def test_ci_workflow_check(project):
+    workflows = project / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "tests.yml").write_text("on: push\njobs: {}\n", encoding="utf-8")
+    assert not status_of(project, "6.3").done
+    (workflows / "tests.yml").write_text("on: push\njobs:\n  t:\n    steps:\n      - run: pytest -q\n", encoding="utf-8")
+    assert status_of(project, "6.3").done
+
+
+def test_validate_rule_check(project, monkeypatch):
+    """Exercice 1.3 : vérifié en EXÉCUTANT validate() sur des factures aberrantes."""
+    from churn import data
+
+    assert not progression._check_validate_rule(project)[0]
+
+    original = data.validate
+
+    def validate_with_rule(df):
+        problems = original(df)
+        if (~df["monthly_charges"].between(0, 500)).any():
+            problems.append("Facture hors bornes")
+        return problems
+
+    monkeypatch.setattr(data, "validate", validate_with_rule)
+    ok, message = progression._check_validate_rule(project)
+    assert not ok and "test" in message  # la règle marche, mais le test manque encore
+
+    (project / "tests").mkdir()
+    (project / "tests" / "test_bills.py").write_text('broken.loc[0, "monthly_charges"] = 900\n', encoding="utf-8")
+    assert progression._check_validate_rule(project)[0]
+
+
+def test_crashing_check_is_reported_not_raised(project):
+    def boom(root):
+        raise RuntimeError("code en chantier")
+
+    ok, message = progression._run(boom, project)
+    assert not ok and "code en chantier" in message
+
+
+def test_cli_runs_on_this_repository():
+    run = subprocess.run([sys.executable, str(ROOT / "scripts" / "progression.py")],
+                         capture_output=True, text=True, encoding="utf-8", check=True)
+    assert "Progression :" in run.stdout
+    detail = subprocess.run([sys.executable, str(ROOT / "scripts" / "progression.py"), "--exercice", "3.2"],
+                            capture_output=True, text=True, encoding="utf-8", check=True)
+    assert "Indice" in detail.stdout
+    unknown = subprocess.run([sys.executable, str(ROOT / "scripts" / "progression.py"), "--exercice", "9.9"],
+                             capture_output=True, text=True, encoding="utf-8")
+    assert unknown.returncode == 2
