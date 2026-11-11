@@ -39,3 +39,4 @@
 | 4 — Évaluation | | /5 | |
 | 5 — Interprétation | | /5 | |
 | 6 — Industrialisation | | /5 | |
+| 7 — Surveillance | | /6 | |

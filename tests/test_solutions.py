@@ -20,6 +20,7 @@ from solutions import (  # noqa: E402
     module3_modeliser as m3,
     module4_evaluer as m4,
     module5_interpreter as m5,
+    module7_surveiller as m7,
 )
 
 
@@ -122,3 +123,31 @@ def test_m5_contributions_sum_to_logit_difference(df, trained):
     logit_mean = clf.intercept_[0] + clf.coef_[0] @ m5._transform(pipeline, background).mean(axis=0)
     assert contrib.sum() == pytest.approx(logit_client - logit_mean)
     assert set(contrib.index) <= set(client.columns)
+
+
+def test_m7_psi_noise_shrinks_with_batch_size(df):
+    noise = m7.psi_noise(split(df)[0], sizes=(200, 2000), repeats=5)
+    assert noise.loc[200, "psi_max_moyen"] > 3 * noise.loc[2000, "psi_max_moyen"]
+    assert noise.loc[2000, "psi_max_pire"] < 0.1  # un lot de 2 000 clients ne donne pas de fausse alerte
+
+
+def test_m7_scenarios_tell_the_drift_story(df):
+    table = m7.scenario_table(df)
+    assert table.loc["prix +20 %", "variable_max"] == "monthly_charges"
+    assert table.loc["prix +20 %", "psi_max"] > 0.25
+    assert table.loc["75 % de mensuels", "variable_max"] == "contract"
+    # Dérive du concept : entrées stables, AUC intacte… mais le modèle sous-estime le churn.
+    concept = table.loc["concurrent fibre"]
+    assert concept["psi_max"] < 0.1
+    assert concept["roc_auc"] > table.loc["aucun changement", "roc_auc"] - 0.02
+    assert concept["écart_réel_prédit"] > 0.05
+    assert abs(table.loc["75 % de mensuels", "écart_réel_prédit"]) < 0.03  # dérive ≠ dégradation
+
+
+def test_m7_retraining_fixes_concept_drift_only(df):
+    concept = m7.retrain_on_recent(df, fibre_competition=1.5)
+    gap = (concept["churn_réel"] - concept["churn_prédit"]).abs()
+    assert gap["réentraîné"] < 0.03 < gap["ancien modèle"]
+
+    covariate = m7.retrain_on_recent(df, monthly_share=0.75)
+    assert covariate.loc["réentraîné", "roc_auc"] == pytest.approx(covariate.loc["ancien modèle", "roc_auc"], abs=0.01)

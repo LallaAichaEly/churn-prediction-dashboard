@@ -40,11 +40,14 @@ PAYMENT_METHODS = ["Prélèvement", "Carte bancaire", "Virement", "Chèque"]
 INTERNET_SERVICES = ["Fibre", "ADSL", "Aucun"]
 
 
-def _churn_logit(df: pd.DataFrame, rng: np.random.Generator) -> np.ndarray:
+def _churn_logit(df: pd.DataFrame, rng: np.random.Generator, fibre_competition: float = 0.0) -> np.ndarray:
     """La « vérité cachée » : comment le churn est réellement généré.
 
     Un logit positif = plus de chances de partir. Lisez ces coefficients, puis comparez-les
     à l'importance des variables trouvée par le modèle (onglet « Facteurs de churn »).
+
+    `fibre_competition` (0 par défaut) simule une DÉRIVE DU CONCEPT (module 7) : un concurrent
+    attire les clients fibre, donc le lien entre variables et churn change.
     """
     logit = (
         -1.2
@@ -58,19 +61,37 @@ def _churn_logit(df: pd.DataFrame, rng: np.random.Generator) -> np.ndarray:
         - 0.8 * (df["tech_support"] == "Oui")
         - 0.25 * (df["num_products"] - 1)
         + 0.3 * (df["senior"] == "Oui")
+        + fibre_competition * (df["internet_service"] == "Fibre")
     )
     noise = rng.normal(0, 0.6, size=len(df))
     return logit.to_numpy(dtype=float) + noise
 
 
-def generate_customers(n: int = 5000, seed: int = 42) -> pd.DataFrame:
-    """Génère `n` clients fictifs, reproductibles grâce à `seed`."""
+def generate_customers(
+    n: int = 5000,
+    seed: int = 42,
+    *,
+    contract_probs: tuple[float, float, float] = (0.55, 0.25, 0.20),
+    price_increase: float = 0.0,
+    fibre_competition: float = 0.0,
+) -> pd.DataFrame:
+    """Génère `n` clients fictifs, reproductibles grâce à `seed`.
+
+    Paramètres du module 7 (simuler les clients de « dans six mois ») :
+    - `contract_probs` (parts Mensuel / Annuel / Biannuel) et `price_increase` (0.15 = +15 %)
+      changent la distribution des ENTRÉES ; le churn suit toujours la même « vérité cachée ».
+    - `fibre_competition` change la vérité cachée elle-même (dérive du concept).
+    """
     if n <= 0:
         raise ValueError("n doit être strictement positif")
+    if len(contract_probs) != len(CONTRACTS) or not np.isclose(sum(contract_probs), 1):
+        raise ValueError("contract_probs : 3 parts (Mensuel, Annuel, Biannuel) dont la somme vaut 1")
+    if price_increase <= -1:
+        raise ValueError("price_increase doit être supérieur à -1 (−100 %)")
 
     rng = np.random.default_rng(seed)
 
-    contract = rng.choice(CONTRACTS, size=n, p=[0.55, 0.25, 0.20])
+    contract = rng.choice(CONTRACTS, size=n, p=list(contract_probs))
     # Les clients sous contrat long sont en moyenne plus anciens.
     tenure_scale = np.select(
         [contract == "Mensuel", contract == "Annuel"], [14.0, 30.0], default=45.0
@@ -81,7 +102,7 @@ def generate_customers(n: int = 5000, seed: int = 42) -> pd.DataFrame:
     base_price = np.select(
         [internet == "Fibre", internet == "ADSL"], [80.0, 55.0], default=25.0
     )
-    monthly = np.clip(base_price + rng.normal(0, 12, size=n), 15, 130).round(2)
+    monthly = (np.clip(base_price + rng.normal(0, 12, size=n), 15, 130) * (1 + price_increase)).round(2)
     total = (monthly * tenure * rng.uniform(0.95, 1.05, size=n)).round(2)
 
     df = pd.DataFrame(
@@ -100,7 +121,7 @@ def generate_customers(n: int = 5000, seed: int = 42) -> pd.DataFrame:
         }
     )
 
-    proba = 1.0 / (1.0 + np.exp(-_churn_logit(df, rng)))
+    proba = 1.0 / (1.0 + np.exp(-_churn_logit(df, rng, fibre_competition)))
     df[TARGET] = (rng.uniform(size=n) < proba).astype(int)
     return df
 

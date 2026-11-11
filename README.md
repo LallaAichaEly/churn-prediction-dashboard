@@ -8,7 +8,7 @@ clients risquent de partir (*churn*).
 
 > 🎯 **Objectif : apprendre en construisant.**
 >
-> 1. [`PARCOURS.md`](PARCOURS.md) — 6 modules, 31 exercices progressifs et une checklist.
+> 1. [`PARCOURS.md`](PARCOURS.md) — 7 modules, 37 exercices progressifs et une checklist.
 > 2. [`CORRIGES.md`](CORRIGES.md) — un indice puis une solution pour chaque exercice
 >    (à ouvrir **après** avoir cherché), complétés par des scripts exécutables dans `solutions/`.
 > 3. [`JOURNAL.md`](JOURNAL.md) — votre carnet de bord : mesures avant / après et ce que vous avez compris.
@@ -24,6 +24,7 @@ clients risquent de partir (*churn*).
 | Interprétabilité (importance par permutation) | `src/churn/model.py` |
 | Tableau de bord interactif | `app.py` (Streamlit + Plotly) |
 | Mise en production : API REST | `api.py` (FastAPI) |
+| Surveillance en production : dérive des données (PSI) | `src/churn/monitoring.py` |
 | Tests automatisés (modèle, API, tableau de bord, corrigés) | `tests/` (pytest + `streamlit.testing`) |
 | Intégration continue | `.github/workflows/tests.yml` (GitHub Actions) |
 
@@ -54,6 +55,7 @@ Les données sont **synthétiques** et générées au premier lancement dans `da
 | **Facteurs de churn** | Variables les plus influentes (importance par permutation) |
 | **Clients à risque** | Liste triée par probabilité de départ, export CSV |
 | **Prédire un client** | Formulaire → probabilité de churn d'un profil |
+| **Surveillance** | Simule les clients de « dans six mois » (hausse des prix, mix de contrats, concurrent) : PSI par variable, churn prédit contre réel |
 
 Dans la barre latérale : choix du modèle, activation des variables dérivées, seuil de décision.
 
@@ -95,12 +97,14 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
-│   └── model.py            # Entraînement, évaluation, seuil, importance
-├── solutions/              # Corrigés exécutables des modules 1 à 5
+│   ├── model.py            # Entraînement, évaluation, seuil, importance
+│   └── monitoring.py       # Surveillance : PSI, rapport de dérive, lots simulés
+├── solutions/              # Corrigés exécutables des modules 1 à 5 et 7
 ├── tests/
 │   ├── test_churn.py       # Données, variables et modèles
 │   ├── test_api.py         # API
 │   ├── test_app.py         # Tableau de bord (sans navigateur)
+│   ├── test_monitoring.py  # Surveillance de la dérive
 │   └── test_solutions.py   # Les affirmations des corrigés restent vraies
 ├── .github/workflows/      # Intégration continue (pytest à chaque push)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices

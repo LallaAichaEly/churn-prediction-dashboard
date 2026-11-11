@@ -8,7 +8,7 @@
 > `seed=42`, découpage 75/25) avec scikit-learn 1.9. Avec d'autres versions, ils peuvent varier
 > légèrement ; les conclusions restent les mêmes. Chaque extrait de code a été exécuté et testé.
 
-**Corrigés exécutables.** Les scripts de `solutions/` refont les mesures des modules 1 à 5 et les
+**Corrigés exécutables.** Les scripts de `solutions/` refont les mesures des modules 1 à 5 et 7 et les
 affichent ; `tests/test_solutions.py` vérifie que leurs conclusions restent vraies :
 
 ```bash
@@ -17,12 +17,13 @@ python solutions/module2_variables.py    # ~2 s  (fuites de données, encodage p
 python solutions/module3_modeliser.py    # ~20 s (validation croisée, GridSearchCV)
 python solutions/module4_evaluer.py      # ~4 s  (seuils, courbe PR, calibration)
 python solutions/module5_interpreter.py  # ~3 s  (effets retrouvés, explication d'un client)
+python solutions/module7_surveiller.py   # ~4 s  (PSI, dérive des entrées et du concept)
 ```
 
 Sommaire : [Module 1](#module-1--comprendre-les-données) · [Module 2](#module-2--préparer-les-variables) ·
 [Module 3](#module-3--modéliser) · [Module 4](#module-4--évaluer-et-décider) ·
 [Module 5](#module-5--interpréter-et-communiquer) · [Module 6](#module-6--industrialiser) ·
-[Projet final](#-projet-final)
+[Module 7](#module-7--surveiller-le-modèle-en-production) · [Projet final](#-projet-final)
 
 ---
 
@@ -718,6 +719,7 @@ Et pour chacune : estimer le coût, le nombre de clients concernés et un taux d
 | `tests/test_api.py` | Le contrat de l'API : codes HTTP, validation des entrées (422), seuil, entraînement automatique |
 | `tests/test_app.py` | Chaque onglet du tableau de bord s'affiche sans erreur, quels que soient les réglages |
 | `tests/test_solutions.py` | Les affirmations des corrigés (« la fuite gonfle l'AUC »…) restent vraies |
+| `tests/test_monitoring.py` | Le PSI se tait sans dérive, alerte sur la bonne variable, et ne voit pas la dérive du concept (module 7) |
 </details>
 
 ### 6.2 — Tracer la version de scikit-learn 🟡
@@ -895,6 +897,235 @@ dépendance manquante dans `requirements.txt`.
 
 ---
 
+## Module 7 — Surveiller le modèle en production
+
+Chiffres : `python solutions/module7_surveiller.py`. Référence = données d'entraînement
+(3 750 clients) ; nouveau lot = `simulate_batch()` (2 000 clients, `seed=2026`).
+
+### 7.1 — Hausse des prix de 20 % 🟢
+
+💡 *Indice :* le PSI compare des **tranches** (déciles) calculées sur la référence. Combien de
+clients changent de tranche quand on multiplie chaque valeur par 1,2 ?
+
+<details><summary>Solution</summary>
+
+| Variable | PSI | Statut |
+|---|---|---|
+| `monthly_charges` | **0,258** | 🚨 dérive |
+| `total_charges` | 0,038 | ✅ stable |
+| toutes les autres | < 0,01 | ✅ stable |
+
+Les deux variables augmentent de 20 %, mais le PSI mesure un déplacement **par rapport à la
+dispersion** :
+
+- `monthly_charges` : déciles serrés (26, 39, 49, 56, 63, 70, 76, 83, 90 €) ; +20 % ≈ +12 €,
+  soit environ **un décile entier** → beaucoup de clients changent de tranche.
+- `total_charges` : déciles de plus en plus larges (93, 215, 361, 537, 755, 1 062, 1 476, 2 172,
+  3 399 €), chacun ~1,5 fois le précédent. Multiplier par 1,2 ne fait franchir une frontière qu'à
+  une minorité de clients.
+
+👉 Un PSI faible ne veut pas dire « rien n'a changé » : il veut dire « peu de clients ont changé
+de tranche ». Surveillez aussi les moyennes des variables métier importantes (prix !).
+</details>
+
+### 7.2 — PSI à la main 🟢
+
+💡 *Indice :* PSI = Σ (actuel − référence) × ln(actuel / référence), une fois par modalité.
+
+<details><summary>Solution</summary>
+
+(0,7 − 0,5) × ln(0,7 / 0,5) + (0,3 − 0,5) × ln(0,3 / 0,5)
+= 0,2 × 0,336 + (−0,2) × (−0,511) = 0,067 + 0,102 = **0,1695** → ⚠️ à surveiller.
+
+```python
+from churn.monitoring import psi
+psi(["a"] * 50 + ["b"] * 50, ["a"] * 70 + ["b"] * 30)  # 0.1695
+```
+
+Chaque terme est **toujours positif** (si actuel > référence, le log est positif ; sinon les deux
+facteurs sont négatifs) : les écarts ne se compensent jamais. Le PSI est une version symétrique
+de la divergence de Kullback-Leibler.
+</details>
+
+### 7.3 — Le bruit du PSI 🟡
+
+💡 *Indice :* bouclez sur 20 graines, gardez à chaque fois le PSI **maximal** sur les 10 variables
+(`drift_report(...)["psi"].max()`), car c'est celui qui déclencherait une alerte.
+
+<details><summary>Solution</summary>
+
+```python
+from churn.data import generate_customers
+from churn.model import split
+from churn.monitoring import drift_report
+
+reference = split(df)[0]
+for n in (200, 1000, 5000):
+    worst = [drift_report(reference, generate_customers(n, seed=1000 + r))["psi"].max() for r in range(20)]
+    print(n, round(sum(worst) / len(worst), 3), round(max(worst), 3))
+```
+
+| Taille du lot | PSI max moyen | PSI max, pire des 20 tirages |
+|---|---|---|
+| 200 | 0,079 | **0,111** ⚠️ fausse alerte |
+| 1 000 | 0,019 | 0,035 |
+| 5 000 | 0,006 | 0,009 |
+
+Même sans aucune dérive, le PSI n'est jamais nul : c'est le **bruit d'échantillonnage**, qui
+décroît à peu près comme 1 / n. Avec 200 clients, on déclenche des alertes « à surveiller » sur du
+hasard. Règle pratique : surveillez des lots d'au moins ~1 000 clients (quitte à cumuler plusieurs
+semaines), et c'est pour cela que les seuils sont 0,10 / 0,25 et pas 0.
+</details>
+
+### 7.4 — Dérive ≠ dégradation 🟡
+
+💡 *Indice :* l'AUC mesure la capacité à **séparer** les clients. Si presque tout le monde a le
+même contrat, la variable la plus discriminante sépare moins… même pour un modèle parfait.
+
+<details><summary>Solution</summary>
+
+| Scénario | PSI max | ROC-AUC | churn prédit | churn réel |
+|---|---|---|---|---|
+| aucun changement | 0,018 | 0,827 | 34,1 % | 34,7 % |
+| 75 % de mensuels | 0,159 (`contract`) | **0,792** | 41,6 % | 42,4 % |
+
+| Sur le lot « 75 % de mensuels » | ROC-AUC | churn prédit | churn réel |
+|---|---|---|---|
+| ancien modèle | 0,792 | 41,6 % | 42,4 % |
+| réentraîné sur 5 000 clients récents | 0,794 | 41,7 % | 42,4 % |
+
+L'AUC baisse de 0,035… et pourtant le modèle **ne se trompe pas** : il prédit 41,6 % de départs
+pour 42,4 % observés, et le réentraîner ne gagne rien. La baisse vient de la **population** (plus
+homogène, donc plus difficile à trier), pas du modèle. Le lien entre variables et churn n'a pas
+changé, et le modèle l'a bien appris.
+
+👉 Une AUC qui baisse n'est pas toujours un modèle cassé. Avant de réentraîner, regardez
+**l'écart prédit / réel** : s'il reste faible, le modèle est juste, c'est le monde qui a changé.
+Côté métier, l'information est ailleurs : environ +7,5 points de churn attendus, à anticiper.
+</details>
+
+### 7.5 — Dérive du concept 🔴
+
+💡 *Indice :* le lot « concurrent fibre » contient **exactement les mêmes clients** que le lot
+« aucun changement » : seule leur décision de partir a changé.
+
+<details><summary>Solution</summary>
+
+| Scénario | PSI max des entrées | PSI des scores | ROC-AUC | churn prédit | churn réel |
+|---|---|---|---|---|---|
+| aucun changement | 0,018 | 0,018 | 0,827 | 34,1 % | 34,7 % |
+| concurrent fibre | 0,018 | 0,018 | **0,839** | 34,1 % | **44,6 %** |
+
+Le piège parfait : **aucune** alerte sur les entrées (mêmes clients), aucune sur les scores (même
+modèle, mêmes clients → mêmes probabilités), et l'AUC **monte** (les clients fibre, déjà un peu
+plus risqués, partent maintenant beaucoup plus : le classement reste bon). Seul indicateur qui
+sonne : **10,5 points** d'écart entre churn prédit et réel. Le modèle sous-estime le risque de
+tous les clients fibre et le seuil choisi au module 4 n'est plus optimal.
+
+```python
+from solutions.module7_surveiller import retrain_on_recent
+retrain_on_recent(df, fibre_competition=1.5)
+```
+
+| Sur le lot « concurrent fibre » | ROC-AUC | churn prédit | churn réel |
+|---|---|---|---|
+| ancien modèle | 0,839 | 34,1 % | 44,6 % |
+| réentraîné sur 5 000 clients récents | **0,862** | **43,5 %** | 44,6 % |
+
+Ici, réentraîner change tout : le modèle réapprend l'effet de la fibre. Mais il fallait attendre
+d'avoir les **vrais départs** : la dérive du concept ne se voit qu'avec les étiquettes.
+</details>
+
+### 7.6 — Un script de surveillance 🔴
+
+💡 *Indice :* `sys.exit(code)` ; un code ≠ 0 fait échouer une étape de CI ou déclenche l'alerte d'un cron.
+
+<details><summary>Solution</summary>
+
+`scripts/monitor.py` (testé : code 0 sur un lot stable, 1 avec une hausse des prix de 20 %) :
+
+```python
+"""Compare un nouveau lot de clients aux données d'entraînement et alerte en cas de dérive.
+
+Usage :
+    python scripts/monitor.py nouveau_lot.csv
+Code de sortie : 0 = stable, 1 = au moins une variable en dérive (PSI > 0,25).
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+import pandas as pd  # noqa: E402
+
+from churn.data import FEATURES, load_or_create  # noqa: E402
+from churn.model import split  # noqa: E402
+from churn.monitoring import drift_report  # noqa: E402
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("batch", type=Path, help="CSV du nouveau lot (mêmes colonnes que data/customers.csv)")
+    parser.add_argument("--reference", type=Path, default=ROOT / "data" / "customers.csv")
+    args = parser.parse_args(argv)
+
+    batch = pd.read_csv(args.batch)
+    missing = [c for c in FEATURES if c not in batch.columns]
+    if missing:
+        print(f"Colonnes manquantes dans le lot : {missing}", file=sys.stderr)
+        return 2
+
+    reference = split(load_or_create(args.reference))[0]  # les données vues à l'entraînement
+    report = drift_report(reference, batch)
+    print(report.round(3).to_string(index=False))
+
+    drifted = report.loc[report["statut"] == "dérive", "feature"].tolist()
+    if drifted:
+        print(f"\n🚨 Dérive détectée sur : {', '.join(drifted)}")
+        return 1
+    print("\n✅ Aucune dérive significative")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+Pour l'essayer :
+
+```bash
+python -c "import sys; sys.path.insert(0, 'src'); from churn.monitoring import simulate_batch; simulate_batch(price_increase=0.2).to_csv('lot.csv', index=False)"
+python scripts/monitor.py lot.csv; echo "code de sortie : $?"   # → 1
+```
+
+Trois codes distincts (0 stable, 1 dérive, 2 fichier invalide) : celui qui reçoit l'alerte sait
+tout de suite s'il doit regarder les données ou le pipeline de collecte.
+</details>
+
+### Auto-évaluation
+
+<details><summary>AUC stable, entrées stables, mais 10 points de churn en plus que prévu</summary>
+
+C'est une **dérive du concept** (exercice 7.5) : les clients sont les mêmes, leur comportement a
+changé (concurrent, nouvelle offre, crise…). Le PSI ne peut pas la voir, et l'AUC peut même rester
+bonne, car elle ne mesure que le classement. Que faire :
+
+1. **Chercher la cause** avec le métier : le taux réel par segment (contrat, internet…) montre
+   où l'écart se concentre (ici : les clients fibre).
+2. **Réentraîner** sur des données récentes, puis vérifier l'écart prédit / réel et l'AUC.
+3. **Recalculer le seuil** (module 4) : les probabilités ont changé, le seuil optimal aussi.
+4. Mettre en place un **plan de surveillance** à trois étages : entrées (PSI, chaque semaine),
+   scores (PSI des probabilités, part de clients signalés), performance (écart prédit / réel et
+   AUC, dès que les vrais départs sont connus).
+</details>
+
+---
+
 ## 🏁 Projet final
 
 Pas de corrigé « tout fait » : le rapport doit être **le vôtre**. Voici une structure et les chiffres
@@ -909,8 +1140,8 @@ de référence à vérifier par vous-même.
 4. **Seuil choisi** — avec vos hypothèses de coûts (ex. 500 € / 50 € → seuil 0,10) et pourquoi.
 5. **Impact estimé** — coût total au seuil choisi contre seuil 0,5 contre « ne rien faire ».
 6. **Recommandations** — 3 actions de rétention (voir l'auto-évaluation du module 5).
-7. **Limites et suites** — taux de succès des actions inconnu (prévoir un test A/B), drift,
-   validation sur de vraies données (1.5).
+7. **Limites et suites** — taux de succès des actions inconnu (prévoir un test A/B), plan de
+   surveillance (module 7 : PSI des entrées, écart churn prédit / réel), validation sur de vraies données (1.5).
 
 Un bon rapport se lit en 3 minutes par un manager **et** en 10 minutes par un data scientist.
 </details>

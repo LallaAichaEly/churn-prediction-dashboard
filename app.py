@@ -32,9 +32,11 @@ from churn.model import (  # noqa: E402
     evaluate,
     feature_importance,
     roc_points,
+    split,
     threshold_table,
     train,
 )
+from churn.monitoring import PSI_DRIFT, PSI_WATCH, drift_report, psi, simulate_batch  # noqa: E402
 
 # Couleurs : une teinte par rôle, toujours la même (bleu = principal, orange = churn/seuil).
 BLUE = "#2a78d6"
@@ -57,6 +59,12 @@ def get_model(model_name: str, use_engineered: bool):
 def get_importance(model_name: str, use_engineered: bool) -> pd.DataFrame:
     pipeline, X_test, y_test, _, _ = get_model(model_name, use_engineered)
     return feature_importance(pipeline, X_test, y_test)
+
+
+@st.cache_data
+def get_batch(price_increase: float, monthly_share: float, fibre_competition: float) -> pd.DataFrame:
+    return simulate_batch(price_increase=price_increase, monthly_share=monthly_share,
+                          fibre_competition=fibre_competition)
 
 
 def bar(df: pd.DataFrame, x: str, y: str, title: str, pct: bool = True):
@@ -87,8 +95,8 @@ metrics = evaluate(y_test, proba, threshold)
 st.title("📉 Tableau de bord — Prédiction du churn")
 st.caption("Projet d'apprentissage : chaque onglet correspond à un module du fichier PARCOURS.md.")
 
-tab_overview, tab_perf, tab_factors, tab_risk, tab_predict = st.tabs(
-    ["Vue d'ensemble", "Performance", "Facteurs de churn", "Clients à risque", "Prédire un client"]
+tab_overview, tab_perf, tab_factors, tab_risk, tab_predict, tab_monitor = st.tabs(
+    ["Vue d'ensemble", "Performance", "Facteurs de churn", "Clients à risque", "Prédire un client", "Surveillance"]
 )
 
 # --------------------------------------------------------------------------- Vue d'ensemble
@@ -227,3 +235,67 @@ with tab_predict:
         label = "⚠️ À risque" if p >= threshold else "✅ Plutôt fidèle"
         st.metric("Probabilité de churn", f"{p:.1%}", label, delta_color="off")
         st.progress(p)
+
+# --------------------------------------------------------------------------- Surveillance (module 7)
+STATUS_LABELS = {"stable": "✅ stable", "à surveiller": "⚠️ à surveiller", "dérive": "🚨 dérive"}
+
+with tab_monitor:
+    st.write(
+        "Six mois après la mise en production, un **nouveau lot de 2 000 clients** arrive. "
+        "Changez le monde ci-dessous et observez ce que la surveillance détecte… ou pas."
+    )
+    c1, c2, c3 = st.columns(3)
+    price_pct = c1.slider("Hausse des prix (%)", 0, 40, 0, 5, key="drift_price")
+    monthly_pct = c2.slider("Part de contrats mensuels (%)", 30, 90, 55, 5, key="drift_monthly",
+                            help="55 % aujourd'hui.")
+    competitor = c3.toggle("Un concurrent attire les clients fibre", key="drift_concept",
+                           help="Dérive du CONCEPT : les clients ne changent pas, leur comportement si.")
+
+    batch = get_batch(price_pct / 100, monthly_pct / 100, 1.5 if competitor else 0.0)
+    report = drift_report(split(df)[0], batch)
+    new_proba = pipeline.predict_proba(batch[FEATURES])[:, 1]
+    predicted, observed = float(new_proba.mean()), float(batch[TARGET].mean())
+    new_auc = evaluate(batch[TARGET], new_proba).roc_auc
+    n_drift = int((report["statut"] == "dérive").sum())
+
+    st.markdown("**Visible tout de suite** (pas besoin de savoir qui est parti)")
+    c = st.columns(3)
+    c[0].metric("Variables en dérive", n_drift, help=f"PSI > {PSI_DRIFT:.2f} par rapport aux données d'entraînement.")
+    c[1].metric("PSI des scores", f"{psi(proba, new_proba):.3f}",
+                help="Les probabilités prédites ont-elles changé de distribution ?")
+    c[2].metric("Churn prédit", f"{predicted:.1%}", f"{(predicted - proba.mean()) * 100:+.1f} pts vs référence",
+                delta_color="off")
+
+    st.markdown("**Visible des mois plus tard** (quand les vrais départs sont connus)")
+    c = st.columns(3)
+    c[0].metric("Churn réel", f"{observed:.1%}", f"{(observed - predicted) * 100:+.1f} pts vs prédit",
+                delta_color="off")
+    c[1].metric("ROC-AUC sur ce lot", f"{new_auc:.3f}", f"{new_auc - metrics.roc_auc:+.3f} vs test")
+
+    if n_drift:
+        drifted = ", ".join(f"`{f}`" for f in report.loc[report["statut"] == "dérive", "feature"])
+        st.warning(f"🚨 **Dérive des entrées** : {drifted}. Cherchez la cause (décision commerciale ? "
+                   "bug de collecte ?) puis vérifiez si la performance baisse avant de réentraîner.")
+    if abs(observed - predicted) > 0.05:
+        st.warning(f"⚠️ **Le modèle se trompe sur le niveau de churn** : {observed:.1%} réel contre "
+                   f"{predicted:.1%} prédit. Si les entrées sont stables, c'est une **dérive du concept** : "
+                   "réentraînez sur des données récentes.")
+
+    plot = report.sort_values("psi")
+    fig = px.bar(plot, x="psi", y="feature", orientation="h", color_discrete_sequence=[BLUE],
+                 title="Stabilité de chaque variable (PSI, données d'entraînement → nouveau lot)")
+    fig.update_traces(hovertemplate="%{y}<br>PSI : %{x:.3f}<extra></extra>")
+    for x, label in [(PSI_WATCH, "à surveiller"), (PSI_DRIFT, "dérive")]:
+        fig.add_vline(x=x, line_dash="dot", line_color="#898781", annotation_text=label,
+                      annotation_position="top")
+    fig.update_layout(height=420, bargap=0.35, margin=dict(t=60, b=10), yaxis_title=None, xaxis_title="PSI",
+                      xaxis_range=[0, max(0.3, float(report["psi"].max()) * 1.1)])
+    st.plotly_chart(fig)
+
+    with st.expander("Tableau détaillé"):
+        st.dataframe(report.assign(statut=report["statut"].map(STATUS_LABELS)), hide_index=True,
+                     column_config={"psi": st.column_config.NumberColumn("PSI", format="%.3f")})
+    st.success(
+        "🧠 Exercice 7.4–7.5 : augmentez les prix de 20 % puis activez le concurrent fibre. Dans quel cas "
+        "le PSI donne-t-il l'alerte ? Dans quel cas seule la comparaison churn prédit / réel la donne ?"
+    )

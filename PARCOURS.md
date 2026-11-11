@@ -101,13 +101,34 @@ API. Lisez-la, puis **étendez-la**.
 - [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
+(Notez votre réponse **avant** le module 7, puis comparez.)
+
+---
+
+## Module 7 — Surveiller le modèle en production (`src/churn/monitoring.py`, onglet « Surveillance »)
+
+**Objectifs** : détecter une dérive des données, distinguer *dérive* et *dégradation*, savoir quand réentraîner.
+
+Un modèle est une photo du passé. Ce module simule les clients de « dans six mois » : hausse des
+prix, nouveau mix de contrats, ou un concurrent qui change le **comportement** des clients fibre.
+L'outil central est le **PSI** (*Population Stability Index*) : < 0,10 stable · 0,10–0,25 à surveiller · > 0,25 dérive.
+
+- [ ] 🟢 7.1 — Onglet « Surveillance » : montez la hausse des prix à 20 %. Quelle variable passe en dérive ? `total_charges` augmente aussi de 20 %… pourquoi reste-t-elle « stable » ? (Indice : regardez les déciles des deux variables.)
+- [ ] 🟢 7.2 — Calculez **à la main** le PSI d'une variable qui passe de 50 % / 50 % à 70 % / 30 %, puis vérifiez avec `psi()`. Quel statut ?
+- [ ] 🟡 7.3 — Sans **aucune** dérive (lots tirés du même monde avec `generate_customers(n, seed=...)`), quel PSI maximal obtenez-vous pour des lots de 200, 1 000 et 5 000 clients ? Qu'en concluez-vous sur la taille minimale d'un lot à surveiller ?
+- [ ] 🟡 7.4 — *Dérive ≠ dégradation* : passez à 75 % de contrats mensuels. L'AUC baisse-t-elle ? Le modèle se trompe-t-il pour autant (comparez churn prédit et réel) ? Réentraîner aiderait-il ? Mesurez-le.
+- [ ] 🔴 7.5 — *Dérive du concept* : activez « Un concurrent attire les clients fibre ». Que disent le PSI, l'AUC et l'écart prédit / réel ? Réentraînez sur des clients récents (`simulate_batch(n=5000, seed=99, fibre_competition=1.5)`) et mesurez à nouveau.
+- [ ] 🔴 7.6 — Écrivez `scripts/monitor.py nouveau_lot.csv` : il affiche le rapport de dérive et renvoie le **code de sortie 1** si une variable dépasse 0,25 (pour une tâche planifiée ou la CI).
+
+**Auto-évaluation** : Votre modèle garde une AUC stable, aucune variable ne dérive, mais le churn réel dépasse
+de 10 points le churn prédit. Que se passe-t-il, et que faites-vous ?
 
 ---
 
 ## 🏁 Projet final
 
 Rédigez un mini-rapport (1 page) : problème, données, modèle retenu, seuil choisi et pourquoi,
-impact financier estimé, limites. Ajoutez-le au dépôt — c'est une pièce maîtresse pour un portfolio
+impact financier estimé, limites et **plan de surveillance** (module 7). Ajoutez-le au dépôt — c'est une pièce maîtresse pour un portfolio
 ou un entretien.
 
 ## 📚 Ressources
