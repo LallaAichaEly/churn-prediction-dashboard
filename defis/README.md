@@ -32,6 +32,8 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > `python scripts/atelier_git.py` propose 8 situations d'équipe (branche, conflit, annulation…) à
 > résoudre dans un bac à sable. Enchaînez avec la **série 06** (défis 38 à 43) : elle ne demande que
 > la série 00 et entraîne ce qui sépare un script qui « marche chez moi » d'un code fiable.
+> Juste après, la **série 11** (défis 68 à 73) prolonge le défi 39 : c'est vous qui écrivez les tests,
+> et le correcteur les juge sur des versions boguées ET sur d'autres versions justes.
 > Puis la **série 07** (défis 44 à 49) : dates, fichiers Excel, `set`, générateurs, classes et
 > décorateurs, les notions de Python qu'on rencontre dès la première vraie tâche en équipe.
 > Et la **série 08** (défis 50 à 55) : construire la table du modèle à partir de sources réelles
@@ -57,6 +59,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | **08 — Assembler les données** 🔗 | `defis/serie_08.py` | retrouver des identifiants dans des notes avec une **regex** (`\b`, `re.IGNORECASE`), **jointure** sans dupliquer ni perdre de clients (`groupby` puis `map`/`merge`), aplatir le **JSON** d'une API (champs absents ou `null`), **vectoriser** un barème (`np.select`, sans `iterrows`), **upsert** idempotent de la mise à jour de nuit (`concat` + `drop_duplicates`), variables d'un **journal d'événements** sans **fuite temporelle** | 6, n° 50 à 55 (🟢×2 🟡×3 🔴×1) |
 | **09 — Penser en algorithmes** 🧠 | `defis/serie_09.py` | la méthode d'entretien en 5 étapes et les **complexités** O(1) à O(n²) ; « two sum » avec un **dictionnaire** (la position 0 est « fausse »), délimiteurs d'une formule avec une **pile**, pic d'appels par **fenêtre glissante** (deux pointeurs), **fusion d'intervalles** de dates (`timedelta`, périodes contenues), top k d'un **flux** avec un **tas** (`heapq`, mémoire O(k), égalités), clients proches d'un parti par **parcours en largeur** multi-sources (`deque`) | 6, n° 56 à 61 (🟢×2 🟡×3 🔴×1) |
 | **10 — SQL pour l'analyse** 🗄️ | `defis/serie_10.py` | l'ordre d'évaluation d'une requête et la logique à trois valeurs de **NULL** (`IS NULL`, `COUNT(col)`, `COALESCE`), **anti-jointure** (le piège de `NOT IN` face à un NULL), **`LEFT JOIN` : ON ou WHERE ?** et `COUNT(*)` qui compte 1 pour « aucun appel », une variable de « photo » à une date passée (paramètre nommé, priorité AND/OR), **explosion des jointures** (fan-out) et CTE, **fonctions de fenêtre** (`LAG`, cumul `SUM() OVER`, fenêtre nommée), **îlots et trous** (mois consécutifs avec `ROW_NUMBER()`, `HAVING`) | 6, n° 62 à 67 (🟢×2 🟡×3 🔴×1) |
+| **11 — Tester comme un·e pro** 🧪 | `defis/serie_11.py` | choisir ses exemples aux **frontières** (`pytest.mark.parametrize`, le piège de 0 dans un `if`), comparer des flottants avec **`pytest.approx`** (et pourquoi `1 - 2/3 != 1/3`), tester le chemin d'erreur avec **`pytest.raises`** (`match`, ni trop large ni fragile), remplacer un service d'e-mails par un **faux** (injection de dépendance, panne simulée, `unittest.mock`), tester un **fichier** dans un dossier temporaire (`tmp_path`, ne jamais écraser), **tests par propriétés** sur des centaines de cas tirés au hasard (graine fixe, Hypothesis) | 6, n° 68 à 73 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -89,7 +92,11 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 
 > 🧪 Le défi 39 inverse les rôles : c'est **vous** qui écrivez le test, et le correcteur vérifie qu'il
 > passe sur la bonne fonction et échoue sur 5 versions boguées. C'est le meilleur entraînement pour
-> écrire ensuite vos propres `tests/test_*.py`.
+> écrire ensuite vos propres `tests/test_*.py`. La série 11 pousse l'idée plus loin : le correcteur
+> lance aussi votre test sur une **autre version juste**, écrite autrement. Un test qui compare des
+> flottants avec `==`, recopie le texte exact d'un message ou exige un détail non promis échoue alors :
+> il bloquerait un refactoring. Le défi 72 lance votre test dans un dossier jetable et vérifie qu'il
+> n'écrit rien ailleurs.
 
 > 💡 Les défis 🔴 réutilisent le code du projet (`churn.model.build_pipeline`) : vous
 > apprenez aussi à lire et réutiliser un code existant, compétence clé en entreprise.

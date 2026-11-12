@@ -26,13 +26,13 @@ Ensuite, faites **un défi par séance**, dans l'ordre qui correspond à votre o
 | Votre objectif | Commencez par | Puis |
 |---|---|---|
 | Je débute, ou je ne me sens pas encore « à niveau » | série 00 (défis 30 à 37) | série 01, puis le module 1 de [`PARCOURS.md`](PARCOURS.md) |
-| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 07 → 08, puis le [projet guidé](projets/README.md) |
+| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 11 (tests) → 07 → 08, puis le [projet guidé](projets/README.md) |
 | Je prépare un entretien technique | séries 00 et 07 | série 09 (algorithmique), puis séries 05 et 10 (SQL) |
 | Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05 |
 
 Pour aller plus loin :
 
-- [`defis/README.md`](defis/README.md) détaille les 11 séries de défis.
+- [`defis/README.md`](defis/README.md) détaille les 12 séries de défis.
 - [`PARCOURS.md`](PARCOURS.md) propose des exercices en 7 modules sur le vrai projet.
   `python scripts/progression.py` suit votre avancement.
 - [`CORRIGES.md`](CORRIGES.md) donne un indice puis la solution de chaque exercice. Ouvrez-le
@@ -64,7 +64,8 @@ Pour aller plus loin :
 | Assembler les données : regex, jointures, JSON d'API, vectorisation, upsert idempotent, fuite temporelle | `defis/serie_08.py` |
 | Algorithmique d'entretien : complexité, dictionnaire, pile, deux pointeurs, intervalles, tas (`heapq`), BFS (`deque`) | `defis/serie_09.py` |
 | SQL pour l'analyse : NULL, anti-jointure, `LEFT JOIN`, fan-out, CTE, `LAG` et cumuls, îlots et trous | `defis/serie_10.py` (SQLite) |
-| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_10.py` + `scripts/defis.py` |
+| Tester comme un·e pro : valeurs aux frontières et `parametrize`, `pytest.approx`, `pytest.raises`, faux objets (injection de dépendance), fichiers dans `tmp_path`, tests par propriétés | `defis/serie_11.py` (vos tests, jugés par mutation) |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_11.py` + `scripts/defis.py` |
 | Construire un programme complet : modules, CSV imparfaits, règles métier, budget, CLI, tests | `projets/retention/` (projet 2, 7 étapes) + `scripts/projet.py` |
 | Git en équipe : commit propre et `.gitignore`, branches, `stash`, conflits, `revert`, `bisect`, `reflog`, `rebase` et `push --force-with-lease` | `atelier_git/` (8 scénarios dans un bac à sable) + `scripts/atelier_git.py` |
 
@@ -154,6 +155,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── serie_08.py         # 🔗 Série 08 — assembler les données : regex, jointures, JSON, upsert, événements (6 défis)
 │   ├── serie_09.py         # 🧠 Série 09 — algorithmes d'entretien : dict, pile, fenêtre, intervalles, tas, BFS (6 défis)
 │   ├── serie_10.py         # 🗄️ Série 10 — SQL pour l'analyse : NULL, jointures, fenêtres, îlots (6 défis)
+│   ├── serie_11.py         # 🧪 Série 11 — tester comme un·e pro : frontières, approx, raises, faux objets, tmp_path, propriétés (6 défis)
 │   ├── donnees_sql.py      # La base SQLite de la série 10 (clients, factures, appels) + essayer()
 │   ├── corrige_serie_XX.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_XX.py  # Vérifications automatiques

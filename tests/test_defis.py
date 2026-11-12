@@ -4,7 +4,9 @@ Ces tests NE notent PAS vos réponses (pour ça : `python scripts/defis.py`) ; i
 vérifient le corrigé et le moteur de correction.
 """
 
+import random
 import sys
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -2412,3 +2414,200 @@ def test_serie_10_la_base_d_exemple_est_reproductible_et_piegee():
     premiere = tables["factures"].groupby("customer_id")["invoice_date"].min()
     inscription = tables["clients"].set_index("customer_id")["signup_date"]
     assert (premiere >= inscription.loc[premiere.index]).all(), "aucune facture avant l'inscription"
+
+
+# --------------------------------------------------------------------------- Série 11 : tester comme un·e pro
+
+
+def _segment_ref(mois):
+    return "nouveau" if mois < 6 else "installé" if mois < 24 else "fidèle"
+
+
+@pytest.mark.parametrize("cas,attendu", [
+    ([(3, "nouveau"), (12, "installé"), (40, "fidèle")], "6 mois"),          # milieux de zone : aucune frontière
+    ([(5, "nouveau"), (6, "installé"), (30, "fidèle")], "DEUX frontières"),  # la seconde frontière est oubliée
+    ([(5, "nouveau"), (6, "installé"), (23, "installé"), (24, "fidèle")], "0 mois"),
+    ([(m, _segment_ref(m)) for m in range(73)], "au plus 6"),               # tout essayer n'est pas tester
+    ([(6, "nouveau")], "est faux"),
+], ids=["milieux", "une_frontiere", "sans_zero", "exhaustif", "cas_faux"])
+def test_serie_11_frontieres(cas, attendu):
+    resultat = _evaluer("cas_limites_anciennete", lambda: cas)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_serie_11_egalite_exacte_entre_flottants_est_fragile():
+    """`== 1 / 3` passe sur la fonction fournie mais casse sur une version juste calculée autrement."""
+
+    def egalite_exacte(taux_churn):
+        assert taux_churn(1, 4) == 0.25
+        assert taux_churn(1, 3) == 1 / 3
+        assert taux_churn(0, 0) == 0.0
+
+    resultat = _evaluer("tester_taux_churn", egalite_exacte)
+    assert resultat.statut == ECHEC and "JUSTE" in resultat.message and "pytest.approx" in resultat.message
+
+
+def test_serie_11_tolerance_trop_large_laisse_passer_l_arrondi():
+    def tolerance_large(taux_churn):
+        assert taux_churn(1, 4) == pytest.approx(0.25)
+        assert taux_churn(1, 3) == pytest.approx(0.33, abs=0.01)
+        assert taux_churn(0, 0) == 0.0
+
+    resultat = _evaluer("tester_taux_churn", tolerance_large)
+    assert resultat.statut == ECHEC and "arrondit à 2 décimales" in resultat.message
+
+
+def _contrat_valides(lire_contrat):
+    assert lire_contrat("mensuel") == "Mensuel"
+    assert lire_contrat("  MENSUEL ") == "Mensuel"
+    assert lire_contrat("1 an") == "1 an"
+    assert lire_contrat("2 ans") == "2 ans"
+
+
+def test_serie_11_un_try_except_ne_detecte_pas_l_absence_d_erreur():
+    def try_except(lire_contrat):
+        _contrat_valides(lire_contrat)
+        try:
+            lire_contrat("Mensual")
+        except ValueError:
+            pass
+
+    resultat = _evaluer("tester_lire_contrat", try_except)
+    assert resultat.statut == ECHEC and "renvoie None" in resultat.message
+
+
+def test_serie_11_raises_exception_est_trop_large():
+    def trop_large(lire_contrat):
+        _contrat_valides(lire_contrat)
+        with pytest.raises(Exception):  # sans match : toute erreur est acceptée
+            lire_contrat("Mensual")
+
+    resultat = _evaluer("tester_lire_contrat", trop_large)
+    assert resultat.statut == ECHEC and "KeyError" in resultat.message
+
+
+def test_serie_11_verifier_toute_la_phrase_du_message_est_fragile():
+    def phrase_entiere(lire_contrat):
+        _contrat_valides(lire_contrat)
+        with pytest.raises(ValueError, match="Contrat inconnu"):
+            lire_contrat("Mensual")
+
+    resultat = _evaluer("tester_lire_contrat", phrase_entiere)
+    assert resultat.statut == ECHEC and "JUSTE" in resultat.message and "match='Mensual'" in resultat.message
+
+
+def test_serie_11_un_raises_qui_ne_voit_rien_venir_est_un_echec_pas_un_plantage():
+    """L'échec de pytest.raises dérive de BaseException : il ne doit pas faire planter le correcteur."""
+
+    def attend_une_erreur_sur_une_saisie_valide(lire_contrat):
+        with pytest.raises(ValueError):
+            lire_contrat("mensuel")
+
+    resultat = _evaluer("tester_lire_contrat", attend_une_erreur_sur_une_saisie_valide)
+    assert resultat.statut == ECHEC and "vraiment invalide" in resultat.message
+
+
+def test_serie_11_verifier_le_texte_du_message_envoye_est_fragile():
+    def texte_exact(relancer_clients):
+        envois = []
+        relancer_clients([{"customer_id": "C1", "proba": 0.9}], lambda cid, msg: envois.append((cid, msg)))
+        assert envois == [("C1", "Bonjour, profitez de -20 % sur votre prochain mois (C1).")]
+
+    resultat = _evaluer("tester_relancer_clients", texte_exact)
+    assert resultat.statut == ECHEC and "texte est libre" in resultat.message
+
+
+def test_serie_11_sans_panne_simulee_l_abandon_passe_inapercu():
+    def sans_panne(relancer_clients):
+        envois = []
+        clients = [{"customer_id": "C1", "proba": 0.9}, {"customer_id": "C2", "proba": 0.1},
+                   {"customer_id": "C3", "proba": 0.5}, {"customer_id": "C1", "proba": 0.9}]
+        assert relancer_clients(clients, lambda cid, msg: envois.append(cid)) == 2
+        assert envois == ["C1", "C3"]
+        envois.clear()
+        assert relancer_clients(clients, lambda cid, msg: envois.append(cid), seuil=0.8) == 1
+
+    resultat = _evaluer("tester_relancer_clients", sans_panne)
+    assert resultat.statut == ECHEC and "ConnectionError" in resultat.message
+
+
+def test_serie_11_un_test_qui_ecrit_hors_du_dossier_temporaire_est_refuse(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # même si le correcteur se trompait, rien n'atterrirait dans le dépôt
+
+    def ecrit_ici(exporter_rapport, dossier):
+        exporter_rapport(pd.DataFrame({"customer_id": ["C1"], "proba": [0.9]}), Path("."))
+
+    resultat = _evaluer("tester_exporter_rapport", ecrit_ici)
+    assert resultat.statut == ECHEC and "dossier courant" in resultat.message
+    assert list(tmp_path.iterdir()) == [], "le correcteur doit lancer le test dans un dossier jetable"
+
+
+def test_serie_11_relire_sans_le_bon_separateur_est_explique():
+    def sans_sep(exporter_rapport, dossier):
+        exporter_rapport(pd.DataFrame({"customer_id": ["C1", "C2"], "proba": [0.9, 0.7]}), dossier)
+        assert list(pd.read_csv(dossier / "clients_a_risque.csv").columns) == ["customer_id", "proba"]
+
+    resultat = _evaluer("tester_exporter_rapport", sans_sep)
+    assert resultat.statut == ECHEC and "sep=';'" in resultat.message
+
+
+def test_serie_11_relire_le_chemin_renvoye_ne_suffit_pas():
+    def via_le_chemin_renvoye(exporter_rapport, dossier):
+        scores = pd.DataFrame({"customer_id": ["C1", "C2", "C3"], "proba": [0.6, 0.9, 0.7]})
+        rapport = pd.read_csv(exporter_rapport(scores, dossier), sep=";")
+        assert list(rapport.columns) == ["customer_id", "proba"]
+        assert list(rapport["customer_id"]) == ["C2", "C3", "C1"]
+        with pytest.raises(FileExistsError):
+            exporter_rapport(scores, dossier)
+
+    resultat = _evaluer("tester_exporter_rapport", via_le_chemin_renvoye)
+    assert resultat.statut == ECHEC and "dossier COURANT" in resultat.message
+
+
+def _proprietes(repartir, max_clients=250, ordre=True, copie=True):
+    hasard = random.Random(0)
+    for _ in range(300):
+        clients = [f"C{i}" for i in range(hasard.randint(0, max_clients))]
+        n, avant = hasard.randint(1, 15), list(clients)
+        groupes = repartir(clients, n)
+        assert len(groupes) == n
+        recolles = [c for g in groupes for c in g]
+        assert (recolles == avant) if ordre else (sorted(recolles) == sorted(avant))
+        tailles = [len(g) for g in groupes]
+        assert max(tailles) - min(tailles) <= 1
+        if copie:
+            assert clients == avant
+
+
+@pytest.mark.parametrize("test,attendu", [
+    (lambda repartir: _proprietes(repartir, max_clients=40), "100e"),
+    (lambda repartir: _proprietes(repartir, ordre=False), "tour de rôle"),
+    (lambda repartir: _proprietes(repartir, copie=False), "garantie 4"),
+    (lambda repartir: [repartir([f"C{i}" for i in range(10)], 3)], "TOUTES"),  # n'affirme rien
+], ids=["petites_listes", "ensembles", "sans_copie", "aucun_assert"])
+def test_serie_11_chaque_propriete_oubliee_laisse_passer_son_bug(test, attendu):
+    resultat = _evaluer("tester_repartir", test)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_serie_11_un_resultat_exact_non_promis_est_fragile():
+    def resultat_exact(repartir):
+        assert repartir(list("abcdefghij"), 3) == [list("abcd"), list("efg"), list("hij")]
+
+    resultat = _evaluer("tester_repartir", resultat_exact)
+    assert resultat.statut == ECHEC and "DERNIERS conseillers" in resultat.message
+
+
+def test_serie_11_les_fonctions_fournies_sont_celles_du_correcteur():
+    """L'élève essaie ses tests sur les fonctions de serie_11.py : elles doivent se comporter comme les références."""
+    import defis.checks_serie_11 as checks
+    import defis.corrige_serie_11 as corrige
+    import defis.serie_11 as eleve
+
+    assert [eleve.segment_anciennete(m) for m in range(80)] == [checks._segment(m) for m in range(80)]
+    corrige.tester_taux_churn(eleve.taux_churn)
+    corrige.tester_lire_contrat(eleve.lire_contrat)
+    corrige.tester_relancer_clients(eleve.relancer_clients)
+    corrige.tester_repartir(eleve.repartir)
+    with tempfile.TemporaryDirectory() as dossier:
+        corrige.tester_exporter_rapport(eleve.exporter_rapport, Path(dossier))
