@@ -1,0 +1,11 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+data/*.csv
+models/*.joblib
+models/*.json
+tests
+app.py

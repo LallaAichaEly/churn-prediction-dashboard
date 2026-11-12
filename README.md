@@ -8,6 +8,17 @@ de partir (*churn*).
 > un parcours de compétences en 6 modules, avec des exercices progressifs et une checklist
 > pour suivre votre progression.
 
+## 🗺️ Les projets
+
+Le dépôt grandit projet après projet. Chacun est **terminé et testé**, et chacun a ses
+propres exercices.
+
+| # | Projet | Compétences | Exercices | État |
+|---|---|---|---|---|
+| 1 | **Tableau de bord de prédiction du churn** | pandas, scikit-learn, évaluation, Streamlit | [`PARCOURS.md`](PARCOURS.md) | ✅ terminé |
+| 2 | **API de prédiction** | FastAPI, Pydantic, tests d'API, Docker | [`api/README.md`](api/README.md) | ✅ terminé |
+| 3 | Surveillance du modèle | journal des prédictions, *data drift*, alertes | — | 🔜 prochain |
+
 ## Ce que vous allez pratiquer
 
 | Compétence | Où dans le code |
@@ -27,8 +38,9 @@ python -m venv .venv && source .venv/bin/activate   # Windows : .venv\Scripts\ac
 pip install -r requirements.txt
 
 python scripts/train.py          # entraîne et compare les modèles
-streamlit run app.py             # ouvre le tableau de bord sur http://localhost:8501
-pytest -q                        # lance les tests
+streamlit run app.py             # Projet 1 : tableau de bord sur http://localhost:8501
+uvicorn api.main:app --reload    # Projet 2 : API sur http://localhost:8000/docs
+pytest -q                        # lance les tests (33)
 ```
 
 Les données sont **synthétiques** et générées au premier lancement dans `data/customers.csv`
@@ -59,13 +71,21 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ## Structure
 
 ```
-├── app.py                  # Tableau de bord Streamlit
+├── app.py                  # Projet 1 — tableau de bord Streamlit
 ├── scripts/train.py        # Entraînement + comparaison en ligne de commande
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
 │   └── model.py            # Entraînement, évaluation, seuil, importance
-├── tests/test_churn.py     # Tests
-├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
+├── api/                    # Projet 2 — API FastAPI
+│   ├── main.py             # Routes /health, /model, /predict, /predict/batch
+│   ├── schemas.py          # Validation des entrées et sorties (Pydantic)
+│   ├── client_example.py   # Appeler l'API depuis Python
+│   └── README.md           # 🧭 Guide et exercices du Projet 2
+├── tests/
+│   ├── test_churn.py       # Tests du Projet 1
+│   └── test_api.py         # Tests du Projet 2
+├── Dockerfile              # Image de l'API (requirements-api.txt)
+├── PARCOURS.md             # 🧭 Parcours de compétences et exercices du Projet 1
 └── requirements.txt
 ```
