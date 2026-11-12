@@ -5,7 +5,9 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 
 **Comment progresser efficacement**
 
-1. Travaillez sur une branche par module : `git checkout -b module-3-exercices`.
+1. Travaillez sur une branche par module : `git checkout -b module-3-exercices`. Pas encore à l'aise
+   avec les branches, les commits ou les conflits ? Faites d'abord les scénarios 1 à 4 de
+   l'[atelier Git](atelier_git/README.md) : `python scripts/atelier_git.py`.
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
 3. Notez vos résultats (avant / après) dans [`JOURNAL.md`](JOURNAL.md) (modèle fourni) : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.

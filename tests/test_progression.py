@@ -61,6 +61,17 @@ def test_defis_are_optional(project):
     assert "Défis" not in progression.render(project)
 
 
+def test_atelier_git_is_optional(project):
+    assert progression.atelier_git_score(project) is None
+    assert "Atelier Git" not in progression.render(project)
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git n'est pas installé")
+def test_atelier_git_score(tmp_path):
+    score = progression.atelier_git_score(ROOT, racine=tmp_path / "atelier-git")
+    assert score == progression.AtelierScore(0, 8)
+
+
 def test_beginner_hint_only_before_any_progress():
     """Rien de fait : on propose la série 00. Dès le premier défi ou exercice réussi, on se tait."""
     zero = progression.DefiScore(0, 37, {})

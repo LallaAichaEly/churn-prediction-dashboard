@@ -26,7 +26,7 @@ Ensuite, faites **un défi par séance**, dans l'ordre qui correspond à votre o
 | Votre objectif | Commencez par | Puis |
 |---|---|---|
 | Je débute, ou je ne me sens pas encore « à niveau » | série 00 (défis 30 à 37) | série 01, puis le module 1 de [`PARCOURS.md`](PARCOURS.md) |
-| Je veux développer : écrire du code fiable, en équipe | série 00 | séries 06 → 07 → 08, puis le [projet guidé](projets/README.md) |
+| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 07 → 08, puis le [projet guidé](projets/README.md) |
 | Je prépare un entretien technique | séries 00 et 07 | série 09 (algorithmique), puis séries 05 et 10 (SQL) |
 | Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05 |
 
@@ -39,6 +39,9 @@ Pour aller plus loin :
   **après** avoir cherché.
 - [`projets/README.md`](projets/README.md) décrit le projet guidé, corrigé par `python scripts/projet.py` :
   un vrai programme à construire en 7 étapes, du CSV imparfait au plan de rétention.
+- [`atelier_git/README.md`](atelier_git/README.md) décrit l'atelier Git, corrigé par
+  `python scripts/atelier_git.py` : 8 situations d'équipe à résoudre dans un bac à sable, du premier
+  commit propre au conflit de fusion, au `git bisect` et à la branche prête pour la revue.
 
 ## Ce que vous allez pratiquer
 
@@ -63,6 +66,7 @@ Pour aller plus loin :
 | SQL pour l'analyse : NULL, anti-jointure, `LEFT JOIN`, fan-out, CTE, `LAG` et cumuls, îlots et trous | `defis/serie_10.py` (SQLite) |
 | Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_10.py` + `scripts/defis.py` |
 | Construire un programme complet : modules, CSV imparfaits, règles métier, budget, CLI, tests | `projets/retention/` (projet 2, 7 étapes) + `scripts/projet.py` |
+| Git en équipe : commit propre et `.gitignore`, branches, `stash`, conflits, `revert`, `bisect`, `reflog`, `rebase` et `push --force-with-lease` | `atelier_git/` (8 scénarios dans un bac à sable) + `scripts/atelier_git.py` |
 
 ## Démarrage rapide
 
@@ -77,6 +81,7 @@ pytest -q                        # lance les tests (≈ 1 min, dont le tableau d
 python scripts/progression.py    # 🧭 votre progression + le prochain exercice, avec un indice
 python scripts/defis.py          # ⚡ vos défis auto-corrigés : ✅ / ❌ / ⬜
 python scripts/projet.py         # 🏗️ votre projet guidé (projet 2), étape par étape
+python scripts/atelier_git.py    # 🌿 git en équipe : 8 situations à résoudre dans un bac à sable
 ```
 
 À chaque `git push`, GitHub Actions réinstalle le projet, entraîne les modèles et relance tous les
@@ -136,6 +141,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── scripts/progression.py  # 🧭 Coach : vérifie vos exercices, propose la suite
 ├── scripts/defis.py        # ⚡ Correction automatique des défis
 ├── scripts/projet.py       # 🏗️ Correction automatique du projet guidé
+├── scripts/atelier_git.py  # 🌿 Atelier Git : prépare et corrige les 8 scénarios
 ├── defis/
 │   ├── serie_00.py         # 👋 Série 00 — remise à niveau Python & pandas (8 défis, à faire en premier)
 │   ├── serie_01.py         # ✍️ Série 01 — les fondamentaux (10 fonctions à compléter)
@@ -151,6 +157,9 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── donnees_sql.py      # La base SQLite de la série 10 (clients, factures, appels) + essayer()
 │   ├── corrige_serie_XX.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_XX.py  # Vérifications automatiques
+├── atelier_git/            # 🌿 Atelier Git (voir atelier_git/README.md)
+│   ├── scenarios.py        # Les 8 situations : mission, indices, solution, correction
+│   └── atelier.py, outils.py  # Moteur : fabrique les dépôts dans ~/atelier-git, puis les inspecte
 ├── projets/                # 🏗️ Projets guidés (voir projets/README.md)
 │   ├── retention/          # Projet 2 — VOTRE code : 7 étapes à compléter (clients.py … cli.py, mes_tests.py)
 │   ├── retention_corrige/  # Projet 2 terminé : le corrigé, et la référence du correcteur
@@ -171,6 +180,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── test_progression.py # Le coach juge correctement les exercices
 │   ├── test_defis.py       # Le corrigé des défis réussit, les erreurs classiques sont détectées
 │   ├── test_projets.py     # Le projet guidé : corrigé, programme terminé, erreurs classiques détectées
+│   ├── test_atelier_git.py # L'atelier Git : chaque solution réussit, les erreurs classiques sont expliquées
 │   └── test_solutions.py   # Les affirmations des corrigés restent vraies
 ├── .github/workflows/      # Intégration continue (pytest à chaque push)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices

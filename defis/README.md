@@ -28,7 +28,9 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > numéros 30 à 37 parce qu'elle a été ajoutée après les autres, mais c'est bien la première à faire :
 > `python scripts/defis.py --defi 30`.
 >
-> 🛠️ **Vous voulez développer ?** Enchaînez avec la **série 06** (défis 38 à 43) : elle ne demande que
+> 🛠️ **Vous voulez développer ?** Faites l'[atelier Git](../atelier_git/README.md) :
+> `python scripts/atelier_git.py` propose 8 situations d'équipe (branche, conflit, annulation…) à
+> résoudre dans un bac à sable. Enchaînez avec la **série 06** (défis 38 à 43) : elle ne demande que
 > la série 00 et entraîne ce qui sépare un script qui « marche chez moi » d'un code fiable.
 > Puis la **série 07** (défis 44 à 49) : dates, fichiers Excel, `set`, générateurs, classes et
 > décorateurs, les notions de Python qu'on rencontre dès la première vraie tâche en équipe.

@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import io
 import re
+import shutil
 import sys
 import tokenize
 from dataclasses import dataclass
@@ -503,6 +504,32 @@ def projets_scores(root: Path = ROOT) -> list[ProjetScore]:
         return [ProjetScore("Projets guidés", 0, 0, f"{type(exc).__name__} : {exc}")]
 
 
+# --------------------------------------------------------------------------- Atelier Git (atelier_git/)
+
+
+@dataclass(frozen=True)
+class AtelierScore:
+    reussis: int
+    total: int
+    erreur: str = ""
+
+
+def atelier_git_score(root: Path = ROOT, racine: Path | None = None) -> AtelierScore | None:
+    """Scénarios réussis dans l'atelier Git (bac à sable ~/atelier-git), ou None sans atelier ni git."""
+    if not (root / "atelier_git" / "atelier.py").exists() or shutil.which("git") is None:
+        return None
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from atelier_git.atelier import REUSSI, SCENARIOS, evaluer
+        from atelier_git.outils import racine_par_defaut
+
+        racine = racine or racine_par_defaut()
+        return AtelierScore(sum(evaluer(s, racine).statut == REUSSI for s in SCENARIOS), len(SCENARIOS))
+    except Exception as exc:  # ex. bac à sable illisible
+        return AtelierScore(0, 0, f"{type(exc).__name__} : {exc}")
+
+
 # --------------------------------------------------------------------------- Affichage
 
 
@@ -573,6 +600,12 @@ def render(root: Path = ROOT) -> str:
         else:
             out.append(f"🏗️  {projet.titre} : {projet.reussis}/{projet.total} étapes "
                        f"{_bar(projet.reussis, projet.total)}  — détail : python scripts/projet.py")
+    atelier = atelier_git_score(root)
+    if atelier and atelier.erreur:
+        out.append(f"🌿 Atelier Git : 💥 impossible de le corriger ({atelier.erreur}) — python scripts/atelier_git.py")
+    elif atelier:
+        out.append(f"🌿 Atelier Git : {atelier.reussis}/{atelier.total} scénarios "
+                   f"{_bar(atelier.reussis, atelier.total)}  — détail : python scripts/atelier_git.py")
     conseil = conseil_debutant(total, defis)
     if conseil:
         out.append(conseil)

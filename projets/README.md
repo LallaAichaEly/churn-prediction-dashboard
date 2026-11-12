@@ -97,7 +97,8 @@ aux autres. C'est la différence entre un script de 300 lignes et un logiciel.
 | 7 | `mes_tests.py` | 🔴 | Le test qui protège l'étape 4 | Écrire un test qui attrape 7 versions boguées (*mutation testing*) |
 
 **Prérequis** : la série 00 des défis (fonctions, conditions, boucles) ; les séries 06 et 07 aident
-beaucoup (exceptions, `argparse`, classes). Aucune notion de machine learning n'est nécessaire.
+beaucoup (exceptions, `argparse`, classes), et les scénarios 1 à 3 de l'[atelier Git](../atelier_git/README.md)
+pour commiter chaque étape sur sa branche. Aucune notion de machine learning n'est nécessaire.
 
 ### Comment travailler
 
