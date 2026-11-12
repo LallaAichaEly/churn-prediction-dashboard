@@ -887,3 +887,337 @@ def test_une_valeur_inconnue_ne_disparait_pas_en_silence():
 
     resultat = _evaluer("nettoyer_contrats", lambda contrats: contrats.str.strip().str.lower().map(SYNONYMES))
     assert resultat.statut == ECHEC and "trimestriel" in resultat.message
+
+
+# --------------------------------------------------------------------------- Série 06 : développer comme un·e pro
+
+
+def test_traceback_le_premier_appel_n_est_pas_celui_qui_plante():
+    import defis.corrige_serie_06 as corrige
+
+    def premier_appel(texte):
+        res = corrige.analyser_traceback(texte)
+        premier = next(ligne.strip() for ligne in texte.splitlines() if ligne.strip().startswith('File "'))
+        res["fichier"] = premier[len('File "'):].split('"', 1)[0]
+        return res
+
+    resultat = _evaluer("analyser_traceback", premier_appel)
+    assert resultat.statut == ECHEC and "most recent call last" in resultat.message
+
+
+def test_traceback_un_message_avec_deux_points_reste_entier():
+    import defis.corrige_serie_06 as corrige
+
+    def coupe_partout(texte):
+        res = corrige.analyser_traceback(texte)
+        res["message"] = res["message"].split(":")[0].strip()
+        return res
+
+    resultat = _evaluer("analyser_traceback", coupe_partout)
+    assert resultat.statut == ECHEC and "PREMIER" in resultat.message
+
+
+def test_traceback_la_ligne_est_un_entier():
+    import defis.corrige_serie_06 as corrige
+
+    resultat = _evaluer("analyser_traceback", lambda t: {**corrige.analyser_traceback(t), "ligne": "97"})
+    assert resultat.statut == ECHEC and "int(" in resultat.message
+
+
+def test_traceback_une_erreur_sans_message_ne_fait_pas_planter_la_verification():
+    import defis.corrige_serie_06 as corrige
+
+    def deballe(texte):
+        res = corrige.analyser_traceback(texte)
+        derniere = [ligne for ligne in texte.splitlines() if ligne.strip()][-1]
+        res["erreur"], res["message"] = derniere.split(": ", 1)
+        return res
+
+    resultat = _evaluer("analyser_traceback", deballe)
+    assert resultat.statut == ECHEC and "AUCUN message" in resultat.message
+
+
+def test_traceback_chainee_on_lit_la_derniere_erreur():
+    import defis.corrige_serie_06 as corrige
+
+    def premiere_erreur(texte):
+        res = corrige.analyser_traceback(texte)
+        if "During handling" in texte:
+            res["erreur"] = "FileNotFoundError"
+        return res
+
+    resultat = _evaluer("analyser_traceback", premiere_erreur)
+    assert resultat.statut == ECHEC and "TOUT EN BAS" in resultat.message
+
+
+def test_un_test_avec_un_seul_exemple_ne_suffit_pas():
+    def un_seul_exemple(taux_en_pourcentage):
+        assert taux_en_pourcentage(35, 100) == 35.0
+
+    resultat = _evaluer("tester_taux_en_pourcentage", un_seul_exemple)
+    assert resultat.statut == ECHEC and "aucun client" in resultat.message
+
+
+def test_un_test_sans_assert_ne_verifie_rien():
+    resultat = _evaluer("tester_taux_en_pourcentage", lambda taux_en_pourcentage: taux_en_pourcentage(35, 100))
+    assert resultat.statut == ECHEC and "ne vérifie rien" in resultat.message
+
+
+def test_un_test_qui_echoue_sur_le_bon_code_est_refuse():
+    def valeur_fausse(taux_en_pourcentage):
+        assert taux_en_pourcentage(1, 3) == 33.33
+
+    resultat = _evaluer("tester_taux_en_pourcentage", valeur_fausse)
+    assert resultat.statut == ECHEC and "CORRECTE" in resultat.message
+
+
+def test_un_test_approximatif_laisse_passer_l_arrondi_oublie():
+    import math
+
+    def approximatif(f):
+        assert f(35, 100) == 35.0 and f(1, 4) == 25.0 and f(0, 0) == 0.0
+        assert math.isclose(f(1, 3), 33.3, abs_tol=0.05)
+
+    resultat = _evaluer("tester_taux_en_pourcentage", approximatif)
+    assert resultat.statut == ECHEC and "4/5" in resultat.message and "arrondi" in resultat.message
+
+
+def _seuil_presque(modification):
+    """Le corrigé de lire_seuil, avec une erreur de débutant·e injectée."""
+    import defis.corrige_serie_06 as corrige
+
+    def lire_seuil(texte, defaut=0.5):
+        return modification(texte, defaut, corrige.lire_seuil)
+
+    return lire_seuil
+
+
+def test_lire_seuil_nan_passe_entre_les_bornes():
+    def sans_nan(texte, defaut, juste):
+        return float("nan") if texte == "nan" else juste(texte, defaut)
+
+    resultat = _evaluer("lire_seuil", _seuil_presque(sans_nan))
+    assert resultat.statut == ECHEC and "nan < 0" in resultat.message
+
+
+def test_lire_seuil_une_saisie_invalide_ne_devient_pas_le_defaut():
+    def silencieux(texte, defaut, juste):
+        try:
+            return juste(texte, defaut)
+        except ValueError:
+            if texte == "abc":
+                return defaut
+            raise
+
+    resultat = _evaluer("lire_seuil", _seuil_presque(silencieux))
+    assert resultat.statut == ECHEC and "en silence" in resultat.message
+
+
+def test_lire_seuil_le_message_cite_la_saisie():
+    def message_vague(texte, defaut, juste):
+        try:
+            return juste(texte, defaut)
+        except ValueError:
+            raise ValueError("seuil invalide") from None
+
+    resultat = _evaluer("lire_seuil", _seuil_presque(message_vague))
+    assert resultat.statut == ECHEC and "ne cite pas la saisie" in resultat.message
+
+
+def test_lire_seuil_virgule_francaise():
+    def sans_virgule(texte, defaut, juste):
+        if texte and "," in texte:
+            return float(texte)
+        return juste(texte, defaut)
+
+    resultat = _evaluer("lire_seuil", _seuil_presque(sans_virgule))
+    assert resultat.statut == ECHEC and "virgule" in resultat.message
+
+
+def test_lire_seuil_refuse_except_exception():
+    def lire_seuil(texte, defaut=0.5):
+        if texte is None or not texte.strip():
+            return defaut
+        nettoye = texte.strip().replace(",", ".")
+        pourcentage = nettoye.endswith("%")
+        try:
+            valeur = float(nettoye.rstrip("%"))
+        except Exception:
+            raise ValueError(f"Seuil illisible : {texte!r}") from None
+        valeur = valeur / 100 if pourcentage else valeur
+        if not 0 <= valeur <= 1:
+            raise ValueError(f"Hors bornes : {texte!r}")
+        return valeur
+
+    resultat = _evaluer("lire_seuil", lire_seuil)
+    assert resultat.statut == ECHEC and "except ValueError" in resultat.message
+
+
+_KPIS = ("monthly_charges", "tenure_months", "support_calls")
+
+
+def test_refactoring_l_ecart_se_calcule_avant_l_arrondi():
+    def arrondi_trop_tot(df, colonnes=_KPIS):
+        partis, restes = df[df["churn"] == 1], df[df["churn"] == 0]
+        lignes = []
+        for col in colonnes:
+            m1, m0 = round(partis[col].mean(), 2), round(restes[col].mean(), 2)
+            lignes.append({"variable": col, "moyenne_partis": m1, "moyenne_restes": m0, "ecart": round(m1 - m0, 2)})
+        return pd.DataFrame(lignes)
+
+    resultat = _evaluer("resume_kpis", arrondi_trop_tot)
+    assert resultat.statut == ECHEC and "ARRONDIES" in resultat.message
+
+
+def test_refactoring_groupby_sans_client_parti():
+    def avec_groupby(df, colonnes=_KPIS):
+        moyennes = df.groupby("churn")[list(colonnes)].mean()
+        lignes = []
+        for col in colonnes:
+            m1, m0 = moyennes.loc[1, col], moyennes.loc[0, col]
+            lignes.append({"variable": col, "moyenne_partis": round(m1, 2), "moyenne_restes": round(m0, 2),
+                           "ecart": round(m1 - m0, 2)})
+        return pd.DataFrame(lignes)
+
+    resultat = _evaluer("resume_kpis", avec_groupby)
+    assert resultat.statut == ECHEC and "AUCUN client" in resultat.message
+
+
+def test_refactoring_sans_colonne_en_dur():
+    from defis.corrige_serie_06 import resume_kpis
+
+    def en_dur(df, colonnes=_KPIS):
+        if "monthly_charges" not in df:
+            raise KeyError("monthly_charges")
+        return resume_kpis(df, colonnes)
+
+    resultat = _evaluer("resume_kpis", en_dur)
+    assert resultat.statut == ECHEC and "en dur" in resultat.message
+
+
+def test_refactoring_qui_appelle_l_ancien_code_est_refuse():
+    import defis.corrige_serie_06 as corrige
+    from defis.corrige_serie_06 import resume_kpis_ancien
+
+    def triche(df, colonnes=_KPIS):
+        if tuple(colonnes) == _KPIS:
+            return resume_kpis_ancien(df)
+        return corrige.resume_kpis(df, colonnes)
+
+    resultat = _evaluer("resume_kpis", triche)
+    assert resultat.statut == ECHEC and "ancien" in resultat.message
+
+
+def _parser(seuil_type=None, aide="aide"):
+    import argparse
+
+    from defis.corrige_serie_06 import lire_seuil
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("fichier", help=aide)
+    parser.add_argument("--seuil", type=seuil_type or lire_seuil, default=0.5, help=aide)
+    parser.add_argument("--modele", choices=["logistic", "gboost"], default="logistic", help=aide)
+    parser.add_argument("--top", type=int, default=10, help=aide)
+    parser.add_argument("-v", "--verbose", action="store_true", help=aide)
+    return parser
+
+
+def test_parser_type_float_ne_verifie_pas_les_bornes():
+    resultat = _evaluer("creer_parser", lambda: _parser(seuil_type=float))
+    assert resultat.statut == ECHEC and "1.5" in resultat.message and "lire_seuil" in resultat.message
+
+
+def test_parser_sans_type_donne_du_texte():
+    resultat = _evaluer("creer_parser", lambda: _parser(seuil_type=str))
+    assert resultat.statut == ECHEC and "TEXTE" in resultat.message
+
+
+def test_parser_chaque_option_a_une_aide():
+    resultat = _evaluer("creer_parser", lambda: _parser(aide=None))
+    assert resultat.statut == ECHEC and "help=" in resultat.message
+
+
+def test_parser_une_ligne_invalide_ne_ferme_pas_le_correcteur():
+    """argparse appelle sys.exit() sur une erreur : la vérification doit l'intercepter (sinon tout s'arrête)."""
+    import argparse
+
+    def fichier_en_option():
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--fichier", required=True)
+        return parser
+
+    resultat = _evaluer("creer_parser", fichier_en_option)
+    assert resultat.statut == ECHEC and "positionnel" in resultat.message
+
+
+def test_parser_avec_lire_seuil_non_codee_renvoie_au_defi_40():
+    def pas_encore(texte):
+        raise NotImplementedError
+
+    resultat = _evaluer("creer_parser", lambda: _parser(seuil_type=pas_encore))
+    assert resultat.statut == ECHEC and "défi 40" in resultat.message
+
+
+def _bissection(milieu, reponse="mauvais", debut=0):
+    def premier_commit_fautif(commits, est_bon):
+        if len(commits) < 2:
+            raise ValueError("au moins deux commits")
+        bon, mauvais = debut, len(commits) - 1
+        while mauvais - bon > 1:
+            m = milieu(bon, mauvais)
+            if est_bon(commits[m]):
+                bon = m
+            else:
+                mauvais = m
+        return commits[mauvais if reponse == "mauvais" else bon]
+
+    return premier_commit_fautif
+
+
+def test_bissection_a_un_pres():
+    resultat = _evaluer("premier_commit_fautif", _bissection(lambda b, m: (b + m) // 2, reponse="bon"))
+    assert resultat.statut == ECHEC and "à un près" in resultat.message
+
+
+def test_bissection_lineaire_trop_d_appels():
+    resultat = _evaluer("premier_commit_fautif", _bissection(lambda b, m: b + 1))
+    assert resultat.statut == ECHEC and "un par un" in resultat.message
+
+
+def test_bissection_boucle_infinie_detectee():
+    """Une boucle qui ne rétrécit jamais l'intervalle doit donner un message, pas bloquer le correcteur."""
+
+    def bloque(commits, est_bon):
+        if len(commits) < 2:
+            raise ValueError("au moins deux commits")
+        bon, mauvais = 0, len(commits) - 1
+        while mauvais - bon > 1:
+            m = (bon + mauvais) // 2
+            if not est_bon(commits[m]):
+                mauvais = m
+        return commits[mauvais]
+
+    resultat = _evaluer("premier_commit_fautif", bloque)
+    assert resultat.statut == ECHEC and "boucle infinie" in resultat.message
+
+
+def test_bissection_ne_reteste_pas_les_extremites():
+    def lower_bound(commits, est_bon):
+        if len(commits) < 2:
+            raise ValueError("au moins deux commits")
+        lo, hi = 0, len(commits) - 1
+        while lo < hi:
+            m = (lo + hi) // 2
+            if est_bon(commits[m]):
+                lo = m + 1
+            else:
+                hi = m
+        return commits[lo]
+
+    resultat = _evaluer("premier_commit_fautif", lower_bound)
+    assert resultat.statut == ECHEC and "premier ou le dernier" in resultat.message
+
+
+def test_bissection_trop_peu_de_commits():
+    resultat = _evaluer("premier_commit_fautif", lambda commits, est_bon: commits[-1])
+    assert resultat.statut == ECHEC and "ValueError" in resultat.message

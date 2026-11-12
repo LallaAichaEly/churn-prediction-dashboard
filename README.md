@@ -18,6 +18,11 @@ clients risquent de partir (*churn*).
 >
 > 👋 **Vous débutez ?** Commencez par la série 00 des défis (`defis/serie_00.py`) : les bases de Python
 > et de pandas, avec un message clair à chaque erreur. Puis le module 1 du parcours.
+>
+> 🛠️ **Vous voulez développer, mais ne vous sentez pas encore compétent·e ?** Après la série 00, la
+> série 06 (`defis/serie_06.py`, défis 38 à 43) entraîne les gestes du métier : lire une erreur, écrire
+> un test qui attrape les bugs, gérer une saisie invalide, refactoriser sans rien casser, écrire une
+> ligne de commande, retrouver le commit fautif comme `git bisect`.
 
 ## Ce que vous allez pratiquer
 
@@ -35,7 +40,8 @@ clients risquent de partir (*churn*).
 | Intégration continue | `.github/workflows/tests.yml` (GitHub Actions) |
 | SQL (GROUP BY, fonctions de fenêtre), intervalles de confiance, test A/B, courbe de survie | `defis/serie_05.py` |
 | Bases de Python et de pandas, débogage (remise à niveau) | `defis/serie_00.py` |
-| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_05.py` + `scripts/defis.py` |
+| Gestes du développeur : lire une traceback, écrire un test, exceptions, refactoring, argparse, bissection | `defis/serie_06.py` |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_06.py` + `scripts/defis.py` |
 
 ## Démarrage rapide
 
@@ -114,6 +120,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── serie_03.py         # ✍️ Série 03 — évaluer, expliquer, surveiller (5 fonctions)
 │   ├── serie_04.py         # ✍️ Série 04 — modéliser et industrialiser (5 fonctions)
 │   ├── serie_05.py         # ✍️ Série 05 — prouver l'impact : SQL, incertitude, A/B, survie (5 fonctions)
+│   ├── serie_06.py         # 🛠️ Série 06 — développer comme un·e pro : erreurs, tests, refactoring, CLI (6 défis)
 │   ├── corrige_serie_0X.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_0X.py  # Vérifications automatiques
 ├── src/churn/

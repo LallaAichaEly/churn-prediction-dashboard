@@ -24,7 +24,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 37 fonctions courtes dans `defis/serie_00.py` à `defis/serie_05.py`, corrigées par
+> [défis](defis/README.md) : 43 fonctions courtes dans `defis/serie_00.py` à `defis/serie_06.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -33,6 +33,12 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > (`defis/serie_00.py`, défis 30 à 37) : fonctions, conditions, boucles, listes, dictionnaires,
 > débogage, puis filtrer et regrouper un tableau pandas. Comptez 3 à 5 heures en tout. Ce n'est pas
 > du temps perdu : chaque module suppose ces bases, et on avance ensuite bien plus vite.
+
+> 🛠️ **Vous voulez développer, pas seulement analyser ?** La série 06 des défis (`defis/serie_06.py`,
+> défis 38 à 43) se fait juste après la série 00, sans attendre le module 6 : lire une traceback,
+> écrire un test, gérer les exceptions, refactoriser, construire une ligne de commande avec argparse,
+> trouver le commit qui a cassé le modèle par bissection. Ce sont les réflexes qu'on attend dès le
+> premier jour dans une équipe.
 
 ---
 
@@ -114,7 +120,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 Le dépôt contient déjà une version de référence : test de sauvegarde, intégration continue et
 API. Lisez-la, puis **étendez-la**.
 
-- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test (`tests/`) et dites ce qu'il protège.
+- [ ] 🟢 6.1 ⚡ — Lancez `pytest -q`. Lisez chaque test (`tests/`) et dites ce qu'il protège.
 - [ ] 🟡 6.2 ⚡ — Lisez `test_saved_model_gives_identical_predictions`. Enregistrez la version de scikit-learn dans `*_metrics.json` et affichez un avertissement au chargement si elle diffère de la version installée. Pourquoi est-ce un vrai risque en production ?
 - [ ] 🟡 6.3 — Lisez la GitHub Action `.github/workflows/tests.yml` puis étendez-la : ajoutez Python 3.13 à la matrice et une étape de lint (`ruff`). Cassez volontairement un test sur une branche pour voir la CI échouer.
 - [ ] 🔴 6.4 ⚡ — Lancez l'API (`uvicorn api:app --reload`) et testez-la sur http://localhost:8000/docs. Ajoutez `POST /predict/batch` (liste de clients) avec son test.

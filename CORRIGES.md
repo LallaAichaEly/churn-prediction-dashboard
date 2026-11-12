@@ -716,6 +716,9 @@ Et pour chacune : estimer le coût, le nombre de clients concernés et un taux d
 
 ### 6.1 — Que protège chaque test ? 🟢
 
+⚡ *Échauffement :* le défi 39 (`defis/serie_06.py`) vous fait écrire un test, puis le lance sur la bonne
+fonction et sur 5 versions boguées : un bon test passe sur la première et échoue sur toutes les autres.
+
 <details><summary>Solution</summary>
 
 | Test | Ce qu'il protège |

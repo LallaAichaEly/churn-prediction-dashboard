@@ -27,6 +27,9 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > **série 00** : elle part de zéro (écrire une fonction) et prépare tout le reste. Ses défis portent les
 > numéros 30 à 37 parce qu'elle a été ajoutée après les autres, mais c'est bien la première à faire :
 > `python scripts/defis.py --defi 30`.
+>
+> 🛠️ **Vous voulez développer ?** Enchaînez avec la **série 06** (défis 38 à 43) : elle ne demande que
+> la série 00 et entraîne ce qui sépare un script qui « marche chez moi » d'un code fiable.
 
 | Série | Fichier à compléter | Thèmes | Défis |
 |---|---|---|---|
@@ -36,6 +39,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | 03 — Évaluer, expliquer, surveiller | `defis/serie_03.py` | courbe précision-rappel, calibration, AUC par paires, contributions d'une prédiction, PSI | 5 (🟢×1 🟡×2 🔴×2) |
 | 04 — Modéliser et industrialiser | `defis/serie_04.py` | poids de classes, réglage de C par la règle de l'erreur standard, compatibilité de versions, prédiction par lot (API), alerte de dérive | 5 (🟢×3 🟡×1 🔴×1) |
 | 05 — Prouver l'impact | `defis/serie_05.py` | SQL (`GROUP BY`, top k par groupe avec `ROW_NUMBER() OVER`), intervalle de confiance de Wilson, test A/B d'une offre de rétention, courbe de survie de Kaplan-Meier | 5 (🟢×1 🟡×3 🔴×1) |
+| **06 — Développer comme un·e pro** 🛠️ | `defis/serie_06.py` | lire une **traceback**, **écrire un test** qui attrape 5 versions boguées, `try`/`except` précis et saisies humaines (« 0,4 », « 40 % »), **refactoriser** sans changer le résultat, ligne de commande **argparse**, **bissection** façon `git bisect` | 6, n° 38 à 43 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -45,6 +49,10 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 3. Une fois ✅, ouvrez `defis/corrige_serie_XX.py` et comparez. Souvent, on découvre une
    écriture plus courte ou un piège évité par chance.
 4. Notez dans votre `JOURNAL.md` : ce qui vous a bloqué, ce que vous avez appris.
+
+> 🧪 Le défi 39 inverse les rôles : c'est **vous** qui écrivez le test, et le correcteur vérifie qu'il
+> passe sur la bonne fonction et échoue sur 5 versions boguées. C'est le meilleur entraînement pour
+> écrire ensuite vos propres `tests/test_*.py`.
 
 > 💡 Les défis 🔴 réutilisent le code du projet (`churn.model.build_pipeline`) : vous
 > apprenez aussi à lire et réutiliser un code existant, compétence clé en entreprise.
