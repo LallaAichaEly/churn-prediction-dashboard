@@ -529,3 +529,186 @@ def test_l_alerte_ne_modifie_pas_le_rapport():
 
     resultat = _evaluer("alerte_derive", ajoute_une_colonne)
     assert resultat.statut == ECHEC and "modifié" in resultat.message
+
+
+# --------------------------------------------------------------------------- Série 05 : erreurs classiques
+
+
+def _sql_corrige(nom):
+    import defis.corrige_serie_05 as corrige
+
+    return getattr(corrige, nom)()
+
+
+def test_sql_la_division_entiere_est_detectee():
+    """La leçon du défi 25 : en SQL, 2 / 3 vaut 0 entre deux entiers."""
+    sql = _sql_corrige("requete_churn_par_contrat").replace("AVG(churn)", "SUM(churn) / COUNT(*)")
+    resultat = _evaluer("requete_churn_par_contrat", lambda: sql)
+    assert resultat.statut == ECHEC and "ENTIÈRE" in resultat.message
+
+
+def test_sql_sans_group_by():
+    sql = "SELECT contract, COUNT(*) AS clients, AVG(churn) AS taux_churn FROM clients"
+    resultat = _evaluer("requete_churn_par_contrat", lambda: sql)
+    assert resultat.statut == ECHEC and "GROUP BY" in resultat.message
+
+
+def test_sql_la_division_decimale_est_acceptee():
+    sql = _sql_corrige("requete_churn_par_contrat").replace("AVG(churn)", "1.0 * SUM(churn) / COUNT(*)")
+    assert _evaluer("requete_churn_par_contrat", lambda: sql).statut == REUSSI
+
+
+def test_top_risque_un_limit_global_ne_suffit_pas():
+    sql = "SELECT contract, 1 AS rang, customer_id, proba_churn FROM scores ORDER BY proba_churn DESC LIMIT :k"
+    resultat = _evaluer("requete_top_risque", lambda: sql)
+    assert resultat.statut == ECHEC and "PARTITION BY" in resultat.message
+
+
+def test_top_risque_rank_donne_trop_de_clients():
+    sql = _sql_corrige("requete_top_risque").replace("ROW_NUMBER()", "RANK()").replace(", customer_id ASC", "")
+    resultat = _evaluer("requete_top_risque", lambda: sql)
+    assert resultat.statut == ECHEC and "ROW_NUMBER" in resultat.message
+
+
+def test_top_risque_les_ex_aequo_sont_departages():
+    sql = _sql_corrige("requete_top_risque").replace(", customer_id ASC", "")
+    resultat = _evaluer("requete_top_risque", lambda: sql)
+    assert resultat.statut == ECHEC and "customer_id ASC" in resultat.message
+
+
+def test_top_risque_k_n_est_pas_ecrit_en_dur():
+    sql = _sql_corrige("requete_top_risque").replace(":k", "2")
+    resultat = _evaluer("requete_top_risque", lambda: sql)
+    assert resultat.statut == ECHEC and ":k" in resultat.message
+
+
+def test_top_risque_explique_le_where_sur_une_fenetre():
+    fenetre = "ROW_NUMBER() OVER (PARTITION BY contract ORDER BY proba_churn DESC, customer_id)"
+    sql = f"SELECT contract, {fenetre} AS rang, customer_id, proba_churn FROM scores WHERE {fenetre} <= :k"
+    resultat = _evaluer("requete_top_risque", lambda: sql)
+    assert resultat.statut == ECHEC and "WITH" in resultat.message
+
+
+def _wilson_avec(z_de):
+    import math
+
+    def variante(departs, clients, confiance=0.95):
+        if clients <= 0 or not 0 <= departs <= clients:
+            raise ValueError("entrées impossibles")
+        z, p, n = z_de(confiance), departs / clients, clients
+        d = 1 + z**2 / n
+        centre, demi = (p + z**2 / (2 * n)) / d, z / d * math.sqrt(p * (1 - p) / n + z**2 / (4 * n**2))
+        return max(0.0, centre - demi), min(1.0, centre + demi)
+
+    return variante
+
+
+def test_wilson_refuse_l_intervalle_de_wald():
+    import math
+    from statistics import NormalDist
+
+    def wald(departs, clients, confiance=0.95):
+        z, p = NormalDist().inv_cdf(1 - (1 - confiance) / 2), departs / clients
+        demi = z * math.sqrt(p * (1 - p) / clients)
+        return p - demi, p + demi
+
+    resultat = _evaluer("intervalle_wilson", wald)
+    assert resultat.statut == ECHEC and "Wald" in resultat.message
+
+
+def test_wilson_est_bilateral():
+    from statistics import NormalDist
+
+    resultat = _evaluer("intervalle_wilson", _wilson_avec(lambda c: NormalDist().inv_cdf(c)))
+    assert resultat.statut == ECHEC and "UNILATÉRAL" in resultat.message
+
+
+def test_wilson_utilise_le_niveau_de_confiance():
+    resultat = _evaluer("intervalle_wilson", _wilson_avec(lambda c: 1.959963984540054))
+    assert resultat.statut == ECHEC and "confiance est ignoré" in resultat.message
+
+
+def _ab_avec(signe=1, commune=True, bilateral=True, valeur_absolue=True):
+    import math
+    from statistics import NormalDist
+
+    def variante(partis_temoin, n_temoin, partis_offre, n_offre):
+        p1, p2 = partis_temoin / n_temoin, partis_offre / n_offre
+        p = (partis_temoin + partis_offre) / (n_temoin + n_offre)
+        se = (math.sqrt(p * (1 - p) * (1 / n_temoin + 1 / n_offre)) if commune
+              else math.sqrt(p1 * (1 - p1) / n_temoin + p2 * (1 - p2) / n_offre))
+        ecart = signe * (p2 - p1)
+        z = ecart / se
+        queue = 1 - NormalDist().cdf(abs(z) if valeur_absolue else z)
+        return {"ecart": ecart, "z": z, "p_value": (2 if bilateral else 1) * queue}
+
+    return variante
+
+
+def test_ab_l_ecart_est_offre_moins_temoin():
+    resultat = _evaluer("comparer_ab", _ab_avec(signe=-1))
+    assert resultat.statut == ECHEC and "offre − taux témoin" in resultat.message
+
+
+def test_ab_utilise_la_variance_commune():
+    resultat = _evaluer("comparer_ab", _ab_avec(commune=False))
+    assert resultat.statut == ECHEC and "variance commune" in resultat.message
+
+
+def test_ab_est_bilateral():
+    """La leçon du défi 28 : en unilatéral, p = 0,028 ferait croire à une preuve qui n'en est pas une."""
+    resultat = _evaluer("comparer_ab", _ab_avec(bilateral=False))
+    assert resultat.statut == ECHEC and "UNILATÉRALE" in resultat.message
+
+
+def test_ab_prend_la_valeur_absolue_de_z():
+    resultat = _evaluer("comparer_ab", _ab_avec(valeur_absolue=False))
+    assert resultat.statut == ECHEC and "|z|" in resultat.message
+
+
+def test_ab_sans_aucun_depart_ne_plante_pas():
+    resultat = _evaluer("comparer_ab", _ab_avec())  # pas de garde-fou quand l'erreur standard est nulle
+    assert resultat.statut == ECHEC and "division par zéro" in resultat.message
+
+
+def _survie_avec(**variante):
+    from defis.checks_serie_05 import _km
+
+    return lambda df: _km(df["tenure_months"], df["churn"], **variante)
+
+
+def test_survie_les_censures_restent_a_risque():
+    """La leçon du défi 29 : oublier les clients encore présents fait croire que tout le monde part."""
+    resultat = _evaluer("courbe_survie", _survie_avec(sans_censures=True))
+    assert resultat.statut == ECHEC and "censuré" in resultat.message
+
+
+def test_survie_un_censure_n_est_pas_un_depart():
+    resultat = _evaluer("courbe_survie", _survie_avec(tous_partis=True))
+    assert resultat.statut == ECHEC and "n'est PAS un départ" in resultat.message
+
+
+def test_survie_la_formule_naive_est_refusee():
+    resultat = _evaluer("courbe_survie", _survie_avec(naif=True))
+    assert resultat.statut == ECHEC and "ENCORE à risque" in resultat.message
+
+
+def test_survie_est_un_produit_cumule():
+    from defis.corrige_serie_05 import courbe_survie
+
+    def mois_par_mois(df):
+        table = courbe_survie(df)
+        return table.assign(survie=1 - table["departs"] / table["a_risque"])
+
+    resultat = _evaluer("courbe_survie", mois_par_mois)
+    assert resultat.statut == ECHEC and "PRODUIT" in resultat.message
+
+
+def test_survie_une_ecriture_vectorisee_est_acceptee():
+    def avec_pandas(df):
+        partis = df[df["churn"] == 1].groupby("tenure_months").size()
+        a_risque = [int((df["tenure_months"] >= m).sum()) for m in partis.index]
+        table = pd.DataFrame({"mois": partis.index, "a_risque": a_risque, "departs": partis.values})
+        return table.assign(survie=(1 - table["departs"] / table["a_risque"]).cumprod())
+
+    assert _evaluer("courbe_survie", avec_pandas).statut == REUSSI

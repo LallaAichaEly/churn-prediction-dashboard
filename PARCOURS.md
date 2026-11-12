@@ -24,7 +24,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 24 fonctions courtes dans `defis/serie_01.py` à `defis/serie_04.py`, corrigées par
+> [défis](defis/README.md) : 29 fonctions courtes dans `defis/serie_01.py` à `defis/serie_05.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -145,6 +145,10 @@ de 10 points le churn prédit. Que se passe-t-il, et que faites-vous ?
 Rédigez un mini-rapport (1 page) dans `RAPPORT.md` : problème, données, modèle retenu, seuil choisi et pourquoi,
 impact financier estimé, limites et **plan de surveillance** (module 7). Ajoutez-le au dépôt — c'est une pièce maîtresse pour un portfolio
 ou un entretien.
+
+**Bonus (défis de la série 05)** : donnez chaque taux avec son intervalle de confiance (« 52 % [49 % ; 55 %] »),
+ajoutez la courbe de survie (« 75 % des clients sont encore là après un an ») et proposez le **plan d'un test A/B**
+pour prouver que vos actions de rétention marchent : taille des groupes, durée, critère de succès décidés à l'avance.
 
 ## 📚 Ressources
 
