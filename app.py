@@ -67,6 +67,11 @@ def get_batch(price_increase: float, monthly_share: float, fibre_competition: fl
                           fibre_competition=fibre_competition)
 
 
+def eur(amount: float) -> str:
+    """Montant au format français : « 30 450 € » (et non « 30,450 € », le format anglais)."""
+    return f"{amount:,.0f} €".replace(",", " ")
+
+
 def bar(df: pd.DataFrame, x: str, y: str, title: str, pct: bool = True):
     fig = px.bar(df, x=x, y=y, title=title, color_discrete_sequence=[BLUE])
     fig.update_traces(hovertemplate=f"%{{x}}<br>Taux de churn : %{{y:{'.1%' if pct else '.2f'}}}<extra></extra>")
@@ -105,7 +110,7 @@ with tab_overview:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Clients", f"{len(df):,}".replace(",", " "))
     c2.metric("Taux de churn", f"{df[TARGET].mean():.1%}")
-    c3.metric("Revenu mensuel perdu", f"{churned['monthly_charges'].sum():,.0f} €".replace(",", " "))
+    c3.metric("Revenu mensuel perdu", eur(churned["monthly_charges"].sum()))
     c4.metric("Ancienneté moyenne (mois)", f"{df['tenure_months'].mean():.1f}")
 
     left, right = st.columns(2)
@@ -176,8 +181,8 @@ with tab_perf:
     m_best = evaluate(y_test, proba, best)
     st.info(
         f"Seuil optimal pour ces coûts : **{best:.2f}** → précision {m_best.precision:.0%}, "
-        f"rappel {m_best.recall:.0%}, coût total {m_best.fn * cost_fn + m_best.fp * cost_fp:,.0f} € "
-        f"(contre {metrics.fn * cost_fn + metrics.fp * cost_fp:,.0f} € au seuil actuel)."
+        f"rappel {m_best.recall:.0%}, coût total {eur(m_best.fn * cost_fn + m_best.fp * cost_fp)} "
+        f"(contre {eur(metrics.fn * cost_fn + metrics.fp * cost_fp)} au seuil actuel)."
     )
 
 # --------------------------------------------------------------------------- Facteurs
@@ -201,7 +206,7 @@ with tab_risk:
     risk = risk[risk["proba_churn"] >= threshold].sort_values("proba_churn", ascending=False)
     c1, c2 = st.columns(2)
     c1.metric("Clients signalés (jeu de test)", len(risk))
-    c2.metric("Revenu mensuel à risque", f"{risk['monthly_charges'].sum():,.0f} €".replace(",", " "))
+    c2.metric("Revenu mensuel à risque", eur(risk["monthly_charges"].sum()))
     st.dataframe(
         risk, hide_index=True,
         column_config={"proba_churn": st.column_config.ProgressColumn("Probabilité", min_value=0, max_value=1, format="%.2f")},

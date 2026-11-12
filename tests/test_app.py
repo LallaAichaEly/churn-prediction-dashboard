@@ -5,6 +5,7 @@ quels que soient les réglages. C'est le filet de sécurité quand vous modifiez
 pendant les exercices du module 5.
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -47,6 +48,15 @@ def test_lower_threshold_flags_more_customers(app):
     flagged_at_50 = int(metric(app, "Clients signalés (jeu de test)"))
     app.sidebar.slider[0].set_value(0.2).run()
     assert int(metric(app, "Clients signalés (jeu de test)")) > flagged_at_50
+
+
+def test_amounts_use_french_number_format(app):
+    """« 30 450 € » et non « 30,450 € » : la virgule est le séparateur décimal en français."""
+    amounts = [metric(app, "Revenu mensuel perdu"), metric(app, "Revenu mensuel à risque")]
+    amounts += [i.value for i in app.info if "Seuil optimal" in i.value]
+    assert len(amounts) == 3
+    for text in amounts:
+        assert "€" in text and not re.search(r"\d,\d", text), text
 
 
 def test_prediction_form(app):
