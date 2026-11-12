@@ -59,6 +59,11 @@ def get_importance(model_name: str, use_engineered: bool) -> pd.DataFrame:
     return feature_importance(pipeline, X_test, y_test)
 
 
+def eur(amount: float) -> str:
+    """Format français : espace comme séparateur de milliers (« 30 450 € »)."""
+    return f"{amount:,.0f} €".replace(",", " ")
+
+
 def bar(df: pd.DataFrame, x: str, y: str, title: str, pct: bool = True):
     fig = px.bar(df, x=x, y=y, title=title, color_discrete_sequence=[BLUE])
     fig.update_traces(hovertemplate=f"%{{x}}<br>Taux de churn : %{{y:{'.1%' if pct else '.2f'}}}<extra></extra>")
@@ -97,31 +102,31 @@ with tab_overview:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Clients", f"{len(df):,}".replace(",", " "))
     c2.metric("Taux de churn", f"{df[TARGET].mean():.1%}")
-    c3.metric("Revenu mensuel perdu", f"{churned['monthly_charges'].sum():,.0f} €".replace(",", " "))
+    c3.metric("Revenu mensuel perdu", eur(churned["monthly_charges"].sum()))
     c4.metric("Ancienneté moyenne (mois)", f"{df['tenure_months'].mean():.1f}")
 
     left, right = st.columns(2)
     by_contract = df.groupby("contract")[TARGET].mean().reindex(CONTRACTS).reset_index()
-    left.plotly_chart(bar(by_contract, "contract", TARGET, "Taux de churn par contrat"), use_container_width=True)
+    left.plotly_chart(bar(by_contract, "contract", TARGET, "Taux de churn par contrat"), width="stretch")
 
     buckets = pd.cut(df["tenure_months"], [0, 6, 12, 24, 48, 72],
                      labels=["0-6", "7-12", "13-24", "25-48", "49-72"])
     by_tenure = df.groupby(buckets, observed=True)[TARGET].mean().reset_index()
     by_tenure["tenure_months"] = by_tenure["tenure_months"].astype(str)
     right.plotly_chart(bar(by_tenure, "tenure_months", TARGET, "Taux de churn par ancienneté (mois)"),
-                       use_container_width=True)
+                       width="stretch")
 
     left, right = st.columns(2)
     by_calls = df.assign(appels=df["support_calls"].clip(upper=5).astype(str).replace("5", "5+"))
     by_calls = by_calls.groupby("appels")[TARGET].mean().reset_index()
     left.plotly_chart(bar(by_calls, "appels", TARGET, "Taux de churn par nombre d'appels au support"),
-                      use_container_width=True)
+                      width="stretch")
     by_pay = df.groupby("payment_method")[TARGET].mean().sort_values(ascending=False).reset_index()
     right.plotly_chart(bar(by_pay, "payment_method", TARGET, "Taux de churn par moyen de paiement"),
-                       use_container_width=True)
+                       width="stretch")
 
     with st.expander("Voir les données brutes"):
-        st.dataframe(df.head(200), use_container_width=True)
+        st.dataframe(df.head(200), width="stretch")
 
 # --------------------------------------------------------------------------- Performance
 with tab_perf:
@@ -143,14 +148,14 @@ with tab_perf:
     fig.update_layout(title=f"Courbe ROC (AUC = {metrics.roc_auc:.3f})",
                       xaxis_title="Taux de faux positifs", yaxis_title="Taux de vrais positifs",
                       margin=dict(t=50, b=10))
-    left.plotly_chart(fig, use_container_width=True)
+    left.plotly_chart(fig, width="stretch")
 
     cm = pd.DataFrame([[metrics.tn, metrics.fp], [metrics.fn, metrics.tp]],
                       index=["Réel : reste", "Réel : part"], columns=["Prédit : reste", "Prédit : part"])
     fig = px.imshow(cm, text_auto=True, color_continuous_scale=["#cde2fb", "#1c5cab"],
                     title=f"Matrice de confusion (seuil = {threshold:.2f})")
     fig.update_layout(coloraxis_showscale=False, margin=dict(t=50, b=10))
-    right.plotly_chart(fig, use_container_width=True)
+    right.plotly_chart(fig, width="stretch")
 
     st.subheader("Le compromis précision / rappel")
     table = threshold_table(y_test, proba)
@@ -161,7 +166,7 @@ with tab_perf:
     fig.add_vline(x=threshold, line_dash="dot", line_color="#898781",
                   annotation_text="seuil actuel", annotation_position="top")
     fig.update_layout(hovermode="x unified", yaxis_tickformat=".0%", margin=dict(t=30, b=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.subheader("Choisir le seuil avec le métier 💶")
     c1, c2 = st.columns(2)
@@ -171,8 +176,8 @@ with tab_perf:
     m_best = evaluate(y_test, proba, best)
     st.info(
         f"Seuil optimal pour ces coûts : **{best:.2f}** → précision {m_best.precision:.0%}, "
-        f"rappel {m_best.recall:.0%}, coût total {m_best.fn * cost_fn + m_best.fp * cost_fp:,.0f} € "
-        f"(contre {metrics.fn * cost_fn + metrics.fp * cost_fp:,.0f} € au seuil actuel)."
+        f"rappel {m_best.recall:.0%}, coût total {eur(m_best.fn * cost_fn + m_best.fp * cost_fp)} "
+        f"(contre {eur(metrics.fn * cost_fn + metrics.fp * cost_fp)} au seuil actuel)."
     )
 
 # --------------------------------------------------------------------------- Facteurs
@@ -183,7 +188,7 @@ with tab_factors:
                  color_discrete_sequence=[BLUE], title="Variables les plus influentes")
     fig.update_traces(hovertemplate="%{y}<br>Baisse d'AUC : %{x:.4f}<extra></extra>")
     fig.update_layout(height=450, margin=dict(t=50, b=10), yaxis_title=None, xaxis_title="Baisse de ROC-AUC")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.success(
         "🧠 Exercice : ouvrez `src/churn/data.py`, fonction `_churn_logit`. Les vraies causes du "
         "churn y sont écrites. Le modèle les a-t-il retrouvées ? Lesquelles sont sous-estimées, et pourquoi ?"
@@ -196,9 +201,9 @@ with tab_risk:
     risk = risk[risk["proba_churn"] >= threshold].sort_values("proba_churn", ascending=False)
     c1, c2 = st.columns(2)
     c1.metric("Clients signalés (jeu de test)", len(risk))
-    c2.metric("Revenu mensuel à risque", f"{risk['monthly_charges'].sum():,.0f} €".replace(",", " "))
+    c2.metric("Revenu mensuel à risque", eur(risk["monthly_charges"].sum()))
     st.dataframe(
-        risk, use_container_width=True, hide_index=True,
+        risk, width="stretch", hide_index=True,
         column_config={"proba_churn": st.column_config.ProgressColumn("Probabilité", min_value=0, max_value=1, format="%.2f")},
     )
     st.download_button("Télécharger (CSV)", risk.to_csv(index=False).encode("utf-8"),
