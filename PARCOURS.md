@@ -24,7 +24,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 55 fonctions et classes courtes dans `defis/serie_00.py` à `defis/serie_08.py`, corrigées par
+> [défis](defis/README.md) : 61 fonctions et classes courtes dans `defis/serie_00.py` à `defis/serie_09.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -43,7 +43,9 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > générateurs, classes et décorateurs. Enfin, la série 08 (`defis/serie_08.py`, défis 50 à 55) prépare
 > l'exercice 1.5 (remplacer le générateur par de vraies données) : regex, jointures, JSON d'une API,
 > vectorisation, mise à jour de nuit idempotente, variables tirées d'un journal d'événements sans fuite
-> temporelle.
+> temporelle. Pour viser un poste, la série 09 (`defis/serie_09.py`, défis 56 à 61) entraîne l'exercice
+> d'algorithmique de l'entretien technique : choisir la bonne structure de données (dictionnaire, pile,
+> tas, file) et annoncer la complexité de sa solution.
 
 ---
 

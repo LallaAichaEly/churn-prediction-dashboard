@@ -1870,3 +1870,366 @@ def test_variables_evenements_dates_texte_comparees_a_une_date():
 
     resultat = _evaluer("variables_evenements", sans_conversion)
     assert resultat.statut == ECHEC and "pd.Timestamp" in resultat.message, resultat.message
+
+
+# --------------------------------------------------------------------------- Série 09 : algorithmes d'entretien
+
+
+def _deux_offres(get=False, enregistrer_avant=False, sans_reponse=None, valeurs=False, inverse=False, tri=False):
+    """Une version de deux_offres avec une seule erreur à la fois."""
+
+    def deux_offres(couts, budget):
+        if tri:
+            couts.sort()
+        vus = {}
+        for j, cout in enumerate(couts):
+            complement = budget - cout
+            if enregistrer_avant:
+                vus.setdefault(cout, j)
+            if (vus.get(complement) if get else complement in vus):
+                i = vus[complement]
+                if valeurs:
+                    return complement, cout
+                return (j, i) if inverse else (i, j)
+            vus.setdefault(cout, j)
+        return sans_reponse
+
+    return deux_offres
+
+
+def _toutes_les_paires(couts, budget):
+    for i in range(len(couts)):
+        for j in range(i + 1, len(couts)):
+            if couts[i] + couts[j] == budget:
+                return i, j
+    return None
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_deux_offres(get=True), "position 0"),
+    (_deux_offres(enregistrer_avant=True), "DEUX FOIS"),
+    (_deux_offres(sans_reponse=-1), "au lieu de None"),
+    (_deux_offres(valeurs=True), "COÛTS"),
+    (_deux_offres(inverse=True), "i < j"),
+    (_deux_offres(tri=True), "modifié `couts`"),
+    (_toutes_les_paires, "boucle dans une boucle"),
+    (lambda c, b: next(((i, c.index(b - x, i + 1)) for i, x in enumerate(c) if b - x in c[i + 1:]), None),
+     "boucle dans une boucle"),
+    (lambda c, b: _toutes_les_paires(list(c), b), "8 000 gestes"),
+], ids=["get_position_zero", "se_complete_lui_meme", "moins_un", "couts_au_lieu_des_positions", "ordre_inverse",
+        "tri_sur_place", "force_brute", "tranches", "force_brute_sur_copie"])
+def test_deux_offres_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("deux_offres", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+_FERMANTS = {")": "(", "]": "[", "}": "{"}
+
+
+def _pile(vide=True, type_=True, fin=True, booleen=True):
+    """Une version de parenthesage_valide avec une seule erreur à la fois."""
+
+    def valide(formule):
+        pile = []
+        for c in formule:
+            if c in "([{":
+                pile.append(c)
+            elif c in _FERMANTS:
+                if vide and not pile:
+                    return False
+                sommet = pile.pop()
+                if type_ and sommet != _FERMANTS[c]:
+                    return False
+        if not booleen:
+            return pile
+        return not pile if fin else True
+
+    return valide
+
+
+def _recursif(formule):
+    s = "".join(c for c in formule if c in "()[]{}")
+
+    def lire(i, fermant):
+        while i < len(s):
+            if s[i] in "([{":
+                i = lire(i + 1, {"(": ")", "[": "]", "{": "}"}[s[i]])
+                if i is None:
+                    return None
+            else:
+                return i + 1 if s[i] == fermant else None
+        return i if fermant is None else None
+
+    return lire(0, None) == len(s)
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (lambda f: all(f.count(o) == f.count(c) for c, o in _FERMANTS.items()), "l'ORDRE compte"),
+    (_pile(vide=False), "pile VIDE"),
+    (_pile(type_=False), "ouvrant ATTENDU"),
+    (_pile(fin=False), "return not pile"),
+    (_pile(booleen=False), "vrai booléen"),
+    (_recursif, "RecursionError"),
+], ids=["compter", "pile_vide", "sans_type", "sans_verification_finale", "renvoie_la_pile", "recursif"])
+def test_parenthesage_valide_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("parenthesage_valide", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_parenthesage_valide_par_remplacements_est_accepte():
+    """Juste, même si O(n²) : on n'exige pas la pile, on l'enseigne."""
+
+    def remplacer(formule):
+        s = "".join(c for c in formule if c in "()[]{}")
+        while (plus_court := s.replace("()", "").replace("[]", "").replace("{}", "")) != s:
+            s = plus_court
+        return not s
+
+    assert _evaluer("parenthesage_valide", remplacer).statut == REUSSI
+
+
+def _fenetre(tri="copie", condition=">="):
+    """Une version de pic_appels avec une seule erreur à la fois."""
+
+    def pic(jours, largeur=7):
+        if tri == "sur_place":
+            jours.sort()
+            t = jours
+        else:
+            t = sorted(jours) if tri == "copie" else list(jours)
+        meilleur = gauche = 0
+        for droite, jour in enumerate(t):
+            ecart = largeur if condition != ">=-1" else largeur - 1
+            while (jour - t[gauche] > ecart) if condition == ">" else (jour - t[gauche] >= ecart):
+                gauche += 1
+            meilleur = max(meilleur, droite - gauche + 1)
+        return meilleur
+
+    return pic
+
+
+def _recompter(jours, largeur=7):
+    return max((sum(1 for x in jours if d <= x < d + largeur) for d in jours), default=0)
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_fenetre(condition=">"), "couvre 8 jours"),
+    (_fenetre(condition=">=-1"), "ne couvre que 6 jours"),
+    (_fenetre(tri="aucun"), "TRIÉE"),
+    (_fenetre(tri="sur_place"), "sorted(jours)"),
+    (_recompter, "O(n²)"),
+], ids=["fenetre_trop_large", "fenetre_trop_courte", "sans_tri", "tri_sur_place", "recompte_tout"])
+def test_pic_appels_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("pic_appels", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def _fusion(tri="copie", lendemain=True, maximum=True, inclus=True):
+    """Une version de fusionner_periodes avec une seule erreur à la fois."""
+    from datetime import timedelta
+
+    def fusionner(periodes):
+        if tri == "sur_place":
+            periodes.sort()
+            liste = periodes
+        else:
+            liste = sorted(periodes) if tri == "copie" else list(periodes)
+        resultat = []
+        for debut, fin in liste:
+            if resultat:
+                limite = resultat[-1][1] + (timedelta(days=1) if lendemain else timedelta(0))
+                if (debut <= limite) if inclus else (debut < limite):
+                    resultat[-1] = (resultat[-1][0], max(resultat[-1][1], fin) if maximum else fin)
+                    continue
+            resultat.append((debut, fin))
+        return resultat
+
+    return fusionner
+
+
+def _numero_du_jour_plus_un(periodes):
+    from datetime import date
+
+    resultat = []
+    for debut, fin in sorted(periodes):
+        if resultat:
+            derniere = resultat[-1][1]
+            try:
+                lendemain = date(derniere.year, derniere.month, derniere.day + 1)
+            except ValueError:  # le 32 janvier n'existe pas…
+                lendemain = derniere
+            if debut <= lendemain:
+                resultat[-1] = (resultat[-1][0], max(derniere, fin))
+                continue
+        resultat.append((debut, fin))
+    return resultat
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_fusion(tri="aucun"), "TRIÉS"),
+    (_fusion(tri="sur_place"), "sorted(periodes)"),
+    (_fusion(lendemain=False), "LENDEMAIN"),
+    (_fusion(lendemain=False, inclus=False), "LENDEMAIN"),
+    (_fusion(maximum=False), "max(fin_en_cours, fin)"),
+    (_numero_du_jour_plus_un, "timedelta"),
+], ids=["sans_tri", "tri_sur_place", "sans_lendemain", "chevauchement_strict", "periode_contenue", "jour_plus_un"])
+def test_fusionner_periodes_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("fusionner_periodes", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_fusionner_periodes_accepte_des_listes():
+    from defis.corrige_serie_09 import fusionner_periodes
+
+    resultat = _evaluer("fusionner_periodes", lambda p: [list(x) for x in fusionner_periodes(p)])
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def _tas(cle="-position", trier=True):
+    """Une version manuelle de top_k_flux avec une seule erreur à la fois."""
+    import heapq
+
+    def top(flux, k):
+        tas = []
+        for position, (client, proba) in enumerate(flux):
+            if k <= 0:
+                break
+            element = {"-position": (proba, -position, client), "position": (proba, position, client),
+                       "client": (proba, client)}[cle]
+            if len(tas) < k:
+                heapq.heappush(tas, element)
+            elif element > tas[0]:
+                heapq.heapreplace(tas, element)
+        ordre = sorted(tas, reverse=True) if trier else tas
+        return [(e[-1], e[0]) for e in ordre]
+
+    return top
+
+
+def _deux_passages(flux, k):
+    import heapq
+
+    max((proba for _, proba in flux), default=None)  # le générateur est maintenant épuisé
+    return heapq.nlargest(k, flux, key=lambda s: s[1])
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (lambda flux, k: sorted(flux, key=lambda s: s[1], reverse=True)[:k], "EN MÊME TEMPS"),
+    (lambda flux, k: sorted(flux, key=lambda s: s[1], reverse=True)[:k] if len(flux) else [], "GÉNÉRATEUR"),
+    (_tas(cle="client"), "ordre doit être celui d'ARRIVÉE"),
+    (_tas(cle="position"), "-position"),
+    (_tas(trier=False), "DÉCROISSANTE"),
+    (lambda flux, k: __import__("heapq").nsmallest(k, flux, key=lambda s: s[1]), "PLUS FAIBLES"),
+    (_deux_passages, "qu'UNE fois"),
+    (lambda flux, k: [(p, c) for c, p in __import__("heapq").nlargest(k, flux, key=lambda s: s[1])], "(customer_id, proba)"),
+], ids=["tout_trier", "len_du_generateur", "egalite_par_identifiant", "egalite_par_position", "tas_non_trie",
+        "les_plus_petits", "deux_passages", "tuple_inverse"])
+def test_top_k_flux_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("top_k_flux", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_top_k_flux_nlargest_est_accepte():
+    import heapq
+
+    resultat = _evaluer("top_k_flux", lambda flux, k: heapq.nlargest(k, flux, key=lambda s: s[1]))
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def _parcours(deux_sens=True, multi_sources=True, file=True, exclure_partis=True, balayer_liens=False):
+    """Une version de clients_exposes avec une seule erreur à la fois."""
+    from collections import deque
+
+    def exposes(parrainages, partis, distance_max=2):
+        voisins = {}
+        for a, b in parrainages:
+            voisins.setdefault(a, []).append(b)
+            if deux_sens:
+                voisins.setdefault(b, []).append(a)
+
+        def voisins_de(client):
+            if balayer_liens:  # reparcourt tous les liens pour chaque client : O(V × E)
+                return [b for a, b in parrainages if a == client] + [a for a, b in parrainages if b == client]
+            return voisins.get(client, [])
+
+        def bfs(sources):
+            distance = {s: 0 for s in sources}
+            attente = deque(sources)
+            while attente:
+                client = attente.popleft() if file else attente.pop()
+                if distance[client] < distance_max:
+                    for v in voisins_de(client):
+                        if v not in distance:
+                            distance[v] = distance[client] + 1
+                            attente.append(v)
+            return distance
+
+        if multi_sources:
+            distance = bfs(list(partis))
+        else:
+            distance = {}
+            for p in partis:
+                distance.update(bfs([p]))
+        if not exclure_partis:
+            return {c: d or 1 for c, d in distance.items() if d > 0 or any(c in lien for lien in parrainages)}
+        return {c: d for c, d in distance.items() if d > 0 and c not in set(partis)}
+
+    return exposes
+
+
+def _profondeur_recursive(parrainages, partis, distance_max=2):
+    voisins = {}
+    for a, b in parrainages:
+        voisins.setdefault(a, []).append(b)
+        voisins.setdefault(b, []).append(a)
+    distance = {p: 0 for p in partis}
+
+    def visiter(client):
+        if distance[client] < distance_max:
+            for v in voisins.get(client, []):
+                if v not in distance:
+                    distance[v] = distance[client] + 1
+                    visiter(v)
+
+    for p in list(partis):
+        visiter(p)
+    return {c: d for c, d in distance.items() if d > 0}
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_parcours(deux_sens=False), "DEUX sens"),
+    (_parcours(multi_sources=False), "PLUS PROCHE"),
+    (_parcours(file=False), "LARGEUR"),
+    (_parcours(exclure_partis=False), "déjà parti"),
+    (_parcours(balayer_liens=True), "O(V × E)"),
+    (_profondeur_recursive, "LARGEUR"),
+], ids=["sens_unique", "un_parcours_par_parti", "pile_au_lieu_de_file", "partis_inclus", "voisins_recalcules",
+        "profondeur_recursive"])
+def test_clients_exposes_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("clients_exposes", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_clients_exposes_recursion_sur_une_longue_chaine():
+    """Une profondeur récursive qui garde le minimum : juste… jusqu'à la chaîne de 3 000 parrainages."""
+
+    def profondeur_minimale(parrainages, partis, distance_max=2):
+        voisins = {}
+        for a, b in parrainages:
+            voisins.setdefault(a, []).append(b)
+            voisins.setdefault(b, []).append(a)
+        distance = {}
+
+        def visiter(client, d):
+            if d > distance_max or distance.get(client, d + 1) <= d:
+                return
+            distance[client] = d
+            for v in voisins.get(client, []):
+                visiter(v, d + 1)
+
+        for p in partis:
+            visiter(p, 0)
+        return {c: d for c, d in distance.items() if d > 0}
+
+    resultat = _evaluer("clients_exposes", profondeur_minimale)
+    assert resultat.statut == ECHEC and "RecursionError" in resultat.message, resultat.message
