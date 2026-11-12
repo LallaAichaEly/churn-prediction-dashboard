@@ -24,7 +24,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 49 fonctions et classes courtes dans `defis/serie_00.py` à `defis/serie_07.py`, corrigées par
+> [défis](defis/README.md) : 55 fonctions et classes courtes dans `defis/serie_00.py` à `defis/serie_08.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -40,7 +40,10 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > trouver le commit qui a cassé le modèle par bissection. Ce sont les réflexes qu'on attend dès le
 > premier jour dans une équipe. Ensuite, la série 07 (`defis/serie_07.py`, défis 44 à 49) entraîne
 > les notions de Python des premières vraies tâches : dates, fichier Excel, `set` contre liste,
-> générateurs, classes et décorateurs.
+> générateurs, classes et décorateurs. Enfin, la série 08 (`defis/serie_08.py`, défis 50 à 55) prépare
+> l'exercice 1.5 (remplacer le générateur par de vraies données) : regex, jointures, JSON d'une API,
+> vectorisation, mise à jour de nuit idempotente, variables tirées d'un journal d'événements sans fuite
+> temporelle.
 
 ---
 

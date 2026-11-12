@@ -24,7 +24,9 @@ clients risquent de partir (*churn*).
 > un test qui attrape les bugs, gérer une saisie invalide, refactoriser sans rien casser, écrire une
 > ligne de commande, retrouver le commit fautif comme `git bisect`. La série 07 (`defis/serie_07.py`,
 > défis 44 à 49) passe ensuite du script au code réutilisable : dates, export Excel, `set` contre liste,
-> générateurs, classes, décorateurs.
+> générateurs, classes, décorateurs. La série 08 (`defis/serie_08.py`, défis 50 à 55) apprend à construire
+> la table du modèle à partir de vraies sources : regex sur des notes, jointures, JSON d'une API,
+> vectorisation, mise à jour idempotente, variables tirées d'un journal d'événements sans fuite temporelle.
 
 ## Ce que vous allez pratiquer
 
@@ -44,7 +46,8 @@ clients risquent de partir (*churn*).
 | Bases de Python et de pandas, débogage (remise à niveau) | `defis/serie_00.py` |
 | Gestes du développeur : lire une traceback, écrire un test, exceptions, refactoring, argparse, bissection | `defis/serie_06.py` |
 | Code réutilisable : `datetime`, encodages et CSV Excel, complexité (`set`), générateurs, classes, décorateurs | `defis/serie_07.py` |
-| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_07.py` + `scripts/defis.py` |
+| Assembler les données : regex, jointures, JSON d'API, vectorisation, upsert idempotent, fuite temporelle | `defis/serie_08.py` |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_08.py` + `scripts/defis.py` |
 
 ## Démarrage rapide
 
@@ -125,6 +128,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── serie_05.py         # ✍️ Série 05 — prouver l'impact : SQL, incertitude, A/B, survie (5 fonctions)
 │   ├── serie_06.py         # 🛠️ Série 06 — développer comme un·e pro : erreurs, tests, refactoring, CLI (6 défis)
 │   ├── serie_07.py         # 🧱 Série 07 — code réutilisable : dates, Excel, set, yield, classes, décorateurs (6 défis)
+│   ├── serie_08.py         # 🔗 Série 08 — assembler les données : regex, jointures, JSON, upsert, événements (6 défis)
 │   ├── corrige_serie_0X.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_0X.py  # Vérifications automatiques
 ├── src/churn/

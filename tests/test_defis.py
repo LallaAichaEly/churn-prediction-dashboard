@@ -1589,3 +1589,284 @@ def test_avec_cache_sans_cache_ou_sans_statistiques():
 
     assert "telle quelle" in _evaluer("avec_cache", lambda fonction: fonction).message
     assert "statistiques()" in _evaluer("avec_cache", functools.cache).message
+
+
+# --------------------------------------------------------------------------- Série 08 : assembler les données
+
+
+def _regex(motif, flags=0, unique=True):
+    """Une version de extraire_identifiants construite à partir d'une regex (pour tester les pièges)."""
+    import re
+
+    def extraire(texte):
+        if not isinstance(texte, str):
+            return []
+        trouves = [m.upper() for m in re.findall(motif, texte, flags)]
+        return list(dict.fromkeys(trouves)) if unique else trouves
+
+    return extraire
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_regex(r"\bC\d{5}\b"), "minuscule"),
+    (_regex(r"C\d{5}", __import__("re").I), "frontières de mot"),
+    (_regex(r"\bC\d{5}", __import__("re").I), "frontières de mot"),
+    (_regex(r"\bC\d{5}\b", __import__("re").I, unique=False), "une seule fois"),
+    (lambda t: sorted({m.upper() for m in __import__("re").findall(r"\bC\d{5}\b", t, 2)}) if isinstance(t, str) else [],
+     "ordre"),
+    (lambda t: [m.upper() for m in t.split() if __import__("re").fullmatch(r"[Cc]\d{5}", m)] if isinstance(t, str) else [],
+     "ponctuation"),
+    (lambda t: __import__("re").findall(r"\b(C)(\d{5})\b", t), "tuples"),
+    (lambda t: __import__("re").findall(r"\bC\d{5}\b", t, 2)[0], "LISTE"),
+    (lambda t: list(dict.fromkeys(m.upper() for m in __import__("re").findall(r"\bC\d{5}\b", t, 2))), "isinstance"),
+], ids=["sans_ignorecase", "sans_frontiere", "sans_frontiere_finale", "doublons", "trie", "split", "groupes",
+        "premier_seulement", "note_vide"])
+def test_extraire_identifiants_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("extraire_identifiants", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def _totaux(f, how="left", rang="apres", nan=0.0, index=False):
+    def ajouter(clients, factures):
+        if rang == "avant":
+            resultat = clients.merge(factures, on="customer_id", how=how).rename(columns={"montant": "total_factures"})
+        else:
+            totaux = getattr(factures.groupby("customer_id")["montant"], f)().rename("total_factures").reset_index()
+            resultat = clients.merge(totaux, on="customer_id", how=how)
+        if nan is not None:
+            resultat["total_factures"] = resultat["total_factures"].fillna(nan)
+        if index:
+            resultat.index = clients.index
+        return resultat
+
+    return ajouter
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_totaux("sum", rang="avant"), "joint avant d'agréger"),
+    (_totaux("sum", how="inner"), "INTERNE"),
+    (_totaux("sum", how="outer"), "externe"),
+    (_totaux("sum", nan=None, index=True), "0.0"),
+    (_totaux("sum"), "RENUMÉROTE"),
+    (_totaux("count", index=True), ".sum()"),
+], ids=["jointure_avant_agregation", "jointure_interne", "jointure_externe", "nan_non_remplaces", "index_perdu",
+        "count_au_lieu_de_sum"])
+def test_ajouter_total_factures_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("ajouter_total_factures", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_ajouter_total_factures_sur_place():
+    from defis.corrige_serie_08 import ajouter_total_factures
+
+    def sur_place(clients, factures):
+        clients["total_factures"] = ajouter_total_factures(clients, factures)["total_factures"]
+        return clients
+
+    resultat = _evaluer("ajouter_total_factures", sur_place)
+    assert resultat.statut == ECHEC and "NOUVEAU DataFrame" in resultat.message
+
+
+def _api(texte=True, ou_vide=True, moyenne_vide="nan", colonnes=True, get_clients=True):
+    """Une version de aplatir_reponse_api avec une seule erreur à la fois."""
+    import json
+    import math
+
+    import defis.corrige_serie_08 as corrige
+
+    def aplatir(reponse):
+        if texte and isinstance(reponse, str):
+            reponse = json.loads(reponse)
+        lignes = []
+        for client in (reponse.get("clients") or []) if get_clients else reponse["clients"]:
+            contrat = (client.get("contrat") or {}) if ou_vide else client.get("contrat", {})
+            factures = (client.get("factures") or []) if ou_vide else client.get("factures", [])
+            montants = [f["montant"] for f in factures]
+            if montants or moyenne_vide == "division":
+                moyenne = sum(montants) / len(montants)
+            else:
+                moyenne = 0.0 if moyenne_vide == "zero" else math.nan
+            lignes.append({"customer_id": client["id"], "contrat": contrat.get("type"), "nb_factures": len(factures),
+                           "facture_moyenne": moyenne, "nb_options": len(client.get("options") or [])})
+        return pd.DataFrame(lignes, columns=corrige.COLONNES_API if colonnes else None)
+
+    return aplatir
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_api(ou_vide=False), "or {}"),
+    (_api(moyenne_vide="division"), "liste VIDE"),
+    (_api(moyenne_vide="zero"), "NaN"),
+    (_api(texte=False), "json.loads"),
+    (_api(colonnes=False), "columns=[...]"),
+    (_api(get_clients=False), "reponse.get(\"clients\")"),
+], ids=["null_non_gere", "moyenne_liste_vide", "moyenne_zero", "texte_json", "page_vide_sans_colonnes",
+        "sans_cle_clients"])
+def test_aplatir_reponse_api_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("aplatir_reponse_api", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_aplatir_reponse_api_cle_absente():
+    def crochets(reponse):
+        lignes = []
+        for c in reponse["clients"]:
+            contrat, factures = c["contrat"] or {}, c["factures"] or []  # C00003 n'a que son id : KeyError
+            montants = [f["montant"] for f in factures]
+            lignes.append({"customer_id": c["id"], "contrat": contrat.get("type"), "nb_factures": len(factures),
+                           "facture_moyenne": sum(montants) / len(montants) if montants else float("nan"),
+                           "nb_options": len(c["options"] or [])})
+        return pd.DataFrame(lignes)
+
+    resultat = _evaluer("aplatir_reponse_api", crochets)
+    assert resultat.statut == ECHEC and "dict.get" in resultat.message, resultat.message
+
+
+def _bareme(appels=">=", anciennete="<", support=-2, elevé=">=", ordre="strict_d_abord"):
+    import numpy as np
+
+    ops = {">=": lambda a, b: a >= b, ">": lambda a, b: a > b, "<": lambda a, b: a < b, "<=": lambda a, b: a <= b}
+
+    def niveau(df):
+        points = (3 * (df["contract"] == "Mensuel") + 2 * ops[appels](df["support_calls"], 3)
+                  + 1 * ops[anciennete](df["tenure_months"], 6) + support * (df["tech_support"] == "Oui"))
+        conditions = [ops[elevé](points, 4), points >= 2]
+        choix = ["élevé", "moyen"]
+        if ordre != "strict_d_abord":
+            conditions, choix = conditions[::-1], choix[::-1]
+        return pd.Series(np.select(conditions, choix, default="faible"), index=df.index)
+
+    return niveau
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_bareme(appels=">"), ">= 3"),
+    (_bareme(anciennete="<="), "< 6"),
+    (_bareme(support=2), "RETIRE"),
+    (_bareme(elevé=">"), ">= 4"),
+    (_bareme(ordre="inverse"), "PREMIÈRE condition"),
+], ids=["seuil_appels", "seuil_anciennete", "signe_support", "seuil_niveau", "select_inverse"])
+def test_niveau_risque_erreurs_de_bareme(fonction, attendu):
+    resultat = _evaluer("niveau_risque", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_niveau_risque_ligne_a_ligne_est_refuse():
+    from defis.corrige_serie_08 import niveau_risque_lent
+
+    for lent in (niveau_risque_lent,
+                 lambda df: df.apply(lambda c: niveau_risque_lent(c.to_frame().T).iloc[0], axis=1)):
+        resultat = _evaluer("niveau_risque", lent)
+        assert resultat.statut == ECHEC and "un par un" in resultat.message, resultat.message
+
+
+def test_niveau_risque_sans_index_ou_en_tableau():
+    from defis.corrige_serie_08 import niveau_risque
+
+    assert "index=df.index" in _evaluer("niveau_risque", lambda df: pd.Series(niveau_risque(df).to_numpy())).message
+    assert "pd.Series" in _evaluer("niveau_risque", lambda df: niveau_risque(df).to_numpy()).message
+
+
+def _upsert(dedoublonner=True, subset=True, keep="last", ignore_index=True, garde_fou=True):
+    def mettre_a_jour(table, nouveautes, cle="customer_id"):
+        if garde_fou and table[cle].duplicated().any():
+            raise ValueError("doublons")
+        tout = pd.concat([table, nouveautes[table.columns]], ignore_index=ignore_index)
+        if dedoublonner:
+            tout = tout.drop_duplicates(subset=cle if subset else None, keep=keep)
+        return tout.reset_index(drop=True) if ignore_index else tout
+
+    return mettre_a_jour
+
+
+def _avec_update(table, nouveautes, cle="customer_id"):
+    ancienne = table.set_index(cle)
+    nouvelle = nouveautes.drop_duplicates(cle, keep="last").set_index(cle)[ancienne.columns]
+    ancienne.update(nouvelle)
+    return pd.concat([ancienne, nouvelle[~nouvelle.index.isin(ancienne.index)]]).reset_index()
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_upsert(dedoublonner=False), "EMPILE"),
+    (_upsert(subset=False), "sans `subset`"),
+    (_upsert(keep="first"), "keep=\"last\""),
+    (_upsert(ignore_index=False), "ignore_index=True"),
+    (_upsert(garde_fou=False), "ValueError"),
+    (_avec_update, "IGNORENT les valeurs vides"),
+], ids=["concat_seul", "sans_subset", "garde_l_ancienne", "index_duplique", "sans_garde_fou", "update_ignore_none"])
+def test_mettre_a_jour_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("mettre_a_jour", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_mettre_a_jour_avec_la_cle_en_dur():
+    from defis.corrige_serie_08 import mettre_a_jour
+
+    resultat = _evaluer("mettre_a_jour", lambda table, nouveautes, cle="customer_id": mettre_a_jour(table, nouveautes))
+    assert resultat.statut == ECHEC and "paramètre `cle`" in resultat.message, resultat.message
+
+
+def _evenements(filtre="<", debut=">=", fenetre_fixe=None, fenetre_reclamations=False, reindex=True, jours_vides=None):
+    """Une version de variables_evenements avec une seule erreur à la fois."""
+
+    def variables(evenements, clients, date_reference, fenetre_jours=30):
+        reference = pd.Timestamp(date_reference)
+        ev = evenements.assign(date=pd.to_datetime(evenements["date"]))
+        if filtre == "<":
+            ev = ev[ev["date"] < reference]
+        elif filtre == "<=":
+            ev = ev[ev["date"] <= reference]
+        borne = reference - pd.Timedelta(days=fenetre_fixe or fenetre_jours)
+        recent = ev["date"] >= borne if debut == ">=" else ev["date"] > borne
+        appels = ev[(ev["type"] == "appel_support") & recent].groupby("customer_id").size()
+        masque = ev["type"] == "reclamation"
+        reclamations = ev[masque & recent if fenetre_reclamations else masque].groupby("customer_id").size()
+        dernier = ev.groupby("customer_id")["date"].max()
+        index = pd.Index(clients) if reindex else dernier.index
+        resultat = pd.DataFrame({
+            "appels_recents": appels.reindex(index, fill_value=0).astype(int),
+            "reclamations": reclamations.reindex(index, fill_value=0).astype(int),
+            "jours_depuis_dernier": (reference - dernier.reindex(index)).dt.days.astype(float),
+        }, index=index)
+        if jours_vides is not None:
+            resultat["jours_depuis_dernier"] = resultat["jours_depuis_dernier"].fillna(jours_vides)
+        return resultat
+
+    return variables
+
+
+@pytest.mark.parametrize("fonction,attendu", [
+    (_evenements(filtre=None), "FUITE TEMPORELLE"),
+    (_evenements(filtre="<="), "STRICTEMENT avant"),
+    (_evenements(debut=">"), "l'INCLUT"),
+    (_evenements(fenetre_fixe=30), "fenetre_jours"),
+    (_evenements(fenetre_reclamations=True), "TOUT l'historique"),
+    (_evenements(reindex=False), "reindex"),
+    (_evenements(jours_vides=0.0), "laissez NaN"),
+], ids=["fuite_futur", "jour_j_inclus", "borne_de_fenetre_exclue", "fenetre_en_dur", "reclamations_fenetrees",
+        "sans_reindex", "jours_zero_au_lieu_de_nan"])
+def test_variables_evenements_erreurs_classiques(fonction, attendu):
+    resultat = _evaluer("variables_evenements", fonction)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_variables_evenements_ne_modifie_pas_le_journal():
+    from defis.corrige_serie_08 import variables_evenements
+
+    def sur_place(evenements, clients, date_reference, fenetre_jours=30):
+        evenements["date"] = pd.to_datetime(evenements["date"])
+        return variables_evenements(evenements, clients, date_reference, fenetre_jours)
+
+    resultat = _evaluer("variables_evenements", sur_place)
+    assert resultat.statut == ECHEC and "copie" in resultat.message, resultat.message
+
+
+def test_variables_evenements_dates_texte_comparees_a_une_date():
+    from defis.corrige_serie_08 import variables_evenements
+
+    def sans_conversion(evenements, clients, date_reference, fenetre_jours=30):
+        connus = evenements[evenements["date"] < date_reference]  # marche par hasard sur des textes ISO
+        return variables_evenements(connus, clients, date_reference, fenetre_jours)
+
+    resultat = _evaluer("variables_evenements", sans_conversion)
+    assert resultat.statut == ECHEC and "pd.Timestamp" in resultat.message, resultat.message

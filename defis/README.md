@@ -32,6 +32,8 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > la série 00 et entraîne ce qui sépare un script qui « marche chez moi » d'un code fiable.
 > Puis la **série 07** (défis 44 à 49) : dates, fichiers Excel, `set`, générateurs, classes et
 > décorateurs, les notions de Python qu'on rencontre dès la première vraie tâche en équipe.
+> Et la **série 08** (défis 50 à 55) : construire la table du modèle à partir de sources réelles
+> (texte, plusieurs tables, JSON, mises à jour, journal d'événements) sans abîmer les données.
 
 | Série | Fichier à compléter | Thèmes | Défis |
 |---|---|---|---|
@@ -43,6 +45,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | 05 — Prouver l'impact | `defis/serie_05.py` | SQL (`GROUP BY`, top k par groupe avec `ROW_NUMBER() OVER`), intervalle de confiance de Wilson, test A/B d'une offre de rétention, courbe de survie de Kaplan-Meier | 5 (🟢×1 🟡×3 🔴×1) |
 | **06 — Développer comme un·e pro** 🛠️ | `defis/serie_06.py` | lire une **traceback**, **écrire un test** qui attrape 5 versions boguées, `try`/`except` précis et saisies humaines (« 0,4 », « 40 % »), **refactoriser** sans changer le résultat, ligne de commande **argparse**, **bissection** façon `git bisect` | 6, n° 38 à 43 (🟢×2 🟡×3 🔴×1) |
 | **07 — Écrire du code réutilisable** 🧱 | `defis/serie_07.py` | ancienneté en mois avec **`datetime`** (fins de mois), **complexité** : `set` contre liste sur 200 000 clients, lire un **export Excel** français (`;`, virgule décimale, encodages, identifiants « 00123 »), **générateur** `yield` par lots, une **classe** avec état (attribut d'objet ou de classe ?), un **décorateur** de cache | 6, n° 44 à 49 (🟢×2 🟡×3 🔴×1) |
+| **08 — Assembler les données** 🔗 | `defis/serie_08.py` | retrouver des identifiants dans des notes avec une **regex** (`\b`, `re.IGNORECASE`), **jointure** sans dupliquer ni perdre de clients (`groupby` puis `map`/`merge`), aplatir le **JSON** d'une API (champs absents ou `null`), **vectoriser** un barème (`np.select`, sans `iterrows`), **upsert** idempotent de la mise à jour de nuit (`concat` + `drop_duplicates`), variables d'un **journal d'événements** sans **fuite temporelle** | 6, n° 50 à 55 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -52,6 +55,10 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 3. Une fois ✅, ouvrez `defis/corrige_serie_XX.py` et comparez. Souvent, on découvre une
    écriture plus courte ou un piège évité par chance.
 4. Notez dans votre `JOURNAL.md` : ce qui vous a bloqué, ce que vous avez appris.
+
+> ⏳ Le défi 55 est le plus important de la série 08 pour un·e data scientist : compter un événement
+> postérieur à la date de prédiction rend un modèle de churn excellent au test et inutile en production.
+> Le correcteur place exprès des appels « le jour J » et « dans le futur » dans le journal.
 
 > 🧱 Le défi 48 vous fait écrire une **classe** et non une fonction : le correcteur crée plusieurs
 > journaux, change le seuil après coup et vérifie que deux objets ne partagent rien.
