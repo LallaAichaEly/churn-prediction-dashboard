@@ -844,6 +844,8 @@ croix rouge sur GitHub (et sur le badge du README).
 
 ⚡ *Échauffement :* le défi 23 écrit le cœur de cette route : un seul appel au modèle, des types
 JSON, et une erreur claire pour un client incomplet au lieu d'une prédiction fausse silencieuse.
+Le défi 47 (`par_lots`, série 07) fait l'autre moitié : découper un gros fichier en paquets de 1 000
+clients, sans tout charger en mémoire, pour les envoyer un par un à cette route (bornée à 1 000).
 
 💡 *Indice :* le corps de la requête est une `list[Customer]`. Construisez **un seul** DataFrame
 et appelez `predict_proba` **une seule fois**. `Body(min_length=1, max_length=1000)` borne la taille.

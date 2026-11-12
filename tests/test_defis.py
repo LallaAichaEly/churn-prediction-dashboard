@@ -1221,3 +1221,371 @@ def test_bissection_ne_reteste_pas_les_extremites():
 def test_bissection_trop_peu_de_commits():
     resultat = _evaluer("premier_commit_fautif", lambda commits, est_bon: commits[-1])
     assert resultat.statut == ECHEC and "ValueError" in resultat.message
+
+
+# --------------------------------------------------------------------------- Série 07 : code réutilisable
+
+
+def _mois_sans_fin_de_mois(debut, fin):
+    from defis.corrige_serie_07 import _en_date
+
+    debut, fin = _en_date(debut), _en_date(fin)
+    if fin < debut:
+        raise ValueError("fin avant début")
+    return (fin.year - debut.year) * 12 + (fin.month - debut.month) - (fin.day < debut.day)
+
+
+def test_anciennete_mois_du_calendrier_au_lieu_de_mois_complets():
+    from defis.corrige_serie_07 import _en_date
+
+    def calendaires(debut, fin):
+        debut, fin = _en_date(debut), _en_date(fin)
+        if fin < debut:
+            raise ValueError("fin avant début")
+        return (fin.year - debut.year) * 12 + (fin.month - debut.month)
+
+    resultat = _evaluer("anciennete_en_mois", calendaires)
+    assert resultat.statut == ECHEC and "COMPLETS" in resultat.message
+
+
+def test_anciennete_un_mois_n_a_pas_30_jours():
+    from defis.corrige_serie_07 import _en_date
+
+    resultat = _evaluer("anciennete_en_mois", lambda d, f: (_en_date(f) - _en_date(d)).days // 30)
+    assert resultat.statut == ECHEC and "30" in resultat.message
+
+
+def test_anciennete_fin_de_mois():
+    resultat = _evaluer("anciennete_en_mois", _mois_sans_fin_de_mois)
+    assert resultat.statut == ECHEC and "FIN DE MOIS" in resultat.message
+
+
+def test_anciennete_espaces_autour_de_la_date():
+    from datetime import date
+
+    from defis.corrige_serie_07 import anciennete_en_mois
+
+    def sans_strip(debut, fin):
+        debut = debut if isinstance(debut, date) else date.fromisoformat(debut)
+        fin = fin if isinstance(fin, date) else date.fromisoformat(fin)
+        return anciennete_en_mois(debut, fin)
+
+    resultat = _evaluer("anciennete_en_mois", sans_strip)
+    assert resultat.statut == ECHEC and ".strip()" in resultat.message
+
+
+def test_anciennete_negative_refusee():
+    from defis.corrige_serie_07 import _en_date, anciennete_en_mois
+
+    def negative(debut, fin):
+        if _en_date(fin) < _en_date(debut):
+            return -1
+        return anciennete_en_mois(debut, fin)
+
+    resultat = _evaluer("anciennete_en_mois", negative)
+    assert resultat.statut == ECHEC and "incohérente" in resultat.message
+
+
+def test_anciennete_ne_devine_pas_le_format():
+    from datetime import datetime
+
+    from defis.corrige_serie_07 import anciennete_en_mois
+
+    def devine(debut, fin):
+        if isinstance(debut, str) and "/" in debut:
+            debut = datetime.strptime(debut, "%d/%m/%Y").date()
+        return anciennete_en_mois(debut, fin)
+
+    resultat = _evaluer("anciennete_en_mois", devine)
+    assert resultat.statut == ECHEC and "devinez" in resultat.message
+
+
+def test_toujours_a_risque_recherche_dans_une_liste():
+    def dans_la_liste(mois_dernier, ce_mois):
+        return list(dict.fromkeys(c for c in ce_mois if c in mois_dernier))
+
+    resultat = _evaluer("clients_toujours_a_risque", dans_la_liste)
+    assert resultat.statut == ECHEC and "set(" in resultat.message
+
+
+def test_toujours_a_risque_set_recree_a_chaque_tour():
+    def set_dans_la_boucle(mois_dernier, ce_mois):
+        return list(dict.fromkeys(c for c in ce_mois if c in set(mois_dernier)))
+
+    resultat = _evaluer("clients_toujours_a_risque", set_dans_la_boucle)
+    assert resultat.statut == ECHEC and "AVANT la boucle" in resultat.message
+
+
+def test_toujours_a_risque_doublons_cherches_dans_le_resultat():
+    def doublons_lents(mois_dernier, ce_mois):
+        avant, resultat = set(mois_dernier), []
+        for client in ce_mois:
+            if client in avant and client not in resultat:
+                resultat.append(client)
+        return resultat
+
+    resultat = _evaluer("clients_toujours_a_risque", doublons_lents)
+    assert resultat.statut == ECHEC and "deja_vus" in resultat.message
+
+
+def test_toujours_a_risque_ordre_et_doublons():
+    def ordre_du_mois_dernier(mois_dernier, ce_mois):
+        maintenant = set(ce_mois)
+        return list(dict.fromkeys(c for c in mois_dernier if c in maintenant))
+
+    def avec_doublons(mois_dernier, ce_mois):
+        avant = set(mois_dernier)
+        return [c for c in ce_mois if c in avant]
+
+    assert "ORDRE" in _evaluer("clients_toujours_a_risque", ordre_du_mois_dernier).message
+    assert "UNE fois" in _evaluer("clients_toujours_a_risque", avec_doublons).message
+    assert "set" in _evaluer("clients_toujours_a_risque", lambda a, b: set(a) & set(b)).message
+
+
+def _export(**options):
+    """Une version de lire_export_excel avec des options de read_csv choisies (et rien d'autre)."""
+
+    def lire(chemin):
+        df = pd.read_csv(chemin, **options)
+        df.columns = df.columns.str.strip()
+        return df
+
+    return lire
+
+
+@pytest.mark.parametrize("options,attendu", [
+    ({}, "POINTS-VIRGULES"),
+    ({"sep": ";", "decimal": ",", "encoding": "cp1252", "dtype": {"id": str}}, "ChÃ¨que"),
+    ({"sep": ";", "decimal": ",", "encoding": "utf-8-sig", "dtype": {"id": str}}, "cp1252"),
+], ids=["sans_options", "toujours_cp1252", "sans_repli_cp1252"])
+def test_export_excel_options_manquantes(options, attendu):
+    resultat = _evaluer("lire_export_excel", _export(**options))
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def _export_presque(**retirer):
+    """Le corrigé de lire_export_excel, privé d'une étape."""
+
+    def lire(chemin):
+        options = {"sep": ";", "decimal": ",", "dtype": {"id": str}}
+        for cle in retirer:
+            options.pop(cle, None)
+        for encodage in (retirer.get("encodage") or "utf-8-sig", "cp1252"):
+            try:
+                df = pd.read_csv(chemin, encoding=encodage, **options)
+                break
+            except UnicodeDecodeError:
+                continue
+        if "strip" not in retirer:
+            df.columns = df.columns.str.strip()
+        return df
+
+    return lire
+
+
+@pytest.mark.parametrize("retirer,attendu", [
+    ({"strip": True}, ".str.strip()"),
+    ({"decimal": True}, "decimal"),
+    ({"dtype": True}, "zéros"),
+], ids=["noms_non_nettoyes", "virgule_decimale", "identifiants_numeriques"])
+def test_export_excel_etape_oubliee(retirer, attendu):
+    resultat = _evaluer("lire_export_excel", _export_presque(**retirer))
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_par_lots_qui_charge_tout_en_memoire():
+    from defis.corrige_serie_07 import par_lots
+
+    resultat = _evaluer("par_lots", lambda elements, taille: list(par_lots(elements, taille)))
+    assert resultat.statut == ECHEC and "yield" in resultat.message
+
+
+def test_par_lots_avec_des_indices():
+    def tranches(elements, taille):
+        if taille < 1:
+            raise ValueError(taille)
+        for i in range(0, len(elements), taille):
+            yield elements[i:i + taille]
+
+    resultat = _evaluer("par_lots", tranches)
+    assert resultat.statut == ECHEC and "GÉNÉRATEUR" in resultat.message
+
+
+def test_par_lots_reutilise_la_meme_liste():
+    def meme_liste(elements, taille):
+        lot = []
+        for element in elements:
+            lot.append(element)
+            if len(lot) == taille:
+                yield lot
+                lot.clear()
+        if lot:
+            yield lot
+
+    resultat = _evaluer("par_lots", meme_liste)
+    assert resultat.statut == ECHEC and "MÊME liste" in resultat.message
+
+
+def test_par_lots_dernier_lot_oublie_ou_vide():
+    def sans_reste(elements, taille):
+        lot = []
+        for element in elements:
+            lot.append(element)
+            if len(lot) == taille:
+                yield lot
+                lot = []
+
+    def reste_vide(elements, taille):
+        lot = []
+        for element in elements:
+            lot.append(element)
+            if len(lot) == taille:
+                yield lot
+                lot = []
+        yield lot
+
+    assert "dernier lot" in _evaluer("par_lots", sans_reste).message
+    assert "VIDE" in _evaluer("par_lots", reste_vide).message
+
+
+def test_par_lots_taille_nulle_sans_boucle_infinie():
+    import itertools
+
+    def sans_garde(elements, taille):
+        it = iter(elements)
+        while True:
+            lot = list(itertools.islice(it, max(taille, 0)))
+            if not lot and taille > 0:
+                return
+            yield lot
+
+    resultat = _evaluer("par_lots", sans_garde)
+    assert resultat.statut == ECHEC and "ValueError" in resultat.message
+
+
+def _journal(**changements):
+    """Une sous-classe du corrigé de JournalPredictions, avec un défaut injecté."""
+    from defis.corrige_serie_07 import JournalPredictions
+
+    return type("JournalPredictions", (JournalPredictions,), changements)
+
+
+def test_journal_attribut_de_classe_partage():
+    from defis.corrige_serie_07 import JournalPredictions
+
+    partage = {}
+
+    def init(self, seuil=0.5):
+        JournalPredictions.__init__(self, seuil)
+        self.scores = partage
+
+    resultat = _evaluer("JournalPredictions", _journal(__init__=init))
+    assert resultat.statut == ECHEC and "CLASSE" in resultat.message
+
+
+def test_journal_seuil_inclus_et_egalites():
+    def strict(self):
+        return [c for c, p in sorted(self.scores.items(), key=lambda cp: (-cp[1], cp[0])) if p > self.seuil]
+
+    def sans_departage(self):
+        return [c for c, p in sorted(self.scores.items(), key=lambda cp: -cp[1]) if p >= self.seuil]
+
+    assert "EXACTEMENT" in _evaluer("JournalPredictions", _journal(a_risque=strict)).message
+    assert "égalité" in _evaluer("JournalPredictions", _journal(a_risque=sans_departage)).message
+
+
+def test_journal_un_client_mis_a_jour_ne_compte_qu_une_fois():
+    from defis.corrige_serie_07 import JournalPredictions
+
+    def init(self, seuil=0.5):
+        JournalPredictions.__init__(self, seuil)
+        self.historique = []
+
+    def ajouter(self, client_id, proba):
+        JournalPredictions.ajouter(self, client_id, proba)
+        self.historique.append(client_id)
+
+    journal = _journal(__init__=init, ajouter=ajouter, __len__=lambda self: len(self.historique))
+    resultat = _evaluer("JournalPredictions", journal)
+    assert resultat.statut == ECHEC and "dictionnaire" in resultat.message
+
+
+def test_journal_nan_et_seuil_fige():
+    from defis.corrige_serie_07 import JournalPredictions
+
+    def accepte_nan(self, client_id, proba):
+        if proba < 0 or proba > 1:
+            raise ValueError(proba)
+        self.scores[client_id] = proba
+
+    def init(self, seuil=0.5):
+        JournalPredictions.__init__(self, seuil)
+        self._seuil_initial = seuil
+
+    def seuil_fige(self):
+        return [c for c, p in sorted(self.scores.items(), key=lambda cp: (-cp[1], cp[0])) if p >= self._seuil_initial]
+
+    assert "nan" in _evaluer("JournalPredictions", _journal(ajouter=accepte_nan)).message
+    assert "À LA DEMANDE" in _evaluer("JournalPredictions", _journal(__init__=init, a_risque=seuil_fige)).message
+
+
+def test_journal_vide_et_len():
+    def division(self):
+        return len(self.a_risque()) / len(self.scores)
+
+    from defis.corrige_serie_07 import JournalPredictions
+
+    assert "0.0" in _evaluer("JournalPredictions", _journal(taux_alerte=division)).message
+    methodes = {nom: v for nom, v in vars(JournalPredictions).items() if nom != "__len__" and not nom.startswith("__dict")}
+    sans_len = type("JournalPredictions", (), methodes)
+    assert "__len__" in _evaluer("JournalPredictions", sans_len).message
+
+
+def _cache_presque(cle=None, present=None, cache_global=None, wraps=True, avale=False):
+    """Une version d'avec_cache avec une erreur de débutant·e injectée."""
+    import functools
+
+    def avec_cache(fonction):
+        cache = {} if cache_global is None else cache_global
+        stats = {"calculs": 0, "reutilisations": 0}
+
+        def enveloppe(*args, **kwargs):
+            k = cle(args, kwargs) if cle else (args, tuple(sorted(kwargs.items())))
+            if (present(cache, k) if present else k in cache):
+                stats["reutilisations"] += 1
+                return cache[k]
+            stats["calculs"] += 1
+            try:
+                cache[k] = fonction(*args, **kwargs)
+            except Exception:
+                if not avale:
+                    raise
+                cache[k] = None
+            return cache[k]
+
+        if wraps:
+            enveloppe = functools.wraps(fonction)(enveloppe)
+        enveloppe.statistiques = lambda: dict(stats)
+        return enveloppe
+
+    return avec_cache
+
+
+@pytest.mark.parametrize("erreur,attendu", [
+    ({"cle": lambda args, kwargs: args}, "NOMMÉS"),
+    ({"cle": lambda args, kwargs: "-".join(map(str, args)) + str(sorted(kwargs.items()))}, "confond"),
+    ({"present": lambda cache, k: cache.get(k)}, "cle in cache"),
+    ({"cache_global": {}}, "PARTAGÉ"),
+    ({"wraps": False}, "functools.wraps"),
+    ({"avale": True}, "laisser passer"),
+], ids=["kwargs_oublies", "cle_texte", "resultat_faux", "cache_partage", "sans_wraps", "erreur_avalee"])
+def test_avec_cache_erreurs_classiques(erreur, attendu):
+    resultat = _evaluer("avec_cache", _cache_presque(**erreur))
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+def test_avec_cache_sans_cache_ou_sans_statistiques():
+    import functools
+
+    assert "telle quelle" in _evaluer("avec_cache", lambda fonction: fonction).message
+    assert "statistiques()" in _evaluer("avec_cache", functools.cache).message

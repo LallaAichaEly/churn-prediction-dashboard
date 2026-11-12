@@ -24,7 +24,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 43 fonctions courtes dans `defis/serie_00.py` à `defis/serie_06.py`, corrigées par
+> [défis](defis/README.md) : 49 fonctions et classes courtes dans `defis/serie_00.py` à `defis/serie_07.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -38,7 +38,9 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > défis 38 à 43) se fait juste après la série 00, sans attendre le module 6 : lire une traceback,
 > écrire un test, gérer les exceptions, refactoriser, construire une ligne de commande avec argparse,
 > trouver le commit qui a cassé le modèle par bissection. Ce sont les réflexes qu'on attend dès le
-> premier jour dans une équipe.
+> premier jour dans une équipe. Ensuite, la série 07 (`defis/serie_07.py`, défis 44 à 49) entraîne
+> les notions de Python des premières vraies tâches : dates, fichier Excel, `set` contre liste,
+> générateurs, classes et décorateurs.
 
 ---
 

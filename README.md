@@ -22,7 +22,9 @@ clients risquent de partir (*churn*).
 > 🛠️ **Vous voulez développer, mais ne vous sentez pas encore compétent·e ?** Après la série 00, la
 > série 06 (`defis/serie_06.py`, défis 38 à 43) entraîne les gestes du métier : lire une erreur, écrire
 > un test qui attrape les bugs, gérer une saisie invalide, refactoriser sans rien casser, écrire une
-> ligne de commande, retrouver le commit fautif comme `git bisect`.
+> ligne de commande, retrouver le commit fautif comme `git bisect`. La série 07 (`defis/serie_07.py`,
+> défis 44 à 49) passe ensuite du script au code réutilisable : dates, export Excel, `set` contre liste,
+> générateurs, classes, décorateurs.
 
 ## Ce que vous allez pratiquer
 
@@ -41,7 +43,8 @@ clients risquent de partir (*churn*).
 | SQL (GROUP BY, fonctions de fenêtre), intervalles de confiance, test A/B, courbe de survie | `defis/serie_05.py` |
 | Bases de Python et de pandas, débogage (remise à niveau) | `defis/serie_00.py` |
 | Gestes du développeur : lire une traceback, écrire un test, exceptions, refactoring, argparse, bissection | `defis/serie_06.py` |
-| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_06.py` + `scripts/defis.py` |
+| Code réutilisable : `datetime`, encodages et CSV Excel, complexité (`set`), générateurs, classes, décorateurs | `defis/serie_07.py` |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_07.py` + `scripts/defis.py` |
 
 ## Démarrage rapide
 
@@ -121,6 +124,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── serie_04.py         # ✍️ Série 04 — modéliser et industrialiser (5 fonctions)
 │   ├── serie_05.py         # ✍️ Série 05 — prouver l'impact : SQL, incertitude, A/B, survie (5 fonctions)
 │   ├── serie_06.py         # 🛠️ Série 06 — développer comme un·e pro : erreurs, tests, refactoring, CLI (6 défis)
+│   ├── serie_07.py         # 🧱 Série 07 — code réutilisable : dates, Excel, set, yield, classes, décorateurs (6 défis)
 │   ├── corrige_serie_0X.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_0X.py  # Vérifications automatiques
 ├── src/churn/
