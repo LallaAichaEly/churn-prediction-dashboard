@@ -1,0 +1,201 @@
+customer_id,tenure_months,monthly_charges,total_charges,support_calls,num_products,contract,payment_method,internet_service,tech_support,senior,churn,proba_churn
+C01591,1,84.37,87.24,4,1,Mensuel,Virement,Fibre,Non,Non,0,0.945
+C01101,2,78.66,165.0,5,3,Mensuel,Carte bancaire,ADSL,Non,Oui,1,0.908
+C00733,1,92.17,92.67,2,1,Mensuel,Prélèvement,Fibre,Non,Non,1,0.879
+C00482,3,87.8,264.79,2,2,Mensuel,Carte bancaire,Fibre,Non,Non,1,0.846
+C03937,9,96.06,846.26,5,4,Mensuel,Carte bancaire,Fibre,Oui,Non,1,0.845
+C03495,7,73.77,499.91,5,3,Mensuel,Carte bancaire,Fibre,Oui,Non,1,0.84
+C03020,6,81.58,502.18,3,3,Mensuel,Prélèvement,Fibre,Non,Non,1,0.838
+C02093,4,77.92,314.72,6,4,Annuel,Chèque,Fibre,Oui,Oui,1,0.828
+C01684,16,37.83,618.67,5,3,Mensuel,Carte bancaire,Aucun,Non,Oui,1,0.805
+C03950,14,79.41,1118.59,2,1,Mensuel,Prélèvement,Fibre,Non,Non,1,0.794
+C02341,7,72.96,509.22,2,2,Mensuel,Carte bancaire,Fibre,Non,Non,0,0.794
+C02241,1,70.1,71.0,3,4,Mensuel,Chèque,Fibre,Oui,Non,1,0.791
+C00919,11,94.79,1014.54,2,3,Mensuel,Carte bancaire,Fibre,Non,Non,1,0.788
+C04249,15,94.88,1459.65,2,3,Mensuel,Carte bancaire,Fibre,Non,Non,1,0.764
+C02513,10,85.94,878.54,3,2,Mensuel,Virement,Fibre,Oui,Non,1,0.761
+C00903,4,71.5,272.22,3,3,Mensuel,Carte bancaire,Fibre,Oui,Oui,1,0.76
+C00996,7,45.51,332.88,3,3,Mensuel,Chèque,ADSL,Non,Non,1,0.749
+C02896,20,84.03,1693.41,3,4,Mensuel,Carte bancaire,Fibre,Non,Non,1,0.742
+C04166,5,76.21,370.77,0,1,Mensuel,Prélèvement,Fibre,Non,Oui,1,0.739
+C02053,24,74.05,1809.25,4,2,Mensuel,Carte bancaire,ADSL,Non,Non,1,0.729
+C01214,21,84.89,1858.3,2,2,Mensuel,Prélèvement,Fibre,Non,Non,0,0.725
+C04773,25,70.48,1828.36,4,1,Mensuel,Prélèvement,Fibre,Oui,Non,0,0.719
+C01808,8,86.95,682.08,1,3,Mensuel,Virement,Fibre,Non,Non,0,0.718
+C03449,37,81.8,3165.26,3,3,Mensuel,Carte bancaire,Fibre,Non,Oui,1,0.718
+C04029,10,73.38,703.73,2,1,Mensuel,Prélèvement,Fibre,Oui,Oui,1,0.716
+C03320,1,56.56,54.9,2,1,Mensuel,Carte bancaire,ADSL,Non,Non,0,0.704
+C02913,4,58.22,234.66,2,1,Mensuel,Virement,ADSL,Non,Non,0,0.701
+C03897,2,91.73,184.56,2,3,Mensuel,Carte bancaire,Fibre,Oui,Non,1,0.695
+C00302,9,57.45,526.47,3,2,Mensuel,Prélèvement,ADSL,Non,Non,1,0.68
+C00756,2,35.62,73.45,2,1,Mensuel,Prélèvement,ADSL,Non,Oui,1,0.674
+C04362,8,37.74,300.3,4,3,Mensuel,Prélèvement,ADSL,Non,Non,0,0.669
+C00977,6,59.64,370.25,2,4,Mensuel,Chèque,ADSL,Non,Non,0,0.667
+C00778,22,87.28,1942.48,1,2,Mensuel,Virement,Fibre,Non,Non,0,0.663
+C02838,23,65.32,1476.8,3,4,Mensuel,Prélèvement,Fibre,Non,Non,0,0.651
+C03747,1,89.53,89.62,2,4,Mensuel,Carte bancaire,Fibre,Oui,Non,1,0.647
+C04514,1,90.62,92.96,0,4,Mensuel,Carte bancaire,Fibre,Non,Non,0,0.631
+C02177,5,63.1,299.82,0,2,Mensuel,Virement,Fibre,Non,Non,1,0.617
+C01553,4,37.38,152.8,2,2,Mensuel,Prélèvement,ADSL,Non,Oui,1,0.616
+C02216,36,99.36,3399.35,1,4,Mensuel,Chèque,Fibre,Non,Non,1,0.615
+C03978,10,61.17,608.15,2,2,Mensuel,Prélèvement,ADSL,Non,Non,1,0.588
+C03893,40,68.29,2650.72,2,1,Mensuel,Prélèvement,Fibre,Non,Non,1,0.582
+C02687,11,91.59,997.98,1,2,Mensuel,Carte bancaire,Fibre,Oui,Non,0,0.575
+C02732,1,59.17,58.37,2,4,Mensuel,Carte bancaire,ADSL,Non,Non,1,0.563
+C01491,8,67.74,534.1,1,1,Mensuel,Prélèvement,Fibre,Oui,Non,0,0.55
+C03979,1,43.27,43.4,2,3,Mensuel,Prélèvement,ADSL,Non,Non,1,0.54
+C00548,15,85.7,1298.54,1,2,Mensuel,Prélèvement,ADSL,Non,Non,1,0.53
+C03612,8,76.91,606.54,1,2,Mensuel,Prélèvement,Fibre,Oui,Non,0,0.53
+C02406,1,21.98,21.81,1,1,Mensuel,Carte bancaire,Aucun,Non,Non,1,0.528
+C03206,11,15.0,171.3,1,2,Mensuel,Chèque,Aucun,Non,Non,0,0.52
+C00134,4,34.17,135.21,1,1,Mensuel,Virement,ADSL,Non,Non,1,0.517
+C00237,2,57.45,116.31,1,3,Mensuel,Virement,ADSL,Non,Non,1,0.512
+C00593,15,95.11,1394.76,0,4,Mensuel,Prélèvement,Fibre,Non,Non,1,0.512
+C01428,2,15.0,30.06,1,1,Mensuel,Virement,Aucun,Non,Non,1,0.508
+C02295,39,69.23,2697.07,2,1,Mensuel,Prélèvement,ADSL,Non,Oui,1,0.501
+C04408,26,58.05,1544.75,2,1,Mensuel,Prélèvement,ADSL,Non,Non,1,0.501
+C04803,11,56.91,649.33,1,4,Mensuel,Chèque,Fibre,Oui,Non,0,0.489
+C01004,10,43.94,453.85,1,2,Mensuel,Prélèvement,ADSL,Non,Oui,0,0.489
+C03767,19,75.32,1457.44,2,4,Mensuel,Virement,ADSL,Non,Non,0,0.487
+C01729,9,48.31,442.26,0,1,Mensuel,Chèque,Aucun,Oui,Oui,1,0.487
+C01823,11,53.06,608.67,3,2,Mensuel,Carte bancaire,ADSL,Oui,Non,1,0.484
+C02238,34,88.11,3083.56,0,1,Mensuel,Prélèvement,Fibre,Non,Non,0,0.484
+C04935,13,90.49,1131.91,1,1,Annuel,Virement,Fibre,Non,Non,0,0.482
+C04127,7,53.71,362.32,1,2,Mensuel,Prélèvement,ADSL,Non,Non,1,0.48
+C01778,13,79.27,1004.44,1,3,Mensuel,Prélèvement,ADSL,Non,Non,1,0.47
+C02080,33,56.21,1820.44,2,4,Mensuel,Virement,Fibre,Non,Non,0,0.469
+C02465,12,52.69,633.98,1,2,Mensuel,Virement,ADSL,Non,Non,1,0.467
+C01224,1,77.56,77.73,1,2,Annuel,Carte bancaire,Fibre,Non,Non,0,0.467
+C01611,9,81.51,762.04,0,2,Mensuel,Virement,Fibre,Oui,Non,0,0.464
+C03454,3,57.97,166.42,2,2,Mensuel,Carte bancaire,ADSL,Oui,Non,1,0.462
+C02123,24,97.07,2347.28,2,4,Mensuel,Prélèvement,Fibre,Oui,Non,0,0.461
+C00022,11,63.26,725.61,1,3,Mensuel,Virement,ADSL,Non,Non,1,0.459
+C04616,14,91.37,1310.06,0,2,Mensuel,Virement,Fibre,Oui,Non,0,0.457
+C02873,5,87.77,445.78,0,3,Mensuel,Carte bancaire,Fibre,Oui,Non,0,0.453
+C03919,35,96.96,3363.48,1,1,Annuel,Chèque,Fibre,Non,Non,1,0.447
+C03427,3,72.49,219.1,0,1,Mensuel,Virement,ADSL,Oui,Oui,0,0.444
+C04708,32,67.46,2160.97,3,4,Mensuel,Virement,Fibre,Oui,Non,0,0.431
+C01524,6,50.5,297.65,3,1,Annuel,Carte bancaire,ADSL,Non,Non,0,0.429
+C01891,15,60.45,919.48,2,1,Mensuel,Carte bancaire,ADSL,Oui,Non,1,0.428
+C04658,11,38.62,439.7,0,4,Mensuel,Chèque,ADSL,Non,Oui,0,0.414
+C02916,13,70.67,904.84,1,3,Mensuel,Prélèvement,Fibre,Oui,Non,1,0.412
+C01657,12,54.98,676.9,0,1,Mensuel,Carte bancaire,ADSL,Non,Non,0,0.411
+C00240,28,56.04,1535.15,0,3,Mensuel,Carte bancaire,Fibre,Non,Oui,1,0.409
+C01146,18,47.26,858.09,1,3,Mensuel,Chèque,Aucun,Oui,Oui,1,0.409
+C01529,31,83.12,2503.73,0,3,Mensuel,Carte bancaire,Fibre,Non,Non,1,0.406
+C03608,7,40.34,280.56,2,4,Mensuel,Chèque,ADSL,Oui,Non,0,0.405
+C01327,1,61.33,63.57,0,4,Mensuel,Carte bancaire,Fibre,Oui,Oui,0,0.404
+C00301,2,65.61,128.64,0,3,Annuel,Chèque,Fibre,Non,Non,0,0.403
+C02900,8,47.37,394.87,0,1,Mensuel,Prélèvement,ADSL,Non,Non,1,0.398
+C03442,9,44.19,413.52,1,4,Mensuel,Prélèvement,ADSL,Non,Oui,0,0.391
+C01355,1,59.59,57.3,4,3,Biannuel,Virement,ADSL,Non,Oui,1,0.387
+C04997,6,55.27,341.0,1,4,Mensuel,Prélèvement,ADSL,Non,Non,1,0.387
+C02617,11,29.6,325.78,1,2,Mensuel,Carte bancaire,ADSL,Non,Non,1,0.379
+C02114,8,59.75,493.73,2,3,Annuel,Prélèvement,Fibre,Non,Non,0,0.378
+C04152,14,91.58,1272.05,0,3,Mensuel,Prélèvement,Fibre,Oui,Non,1,0.375
+C00594,33,86.38,2992.01,2,1,Annuel,Prélèvement,Fibre,Non,Non,1,0.37
+C01703,11,37.6,393.98,0,2,Mensuel,Virement,Aucun,Non,Non,1,0.366
+C00735,5,26.77,135.18,0,2,Mensuel,Carte bancaire,Aucun,Non,Non,1,0.359
+C02214,26,84.49,2255.77,0,1,Mensuel,Prélèvement,Fibre,Oui,Non,0,0.356
+C03357,29,110.71,3369.01,2,4,Annuel,Virement,Fibre,Non,Non,0,0.355
+C04339,11,21.89,252.37,2,1,Mensuel,Prélèvement,Aucun,Oui,Non,0,0.354
+C01198,22,53.45,1145.21,2,1,Annuel,Prélèvement,Fibre,Non,Non,0,0.353
+C04047,7,47.41,338.38,1,2,Mensuel,Virement,Aucun,Oui,Non,0,0.351
+C01059,3,15.0,46.71,2,3,Mensuel,Prélèvement,Aucun,Oui,Oui,0,0.351
+C03709,2,62.11,127.72,0,2,Mensuel,Carte bancaire,ADSL,Oui,Oui,1,0.349
+C02308,12,57.21,708.43,1,3,Mensuel,Virement,ADSL,Oui,Oui,0,0.318
+C01707,39,62.68,2559.78,1,1,Mensuel,Virement,Fibre,Oui,Non,0,0.316
+C04779,1,59.6,56.66,1,3,Mensuel,Prélèvement,ADSL,Oui,Non,1,0.316
+C01243,20,55.23,1080.89,0,3,Mensuel,Carte bancaire,ADSL,Non,Oui,0,0.316
+C02899,6,72.86,443.59,1,4,Annuel,Carte bancaire,Fibre,Non,Non,0,0.309
+C00871,2,74.69,143.15,2,4,Annuel,Virement,ADSL,Non,Non,0,0.308
+C00614,7,66.37,472.69,2,1,Biannuel,Chèque,Fibre,Oui,Non,0,0.306
+C03267,45,53.98,2499.05,0,1,Mensuel,Chèque,ADSL,Non,Non,0,0.299
+C00680,3,57.63,179.83,1,4,Mensuel,Virement,ADSL,Oui,Non,0,0.277
+C01030,31,55.14,1659.48,3,3,Mensuel,Prélèvement,ADSL,Oui,Non,0,0.276
+C03905,7,40.27,295.55,1,2,Mensuel,Carte bancaire,ADSL,Oui,Non,0,0.275
+C01878,10,15.0,155.3,2,4,Mensuel,Carte bancaire,Aucun,Oui,Oui,0,0.274
+C03125,7,29.62,204.2,0,3,Mensuel,Chèque,Aucun,Oui,Non,1,0.273
+C03474,4,30.42,124.0,0,1,Mensuel,Carte bancaire,Aucun,Oui,Non,0,0.262
+C00424,52,77.12,4078.85,0,2,Mensuel,Prélèvement,Fibre,Non,Non,0,0.262
+C01449,9,59.52,521.86,2,3,Annuel,Virement,ADSL,Non,Non,0,0.259
+C02454,14,78.11,1121.01,1,4,Annuel,Prélèvement,Fibre,Non,Non,0,0.255
+C02292,24,75.55,1765.64,0,2,Annuel,Carte bancaire,Fibre,Non,Oui,0,0.254
+C03036,1,97.28,99.41,0,4,Annuel,Prélèvement,Fibre,Oui,Oui,0,0.225
+C02011,47,96.08,4628.99,0,2,Mensuel,Virement,Fibre,Oui,Non,0,0.22
+C03345,45,51.36,2243.08,2,4,Mensuel,Carte bancaire,ADSL,Non,Non,0,0.218
+C03970,13,31.21,411.29,1,2,Mensuel,Carte bancaire,ADSL,Oui,Non,0,0.216
+C01791,18,67.1,1254.4,2,4,Annuel,Prélèvement,ADSL,Non,Oui,0,0.213
+C01011,2,73.5,150.42,1,4,Annuel,Carte bancaire,ADSL,Non,Non,0,0.212
+C02392,25,61.74,1591.1,1,3,Annuel,Virement,Fibre,Non,Non,0,0.21
+C02078,10,15.0,155.79,0,2,Mensuel,Virement,Aucun,Oui,Oui,0,0.209
+C03780,26,71.98,1823.32,1,1,Biannuel,Carte bancaire,Fibre,Non,Oui,1,0.206
+C03116,18,61.98,1075.96,1,4,Annuel,Carte bancaire,Fibre,Non,Non,0,0.204
+C04905,22,45.03,990.09,1,1,Annuel,Virement,ADSL,Non,Oui,0,0.2
+C04853,15,95.4,1434.07,2,2,Biannuel,Virement,Fibre,Oui,Non,0,0.194
+C00597,7,63.28,442.77,1,1,Annuel,Prélèvement,ADSL,Oui,Oui,0,0.179
+C01027,50,58.23,2922.9,3,1,Biannuel,Prélèvement,Fibre,Non,Oui,0,0.176
+C02662,36,46.57,1604.17,0,3,Mensuel,Chèque,ADSL,Oui,Oui,0,0.173
+C00192,32,21.05,654.99,0,3,Mensuel,Virement,Aucun,Non,Non,0,0.162
+C02742,18,96.95,1763.01,0,2,Biannuel,Carte bancaire,Fibre,Non,Non,0,0.161
+C03012,4,66.87,258.31,1,1,Biannuel,Virement,Fibre,Oui,Non,0,0.158
+C01371,21,41.55,902.81,1,3,Mensuel,Prélèvement,ADSL,Oui,Non,0,0.157
+C01000,6,17.0,105.49,0,3,Mensuel,Prélèvement,Aucun,Oui,Non,0,0.141
+C02089,22,58.5,1311.39,2,1,Annuel,Virement,ADSL,Oui,Non,0,0.14
+C04147,27,17.55,468.88,0,1,Mensuel,Virement,Aucun,Oui,Non,0,0.134
+C01968,11,19.49,208.43,2,1,Biannuel,Virement,Aucun,Non,Non,0,0.133
+C04247,16,15.58,257.65,1,1,Biannuel,Chèque,Aucun,Non,Non,0,0.123
+C03429,10,55.11,530.18,1,1,Biannuel,Carte bancaire,ADSL,Non,Non,0,0.12
+C03585,20,42.94,818.25,0,1,Biannuel,Chèque,ADSL,Non,Oui,0,0.116
+C02961,26,66.8,1793.08,0,4,Annuel,Chèque,ADSL,Non,Non,0,0.115
+C00291,15,73.31,1109.66,0,3,Biannuel,Virement,Fibre,Non,Non,0,0.114
+C00942,72,90.52,6708.1,3,1,Biannuel,Virement,Fibre,Non,Non,0,0.111
+C02830,41,82.24,3376.08,0,3,Annuel,Prélèvement,Fibre,Non,Non,0,0.106
+C04735,3,104.5,304.73,0,4,Biannuel,Virement,Fibre,Oui,Non,0,0.105
+C03769,72,63.78,4811.99,1,1,Annuel,Virement,Fibre,Non,Oui,0,0.105
+C01875,4,58.21,240.73,1,3,Biannuel,Prélèvement,ADSL,Non,Non,0,0.095
+C04651,38,70.43,2544.88,2,1,Biannuel,Carte bancaire,ADSL,Non,Non,0,0.094
+C00017,72,83.14,5913.46,0,2,Annuel,Chèque,Fibre,Non,Non,0,0.092
+C04824,23,42.83,1017.35,1,3,Annuel,Prélèvement,ADSL,Non,Non,0,0.092
+C03509,7,53.71,379.62,0,1,Annuel,Carte bancaire,ADSL,Oui,Non,0,0.091
+C02057,17,72.94,1246.52,3,4,Biannuel,Prélèvement,ADSL,Oui,Oui,0,0.089
+C02206,28,52.04,1441.97,1,1,Annuel,Prélèvement,ADSL,Oui,Oui,1,0.086
+C00617,49,73.11,3418.9,0,2,Annuel,Chèque,Fibre,Oui,Non,0,0.084
+C03890,57,35.0,1926.33,2,4,Mensuel,Carte bancaire,Aucun,Oui,Non,0,0.082
+C03848,15,15.0,234.72,1,4,Annuel,Prélèvement,Aucun,Non,Non,0,0.078
+C04713,55,57.78,3062.41,2,2,Annuel,Prélèvement,ADSL,Non,Non,0,0.077
+C00122,35,28.98,1062.23,1,3,Annuel,Carte bancaire,Aucun,Non,Non,0,0.07
+C01802,72,89.92,6542.77,1,4,Annuel,Prélèvement,Fibre,Non,Oui,0,0.067
+C00370,41,70.9,2780.08,1,1,Biannuel,Virement,ADSL,Non,Non,0,0.061
+C03782,16,15.0,228.58,2,4,Biannuel,Carte bancaire,Aucun,Non,Non,0,0.058
+C00024,28,59.91,1617.71,2,4,Biannuel,Prélèvement,ADSL,Non,Non,0,0.057
+C03491,72,80.93,5768.73,1,1,Annuel,Prélèvement,Fibre,Oui,Oui,0,0.056
+C02647,31,49.73,1585.87,1,2,Annuel,Virement,ADSL,Oui,Non,0,0.054
+C03930,23,88.19,2120.34,0,3,Biannuel,Carte bancaire,Fibre,Oui,Non,0,0.051
+C02556,58,72.1,4279.88,1,3,Annuel,Virement,ADSL,Non,Non,0,0.05
+C01071,3,60.59,183.74,1,3,Biannuel,Prélèvement,ADSL,Oui,Non,0,0.05
+C00377,72,103.77,7801.1,2,4,Biannuel,Virement,Fibre,Non,Non,0,0.047
+C02146,60,85.07,5064.21,1,3,Biannuel,Carte bancaire,Fibre,Non,Non,0,0.045
+C01771,19,58.26,1088.6,0,3,Annuel,Carte bancaire,ADSL,Oui,Non,0,0.045
+C01585,20,29.3,595.21,1,4,Annuel,Prélèvement,Aucun,Oui,Non,0,0.04
+C03338,72,90.72,6757.81,2,4,Biannuel,Carte bancaire,Fibre,Non,Non,0,0.039
+C03845,24,58.83,1367.14,1,1,Biannuel,Prélèvement,ADSL,Oui,Non,0,0.038
+C01391,72,97.37,7064.36,1,3,Biannuel,Virement,Fibre,Non,Non,0,0.036
+C01539,64,61.25,3922.83,3,3,Biannuel,Prélèvement,ADSL,Non,Non,0,0.035
+C04231,63,89.6,5801.26,0,2,Biannuel,Prélèvement,Fibre,Non,Non,0,0.033
+C02904,32,37.59,1243.47,1,4,Biannuel,Carte bancaire,Aucun,Non,Non,0,0.032
+C02225,47,70.3,3315.18,0,1,Biannuel,Carte bancaire,ADSL,Non,Non,0,0.031
+C02103,72,91.73,6557.61,0,3,Biannuel,Virement,Fibre,Non,Oui,0,0.03
+C01666,29,41.4,1204.33,0,1,Biannuel,Prélèvement,ADSL,Oui,Oui,0,0.023
+C00787,35,34.19,1195.64,0,4,Biannuel,Prélèvement,Aucun,Non,Non,0,0.017
+C02650,72,25.49,1810.61,1,4,Biannuel,Chèque,Aucun,Non,Non,0,0.015
+C01759,52,59.8,3083.91,0,3,Biannuel,Prélèvement,ADSL,Non,Non,0,0.014
+C04577,72,79.11,5470.77,0,2,Biannuel,Carte bancaire,ADSL,Non,Non,0,0.013
+C04647,72,45.07,3274.96,1,2,Biannuel,Carte bancaire,ADSL,Non,Non,0,0.013
+C01665,62,56.62,3545.57,1,4,Biannuel,Carte bancaire,ADSL,Non,Non,0,0.013
+C04856,24,36.43,912.0,0,4,Biannuel,Carte bancaire,ADSL,Oui,Non,0,0.011
+C02704,62,30.99,1829.55,2,3,Biannuel,Prélèvement,Aucun,Oui,Non,0,0.01
+C02820,72,66.62,4966.3,1,2,Biannuel,Virement,ADSL,Oui,Non,0,0.008
+C04992,72,21.07,1548.64,0,3,Biannuel,Carte bancaire,Aucun,Non,Non,0,0.006
+C01595,72,62.83,4659.11,0,3,Biannuel,Carte bancaire,ADSL,Oui,Non,0,0.004
+C02045,72,56.0,4159.61,0,2,Biannuel,Prélèvement,ADSL,Oui,Non,0,0.004

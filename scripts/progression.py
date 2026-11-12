@@ -473,6 +473,36 @@ def defis_score(root: Path = ROOT) -> DefiScore | None:
     return DefiScore(sum(r.statut == REUSSI for r in resultats), len(resultats), par_exercice)
 
 
+# --------------------------------------------------------------------------- Projets guidés (projets/)
+
+
+@dataclass(frozen=True)
+class ProjetScore:
+    titre: str
+    reussis: int
+    total: int
+    erreur: str = ""
+
+
+def projets_scores(root: Path = ROOT) -> list[ProjetScore]:
+    """Étapes réussies dans chaque projet guidé (liste vide si le dossier projets/ n'existe pas)."""
+    if not (root / "projets" / "verif.py").exists():
+        return []
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from projets.verif import REUSSI, evaluer, projets
+
+        scores = []
+        for projet in projets():
+            resultats = evaluer(projet)
+            scores.append(ProjetScore(f"Projet {projet.numero} — {projet.titre}",
+                                      sum(r.statut == REUSSI for r in resultats), len(resultats)))
+        return scores
+    except Exception as exc:  # ex. erreur de syntaxe dans projets/retention/clients.py
+        return [ProjetScore("Projets guidés", 0, 0, f"{type(exc).__name__} : {exc}")]
+
+
 # --------------------------------------------------------------------------- Affichage
 
 
@@ -537,6 +567,12 @@ def render(root: Path = ROOT) -> str:
     elif defis:
         out.append(f"⚡ Défis : {defis.reussis}/{defis.total} réussis {_bar(defis.reussis, defis.total)}"
                    "  — détail : python scripts/defis.py")
+    for projet in projets_scores(root):
+        if projet.erreur:
+            out.append(f"🏗️  {projet.titre} : 💥 impossible de le corriger ({projet.erreur}) — python scripts/projet.py")
+        else:
+            out.append(f"🏗️  {projet.titre} : {projet.reussis}/{projet.total} étapes "
+                       f"{_bar(projet.reussis, projet.total)}  — détail : python scripts/projet.py")
     conseil = conseil_debutant(total, defis)
     if conseil:
         out.append(conseil)

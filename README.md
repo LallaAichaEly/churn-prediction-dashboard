@@ -15,6 +15,8 @@ clients risquent de partir (*churn*).
 > 3. [`JOURNAL.md`](JOURNAL.md) — votre carnet de bord : mesures avant / après et ce que vous avez compris.
 > 4. [`defis/`](defis/README.md) — ⚡ des fonctions courtes à compléter, corrigées instantanément
 >    par `python scripts/defis.py` (✅ / ❌ avec l'explication de l'erreur).
+> 5. [`projets/`](projets/README.md) — 🏗️ un **projet guidé** : construire de A à Z, en 7 étapes corrigées
+>    par `python scripts/projet.py`, le programme qui transforme les prédictions en plan d'action.
 >
 > 👋 **Vous débutez ?** Commencez par la série 00 des défis (`defis/serie_00.py`) : les bases de Python
 > et de pandas, avec un message clair à chaque erreur. Puis le module 1 du parcours.
@@ -32,6 +34,12 @@ clients risquent de partir (*churn*).
 > avec un correcteur qui refuse les solutions justes mais trop lentes ou trop gourmandes en mémoire.
 > La série 10 (`defis/serie_10.py`, défis 62 à 67) entraîne le SQL de tous les jours : NULL,
 > anti-jointure, `LEFT JOIN` (ON ou WHERE ?), explosion des jointures, fonctions de fenêtre, îlots et trous.
+>
+> 🏗️ **Et ensuite, construire un vrai programme.** Les défis entraînent une fonction à la fois ; le
+> [projet 2](projets/README.md) fait tout assembler : lire un CSV imparfait, appliquer des règles métier,
+> répartir un budget, écrire un rapport, offrir une ligne de commande, et écrire le test qui protège le
+> tout. Sept étapes corrigées automatiquement (`python scripts/projet.py`), un corrigé complet, et à la fin
+> un outil qui tourne : `python -m projets.retention --clients projets/exemple_clients.csv --budget 1500`.
 
 ## Ce que vous allez pratiquer
 
@@ -55,6 +63,7 @@ clients risquent de partir (*churn*).
 | Algorithmique d'entretien : complexité, dictionnaire, pile, deux pointeurs, intervalles, tas (`heapq`), BFS (`deque`) | `defis/serie_09.py` |
 | SQL pour l'analyse : NULL, anti-jointure, `LEFT JOIN`, fan-out, CTE, `LAG` et cumuls, îlots et trous | `defis/serie_10.py` (SQLite) |
 | Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_10.py` + `scripts/defis.py` |
+| Construire un programme complet : modules, CSV imparfaits, règles métier, budget, CLI, tests | `projets/retention/` (projet 2, 7 étapes) + `scripts/projet.py` |
 
 ## Démarrage rapide
 
@@ -68,6 +77,7 @@ uvicorn api:app --reload         # API sur http://localhost:8000/docs
 pytest -q                        # lance les tests (≈ 1 min, dont le tableau de bord)
 python scripts/progression.py    # 🧭 votre progression + le prochain exercice, avec un indice
 python scripts/defis.py          # ⚡ vos défis auto-corrigés : ✅ / ❌ / ⬜
+python scripts/projet.py         # 🏗️ votre projet guidé (projet 2), étape par étape
 ```
 
 À chaque `git push`, GitHub Actions réinstalle le projet, entraîne les modèles et relance tous les
@@ -126,6 +136,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── scripts/train.py        # Entraînement + comparaison en ligne de commande
 ├── scripts/progression.py  # 🧭 Coach : vérifie vos exercices, propose la suite
 ├── scripts/defis.py        # ⚡ Correction automatique des défis
+├── scripts/projet.py       # 🏗️ Correction automatique du projet guidé
 ├── defis/
 │   ├── serie_00.py         # 👋 Série 00 — remise à niveau Python & pandas (8 défis, à faire en premier)
 │   ├── serie_01.py         # ✍️ Série 01 — les fondamentaux (10 fonctions à compléter)
@@ -141,6 +152,12 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── donnees_sql.py      # La base SQLite de la série 10 (clients, factures, appels) + essayer()
 │   ├── corrige_serie_XX.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_XX.py  # Vérifications automatiques
+├── projets/                # 🏗️ Projets guidés (voir projets/README.md)
+│   ├── retention/          # Projet 2 — VOTRE code : 7 étapes à compléter (clients.py … cli.py, mes_tests.py)
+│   ├── retention_corrige/  # Projet 2 terminé : le corrigé, et la référence du correcteur
+│   ├── checks_retention.py # Vérifications des 7 étapes
+│   ├── verif.py            # Moteur de correction des projets
+│   └── exemple_clients.csv # 200 clients scorés par le modèle (format de l'export du tableau de bord)
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
@@ -154,6 +171,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── test_monitoring.py  # Surveillance de la dérive
 │   ├── test_progression.py # Le coach juge correctement les exercices
 │   ├── test_defis.py       # Le corrigé des défis réussit, les erreurs classiques sont détectées
+│   ├── test_projets.py     # Le projet guidé : corrigé, programme terminé, erreurs classiques détectées
 │   └── test_solutions.py   # Les affirmations des corrigés restent vraies
 ├── .github/workflows/      # Intégration continue (pytest à chaque push)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices

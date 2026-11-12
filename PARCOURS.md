@@ -170,6 +170,19 @@ ou un entretien.
 ajoutez la courbe de survie (« 75 % des clients sont encore là après un an ») et proposez le **plan d'un test A/B**
 pour prouver que vos actions de rétention marchent : taille des groupes, durée, critère de succès décidés à l'avance.
 
+## 🏗️ Et après : construire un programme de A à Z (projet 2)
+
+Les modules ci-dessus font modifier un projet qui existe déjà. Le [projet guidé](projets/README.md) fait
+l'inverse : partir d'un dossier presque vide et livrer un outil qui répond à la question du marketing,
+*« J'ai 1 500 €, à qui j'envoie quoi ? »*, à partir des probabilités de votre modèle.
+
+- [ ] 🟢 Étapes 1, 2 et 5 — lire un CSV imparfait, traduire la règle métier, écrire le plan
+- [ ] 🟡 Étapes 3, 4 et 6 — règles d'éligibilité, répartition du budget, ligne de commande
+- [ ] 🔴 Étape 7 — le test qui attrape 7 versions boguées de la répartition du budget
+
+`python scripts/projet.py` corrige chaque étape. Dans votre rapport final, ajoutez le plan obtenu sur
+vos propres clients à risque : combien de départs évités pour quel budget ?
+
 ## 📚 Ressources
 
 - Documentation scikit-learn — *User Guide* (pipelines, métriques, inspection)
