@@ -63,11 +63,16 @@ def evaluer(serie: Serie, corrige: bool = False) -> list[Resultat]:
 
 
 def series() -> list[Serie]:
-    """Toutes les séries disponibles, dans l'ordre. Les nouvelles séries s'ajoutent ici."""
+    """Toutes les séries disponibles, dans l'ordre. Les nouvelles séries s'ajoutent ici.
+
+    La série 00 (remise à niveau) est arrivée après les autres : ses défis portent les numéros
+    30 à 37, mais elle est affichée en premier, car c'est par elle qu'on commence.
+    """
+    from .checks_serie_00 import SERIE as serie_00
     from .checks_serie_01 import SERIE as serie_01
     from .checks_serie_02 import SERIE as serie_02
     from .checks_serie_03 import SERIE as serie_03
     from .checks_serie_04 import SERIE as serie_04
     from .checks_serie_05 import SERIE as serie_05
 
-    return [serie_01, serie_02, serie_03, serie_04, serie_05]
+    return [serie_00, serie_01, serie_02, serie_03, serie_04, serie_05]

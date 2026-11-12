@@ -24,10 +24,15 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 29 fonctions courtes dans `defis/serie_01.py` à `defis/serie_05.py`, corrigées par
+> [défis](defis/README.md) : 37 fonctions courtes dans `defis/serie_00.py` à `defis/serie_05.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
+
+> 👋 **Pas encore à l'aise avec Python ?** Avant le module 1, faites la série 00 des défis
+> (`defis/serie_00.py`, défis 30 à 37) : fonctions, conditions, boucles, listes, dictionnaires,
+> débogage, puis filtrer et regrouper un tableau pandas. Comptez 3 à 5 heures en tout. Ce n'est pas
+> du temps perdu : chaque module suppose ces bases, et on avance ensuite bien plus vite.
 
 ---
 

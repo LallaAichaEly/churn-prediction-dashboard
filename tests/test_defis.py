@@ -123,9 +123,18 @@ def test_un_petit_segment_ne_doit_pas_gagner():
 
 
 def test_les_numeros_de_defis_sont_uniques_et_consecutifs():
-    """`python scripts/defis.py --defi N` doit désigner un seul défi, sans trou dans la numérotation."""
+    """`python scripts/defis.py --defi N` doit désigner un seul défi, sans trou dans la numérotation.
+
+    (La série 00, ajoutée après coup, est affichée en premier : on vérifie donc l'ensemble des
+    numéros, pas leur ordre d'affichage.)
+    """
     numeros = [d.numero for _, d in TOUS_LES_DEFIS]
-    assert numeros == list(range(1, len(numeros) + 1))
+    assert sorted(numeros) == list(range(1, len(numeros) + 1))
+
+
+def test_la_remise_a_niveau_est_proposee_en_premier():
+    """Un·e débutant·e qui lance `python scripts/defis.py` doit tomber sur la série 00."""
+    assert series()[0].code == "00"
 
 
 # --------------------------------------------------------------------------- Série 03 : erreurs classiques
@@ -712,3 +721,169 @@ def test_survie_une_ecriture_vectorisee_est_acceptee():
         return table.assign(survie=(1 - table["departs"] / table["a_risque"]).cumprod())
 
     assert _evaluer("courbe_survie", avec_pandas).statut == REUSSI
+
+
+# --------------------------------------------------------------------------- Série 00 : erreurs de débutant
+
+
+def test_print_au_lieu_de_return_est_explique():
+    def avec_print(partis, total):
+        print(round(100 * partis / total, 1))
+
+    resultat = _evaluer("taux_en_pourcentage", avec_print)
+    assert resultat.statut == ECHEC and "print()" in resultat.message and "return" in resultat.message
+
+
+def test_la_division_par_zero_donne_un_conseil():
+    resultat = _evaluer("taux_en_pourcentage", lambda partis, total: round(100 * partis / total, 1))
+    assert resultat.statut == ECHEC and "zéro" in resultat.message
+
+
+def test_une_borne_mal_placee_est_signalee():
+    def inferieur_ou_egal(mois):
+        if mois < 0:
+            raise ValueError("négatif")
+        return "nouveau" if mois <= 6 else ("installé" if mois < 24 else "fidèle")
+
+    resultat = _evaluer("segment_client", inferieur_ou_egal)
+    assert resultat.statut == ECHEC and "bornes" in resultat.message
+
+
+def test_un_accent_oublie_est_signale():
+    def sans_accent(mois):
+        if mois < 0:
+            raise ValueError("négatif")
+        return "nouveau" if mois < 6 else ("installe" if mois < 24 else "fidèle")
+
+    resultat = _evaluer("segment_client", sans_accent)
+    assert resultat.statut == ECHEC and "EXACTEMENT" in resultat.message
+
+
+def test_le_dictionnaire_recree_dans_la_boucle_est_detecte():
+    def recree(contrats):
+        for c in contrats:
+            compte = {}
+            compte[c] = compte.get(c, 0) + 1
+        return compte if contrats else {}
+
+    def toujours_un(contrats):
+        return {c: 1 for c in contrats}
+
+    assert _evaluer("compter_par_contrat", toujours_un).statut == ECHEC
+    assert "AVANT le `for`" in _evaluer("compter_par_contrat", toujours_un).message
+    assert _evaluer("compter_par_contrat", recree).statut == ECHEC
+
+
+def test_la_keyerror_du_compteur_est_expliquee():
+    def sans_get(contrats):
+        compte = {}
+        for c in contrats:
+            compte[c] += 1
+        return compte
+
+    resultat = _evaluer("compter_par_contrat", sans_get)
+    assert resultat.statut == ECHEC and ".get(" in resultat.message
+
+
+def test_trier_en_place_la_liste_recue_est_refuse():
+    def tri_en_place(clients, seuil=0.5):
+        clients.sort(key=lambda c: c["proba"], reverse=True)
+        return [c["id"] for c in clients if c["proba"] >= seuil]
+
+    resultat = _evaluer("clients_a_risque", tri_en_place)
+    assert resultat.statut == ECHEC and "sorted()" in resultat.message
+
+
+def test_le_seuil_strict_est_signale_pour_les_clients_a_risque():
+    def strict(clients, seuil=0.5):
+        return [c["id"] for c in sorted(clients, key=lambda c: c["proba"], reverse=True) if c["proba"] > seuil]
+
+    resultat = _evaluer("clients_a_risque", strict)
+    assert resultat.statut == ECHEC and ">=" in resultat.message
+
+
+def test_le_code_bogue_du_defi_34_echoue_bug_par_bug():
+    """Le défi 34 part d'un code faux : chaque bug corrigé doit faire apparaître le suivant."""
+
+    def trois_bugs(factures):
+        total = 0
+        for i in range(1, len(factures)):
+            total = factures[i]
+        return total / len(factures)
+
+    def deux_bugs(factures):
+        total = 0
+        for i in range(len(factures)):
+            total = factures[i]
+        return total / len(factures)
+
+    def un_bug(factures):
+        return sum(factures) / len(factures)
+
+    assert "range()" in _evaluer("facture_moyenne", trois_bugs).message
+    assert "total +=" in _evaluer("facture_moyenne", deux_bugs).message
+    assert "zéro" in _evaluer("facture_moyenne", un_bug).message
+
+
+def test_and_au_lieu_de_et_commercial_est_explique():
+    def avec_and(df, contrat, anciennete_max):
+        return df[(df["contract"] == contrat) and (df["tenure_months"] <= anciennete_max)]
+
+    resultat = _evaluer("filtrer_clients", avec_and)
+    assert resultat.statut == ECHEC and "&" in resultat.message
+
+
+def test_les_parentheses_oubliees_sont_expliquees():
+    def sans_parentheses(df, contrat, anciennete_max):
+        return df[df["contract"] == contrat & df["tenure_months"] <= anciennete_max]
+
+    resultat = _evaluer("filtrer_clients", sans_parentheses)
+    assert resultat.statut == ECHEC and "parenthèses" in resultat.message
+
+
+def test_groupby_est_interdit_au_defi_36_mais_pas_dans_la_docstring():
+    def avec_groupby(df, colonne):
+        return df.groupby(colonne)["churn"].mean().to_dict()
+
+    def boucle(df, colonne):
+        """Comme df.groupby(colonne)["churn"].mean(), mais à la main."""
+        return {m: float(df.loc[df[colonne] == m, "churn"].mean()) for m in df[colonne].unique()}
+
+    resultat = _evaluer("taux_par_groupe_a_la_main", avec_groupby)
+    assert resultat.statut == ECHEC and "SANS groupby" in resultat.message
+    assert _evaluer("taux_par_groupe_a_la_main", boucle).statut == REUSSI
+
+
+def test_une_valeur_manquante_n_est_pas_une_valeur_inconnue():
+    """La leçon du défi 37 : `propres.isna()` seul confond « manquant » et « inconnu »."""
+    from defis.corrige_serie_00 import SYNONYMES
+
+    def confond(contrats):
+        propres = contrats.str.strip().str.lower().map(SYNONYMES)
+        if propres.isna().any():
+            raise ValueError(f"Contrats inconnus : {list(contrats[propres.isna()])}")
+        return propres
+
+    resultat = _evaluer("nettoyer_contrats", confond)
+    assert resultat.statut == ECHEC and "MANQUANTE" in resultat.message
+
+
+def test_oublier_de_normaliser_le_texte_est_explique():
+    from defis.corrige_serie_00 import SYNONYMES
+
+    def sans_normaliser(contrats):
+        propres = contrats.map(SYNONYMES)
+        inconnues = contrats[propres.isna() & contrats.notna()]
+        if len(inconnues):
+            raise ValueError(f"Contrats inconnus : {sorted(inconnues.unique())}")
+        return propres
+
+    resultat = _evaluer("nettoyer_contrats", sans_normaliser)
+    assert resultat.statut == ECHEC and ".str.strip()" in resultat.message
+
+
+def test_une_valeur_inconnue_ne_disparait_pas_en_silence():
+    from defis.corrige_serie_00 import SYNONYMES
+
+    resultat = _evaluer("nettoyer_contrats", lambda contrats: contrats.str.strip().str.lower().map(SYNONYMES))
+    assert resultat.statut == ECHEC and "trimestriel" in resultat.message

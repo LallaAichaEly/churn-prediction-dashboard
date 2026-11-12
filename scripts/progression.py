@@ -485,6 +485,14 @@ def _short(text: str, limit: int = 72) -> str:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
+def conseil_debutant(exercices_faits: int, defis: DefiScore | None) -> str | None:
+    """Tout premier lancement (rien de fait) : proposer la remise à niveau avant le module 1."""
+    if exercices_faits or defis is None or defis.erreur or defis.reussis:
+        return None
+    return ("👋 Vous débutez en Python ? Commencez par la remise à niveau (série 00 des défis) : "
+            "python scripts/defis.py --defi 30")
+
+
 def _detail(status: Status, modules: dict[int, str], indent: str = "   ", defis: DefiScore | None = None) -> str:
     ex = status.exercise
     lines = [
@@ -529,6 +537,9 @@ def render(root: Path = ROOT) -> str:
     elif defis:
         out.append(f"⚡ Défis : {defis.reussis}/{defis.total} réussis {_bar(defis.reussis, defis.total)}"
                    "  — détail : python scripts/defis.py")
+    conseil = conseil_debutant(total, defis)
+    if conseil:
+        out.append(conseil)
     report_ok, report_msg = _run(_check_report, root)
     out.append(f"🏁 Projet final (RAPPORT.md) : {'✅' if report_ok else '⬜'} {report_msg}")
     if not (root / "JOURNAL.md").exists():

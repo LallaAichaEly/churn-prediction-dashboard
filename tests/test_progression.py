@@ -61,6 +61,16 @@ def test_defis_are_optional(project):
     assert "Défis" not in progression.render(project)
 
 
+def test_beginner_hint_only_before_any_progress():
+    """Rien de fait : on propose la série 00. Dès le premier défi ou exercice réussi, on se tait."""
+    zero = progression.DefiScore(0, 37, {})
+    assert "série 00" in progression.conseil_debutant(0, zero)
+    assert progression.conseil_debutant(0, progression.DefiScore(1, 37, {})) is None
+    assert progression.conseil_debutant(1, zero) is None
+    assert progression.conseil_debutant(0, None) is None
+    assert progression.conseil_debutant(0, progression.DefiScore(0, 0, {}, "SyntaxError")) is None
+
+
 def test_parse_ticked_boxes():
     text = "## Module 1 — Données (`x.py`)\n- [x] 🟢 1.1 — Faire **ceci**\n- [ ] 🟡 1.2 — Faire `cela`\n"
     modules, exercises = progression.parse_parcours(text)

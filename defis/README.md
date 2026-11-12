@@ -23,8 +23,14 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 
 ## Les séries
 
+> 👋 **Vous débutez en Python, ou vous ne vous sentez pas encore « à niveau » ?** Commencez par la
+> **série 00** : elle part de zéro (écrire une fonction) et prépare tout le reste. Ses défis portent les
+> numéros 30 à 37 parce qu'elle a été ajoutée après les autres, mais c'est bien la première à faire :
+> `python scripts/defis.py --defi 30`.
+
 | Série | Fichier à compléter | Thèmes | Défis |
 |---|---|---|---|
+| **00 — Remise à niveau** 👋 | `defis/serie_00.py` | fonctions, `print` vs `return`, if/elif, boucles et dictionnaires, listes et tri, **débogage** d'un code faux, filtrer un DataFrame, `groupby` refait à la main, nettoyer du texte saisi à la main | 8, n° 30 à 37 (🟢×6 🟡×2) |
 | 01 — Les fondamentaux | `defis/serie_01.py` | pandas, qualité des données, fuite de données, précision/rappel, coût métier, validation croisée, lift | 10 (🟢×5 🟡×3 🔴×2) |
 | 02 — Explorer les données | `defis/serie_02.py` | lift d'un groupe, règle de validation, `pd.cut` et tranches, segmentation fiable (effectif minimum) | 4 (🟡×3 🔴×1) |
 | 03 — Évaluer, expliquer, surveiller | `defis/serie_03.py` | courbe précision-rappel, calibration, AUC par paires, contributions d'une prédiction, PSI | 5 (🟢×1 🟡×2 🔴×2) |

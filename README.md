@@ -15,6 +15,9 @@ clients risquent de partir (*churn*).
 > 3. [`JOURNAL.md`](JOURNAL.md) — votre carnet de bord : mesures avant / après et ce que vous avez compris.
 > 4. [`defis/`](defis/README.md) — ⚡ des fonctions courtes à compléter, corrigées instantanément
 >    par `python scripts/defis.py` (✅ / ❌ avec l'explication de l'erreur).
+>
+> 👋 **Vous débutez ?** Commencez par la série 00 des défis (`defis/serie_00.py`) : les bases de Python
+> et de pandas, avec un message clair à chaque erreur. Puis le module 1 du parcours.
 
 ## Ce que vous allez pratiquer
 
@@ -31,7 +34,8 @@ clients risquent de partir (*churn*).
 | Tests automatisés (modèle, API, tableau de bord, corrigés) | `tests/` (pytest + `streamlit.testing`) |
 | Intégration continue | `.github/workflows/tests.yml` (GitHub Actions) |
 | SQL (GROUP BY, fonctions de fenêtre), intervalles de confiance, test A/B, courbe de survie | `defis/serie_05.py` |
-| Entraînement corrigé automatiquement | `defis/serie_01.py` à `defis/serie_05.py` + `scripts/defis.py` |
+| Bases de Python et de pandas, débogage (remise à niveau) | `defis/serie_00.py` |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_05.py` + `scripts/defis.py` |
 
 ## Démarrage rapide
 
@@ -104,6 +108,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── scripts/progression.py  # 🧭 Coach : vérifie vos exercices, propose la suite
 ├── scripts/defis.py        # ⚡ Correction automatique des défis
 ├── defis/
+│   ├── serie_00.py         # 👋 Série 00 — remise à niveau Python & pandas (8 défis, à faire en premier)
 │   ├── serie_01.py         # ✍️ Série 01 — les fondamentaux (10 fonctions à compléter)
 │   ├── serie_02.py         # ✍️ Série 02 — explorer les données (4 fonctions)
 │   ├── serie_03.py         # ✍️ Série 03 — évaluer, expliquer, surveiller (5 fonctions)
