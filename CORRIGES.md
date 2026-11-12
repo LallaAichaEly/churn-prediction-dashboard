@@ -379,6 +379,9 @@ unique était un peu « chanceux » : c'est pour ça qu'on ne se fie jamais à u
 
 ### 3.5 — `GridSearchCV` 🔴
 
+⚡ *Échauffement :* le défi 21 (`defis/serie_04.py`) règle `C` à la main, sur les mêmes plis pour
+chaque valeur, puis choisit le modèle le plus simple qui n'est pas significativement moins bon.
+
 <details><summary>Solution</summary>
 
 ```python
@@ -404,6 +407,8 @@ d'un `Pipeline`.
 </details>
 
 ### 3.6 — `class_weight="balanced"` 🔴
+
+⚡ *Échauffement :* le défi 20 recalcule les poids de `balanced` : n / (k × effectif de la classe).
 
 <details><summary>Solution</summary>
 
@@ -734,6 +739,8 @@ Et pour chacune : estimer le coût, le nombre de clients concernés et un taux d
 
 ### 6.2 — Tracer la version de scikit-learn 🟡
 
+⚡ *Échauffement :* le défi 22 compare deux versions sans tomber dans le piège « 1.10 = 1.1 ».
+
 💡 *Indice :* `sklearn.__version__` ; dans `load()`, lisez le fichier `*_metrics.json` voisin
 (`path.with_name(...)`) avant `joblib.load`, et utilisez `warnings.warn`.
 
@@ -831,6 +838,9 @@ croix rouge sur GitHub (et sur le badge du README).
 </details>
 
 ### 6.4 — Prédire pour une liste de clients 🔴
+
+⚡ *Échauffement :* le défi 23 écrit le cœur de cette route : un seul appel au modèle, des types
+JSON, et une erreur claire pour un client incomplet au lieu d'une prédiction fausse silencieuse.
 
 💡 *Indice :* le corps de la requête est une `list[Customer]`. Construisez **un seul** DataFrame
 et appelez `predict_proba` **une seule fois**. `Body(min_length=1, max_length=1000)` borne la taille.
@@ -1049,6 +1059,8 @@ d'avoir les **vrais départs** : la dérive du concept ne se voit qu'avec les é
 </details>
 
 ### 7.6 — Un script de surveillance 🔴
+
+⚡ *Échauffement :* le défi 24 (`alerte_derive`) calcule le code de sortie, PSI manquants compris.
 
 💡 *Indice :* `sys.exit(code)` ; un code ≠ 0 fait échouer une étape de CI ou déclenche l'alerte d'un cron.
 

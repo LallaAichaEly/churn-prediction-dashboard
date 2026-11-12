@@ -24,7 +24,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 19 fonctions courtes dans `defis/serie_01.py` à `defis/serie_03.py`, corrigées par
+> [défis](defis/README.md) : 24 fonctions courtes dans `defis/serie_01.py` à `defis/serie_04.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -67,8 +67,8 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 - [ ] 🟢 3.2 — Ajoutez un `RandomForestClassifier` dans `build_pipeline` et `MODELS`.
 - [ ] 🟡 3.3 — La régression logistique bat le gradient boosting. Expliquez pourquoi (indice : regardez comment les données sont générées).
 - [ ] 🟡 3.4 ⚡ — Remplacez le split unique par une validation croisée à 5 plis (`cross_val_score`). Les écarts sont-ils significatifs ?
-- [ ] 🔴 3.5 — Optimisez les hyperparamètres du boosting avec `GridSearchCV`. Arrivez-vous à battre la logistique ?
-- [ ] 🔴 3.6 — Le churn est déséquilibré (~35 %). Testez `class_weight="balanced"` : quel effet sur précision et rappel ?
+- [ ] 🔴 3.5 ⚡ — Optimisez les hyperparamètres du boosting avec `GridSearchCV`. Arrivez-vous à battre la logistique ?
+- [ ] 🔴 3.6 ⚡ — Le churn est déséquilibré (~35 %). Testez `class_weight="balanced"` : quel effet sur précision et rappel ?
 
 **Auto-évaluation** : Pourquoi commence-t-on toujours par un modèle simple ?
 
@@ -110,9 +110,9 @@ Le dépôt contient déjà une version de référence : test de sauvegarde, int�
 API. Lisez-la, puis **étendez-la**.
 
 - [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test (`tests/`) et dites ce qu'il protège.
-- [ ] 🟡 6.2 — Lisez `test_saved_model_gives_identical_predictions`. Enregistrez la version de scikit-learn dans `*_metrics.json` et affichez un avertissement au chargement si elle diffère de la version installée. Pourquoi est-ce un vrai risque en production ?
+- [ ] 🟡 6.2 ⚡ — Lisez `test_saved_model_gives_identical_predictions`. Enregistrez la version de scikit-learn dans `*_metrics.json` et affichez un avertissement au chargement si elle diffère de la version installée. Pourquoi est-ce un vrai risque en production ?
 - [ ] 🟡 6.3 — Lisez la GitHub Action `.github/workflows/tests.yml` puis étendez-la : ajoutez Python 3.13 à la matrice et une étape de lint (`ruff`). Cassez volontairement un test sur une branche pour voir la CI échouer.
-- [ ] 🔴 6.4 — Lancez l'API (`uvicorn api:app --reload`) et testez-la sur http://localhost:8000/docs. Ajoutez `POST /predict/batch` (liste de clients) avec son test.
+- [ ] 🔴 6.4 ⚡ — Lancez l'API (`uvicorn api:app --reload`) et testez-la sur http://localhost:8000/docs. Ajoutez `POST /predict/batch` (liste de clients) avec son test.
 - [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
@@ -133,7 +133,7 @@ L'outil central est le **PSI** (*Population Stability Index*) : < 0,10 stable ·
 - [ ] 🟡 7.3 — Sans **aucune** dérive (lots tirés du même monde avec `generate_customers(n, seed=...)`), quel PSI maximal obtenez-vous pour des lots de 200, 1 000 et 5 000 clients ? Qu'en concluez-vous sur la taille minimale d'un lot à surveiller ?
 - [ ] 🟡 7.4 — *Dérive ≠ dégradation* : passez à 75 % de contrats mensuels. L'AUC baisse-t-elle ? Le modèle se trompe-t-il pour autant (comparez churn prédit et réel) ? Réentraîner aiderait-il ? Mesurez-le.
 - [ ] 🔴 7.5 — *Dérive du concept* : activez « Un concurrent attire les clients fibre ». Que disent le PSI, l'AUC et l'écart prédit / réel ? Réentraînez sur des clients récents (`simulate_batch(n=5000, seed=99, fibre_competition=1.5)`) et mesurez à nouveau.
-- [ ] 🔴 7.6 — Écrivez `scripts/monitor.py nouveau_lot.csv` : il affiche le rapport de dérive et renvoie le **code de sortie 1** si une variable dépasse 0,25 (pour une tâche planifiée ou la CI).
+- [ ] 🔴 7.6 ⚡ — Écrivez `scripts/monitor.py nouveau_lot.csv` : il affiche le rapport de dérive et renvoie le **code de sortie 1** si une variable dépasse 0,25 (pour une tâche planifiée ou la CI).
 
 **Auto-évaluation** : Votre modèle garde une AUC stable, aucune variable ne dérive, mais le churn réel dépasse
 de 10 points le churn prédit. Que se passe-t-il, et que faites-vous ?

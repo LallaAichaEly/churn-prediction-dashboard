@@ -286,3 +286,246 @@ def test_le_psi_accepte_des_effectifs():
 
     resultat = _evaluer("psi_parts", sans_normaliser)
     assert resultat.statut == ECHEC and "somme" in resultat.message
+
+
+# --------------------------------------------------------------------------- Série 04 : erreurs classiques
+
+
+def test_la_classe_rare_recoit_le_plus_grand_poids():
+    import numpy as np
+
+    def a_l_envers(y):
+        classes, effectifs = np.unique(np.asarray(y), return_counts=True)
+        return {c.item(): e / effectifs.sum() for c, e in zip(classes, effectifs)}
+
+    resultat = _evaluer("poids_classes", a_l_envers)
+    assert resultat.statut == ECHEC and "MAJORITAIRE" in resultat.message
+
+
+def test_les_poids_se_divisent_par_le_nombre_de_classes():
+    import numpy as np
+
+    def sans_k(y):
+        classes, effectifs = np.unique(np.asarray(y), return_counts=True)
+        return {c.item(): effectifs.sum() / e for c, e in zip(classes, effectifs)}
+
+    resultat = _evaluer("poids_classes", sans_k)
+    assert resultat.statut == ECHEC and "nombre de classes" in resultat.message
+
+
+def test_le_nombre_de_classes_se_lit_dans_les_donnees():
+    import numpy as np
+
+    def deux_classes(y):
+        classes, effectifs = np.unique(np.asarray(y), return_counts=True)
+        return {c.item(): effectifs.sum() / (2 * e) for c, e in zip(classes, effectifs)}
+
+    resultat = _evaluer("poids_classes", deux_classes)
+    assert resultat.statut == ECHEC and "np.unique" in resultat.message
+
+
+def _choisir_C_avec(regle):
+    """Un choisir_C dont la table est juste mais qui choisit C avec une autre règle."""
+    from defis.corrige_serie_04 import choisir_C
+
+    def variante(X, y, valeurs_C, n_plis=5, seed=0):
+        table, _ = choisir_C(X, y, valeurs_C, n_plis=n_plis, seed=seed)
+        return table, regle(table, n_plis)
+
+    return variante
+
+
+def test_choisir_C_ne_prend_pas_le_meilleur_score_brut():
+    """La leçon du défi 21 : quelques millièmes d'AUC d'avance, c'est du bruit."""
+    regle = _choisir_C_avec(lambda t, k: float(t.loc[t["auc_moyenne"].idxmax(), "C"]))
+    resultat = _evaluer("choisir_C", regle)
+    assert resultat.statut == ECHEC and "meilleur score brut" in resultat.message
+
+
+def test_choisir_C_prend_le_modele_le_plus_simple():
+    import math
+
+    def plus_grand(t, k):
+        meilleur = t.loc[t["auc_moyenne"].idxmax()]
+        ok = t["auc_moyenne"] >= meilleur["auc_moyenne"] - meilleur["auc_ecart_type"] / math.sqrt(k)
+        return float(t.loc[ok, "C"].max())
+
+    resultat = _evaluer("choisir_C", _choisir_C_avec(plus_grand))
+    assert resultat.statut == ECHEC and "plus PETIT C" in resultat.message
+
+
+def test_choisir_C_tolere_une_erreur_standard_pas_un_ecart_type():
+    def ecart_type_entier(t, k):
+        meilleur = t.loc[t["auc_moyenne"].idxmax()]
+        return float(t.loc[t["auc_moyenne"] >= meilleur["auc_moyenne"] - meilleur["auc_ecart_type"], "C"].min())
+
+    resultat = _evaluer("choisir_C", _choisir_C_avec(ecart_type_entier))
+    assert resultat.statut == ECHEC and "√n_plis" in resultat.message
+
+
+def test_choisir_C_detecte_une_evaluation_sur_les_plis_d_entrainement():
+    from sklearn.model_selection import StratifiedKFold, cross_validate
+
+    from churn.model import build_pipeline
+
+    def note_sur_le_train(X, y, valeurs_C, n_plis=5, seed=0):
+        cv = StratifiedKFold(n_splits=n_plis, shuffle=True, random_state=seed)
+        lignes = []
+        for C in valeurs_C:
+            s = cross_validate(build_pipeline("logistic").set_params(clf__C=C), X, y, cv=cv,
+                               scoring="roc_auc", return_train_score=True)["train_score"]
+            lignes.append({"C": C, "auc_moyenne": s.mean(), "auc_ecart_type": s.std()})
+        return pd.DataFrame(lignes), float(min(valeurs_C))
+
+    resultat = _evaluer("choisir_C", note_sur_le_train)
+    assert resultat.statut == ECHEC and "ENTRAÎNEMENT" in resultat.message
+
+
+def test_choisir_C_detecte_un_C_non_applique():
+    from sklearn.model_selection import StratifiedKFold, cross_val_score
+
+    from churn.model import build_pipeline
+
+    def oublie_C(X, y, valeurs_C, n_plis=5, seed=0):
+        cv = StratifiedKFold(n_splits=n_plis, shuffle=True, random_state=seed)
+        s = cross_val_score(build_pipeline("logistic"), X, y, cv=cv, scoring="roc_auc")
+        table = pd.DataFrame({"C": list(valeurs_C), "auc_moyenne": s.mean(), "auc_ecart_type": s.std()})
+        return table, float(min(valeurs_C))
+
+    resultat = _evaluer("choisir_C", oublie_C)
+    assert resultat.statut == ECHEC and "set_params" in resultat.message
+
+
+def test_un_correctif_ne_rend_pas_un_modele_incompatible():
+    resultat = _evaluer("versions_compatibles", lambda sauvegardee, installee: sauvegardee == installee)
+    assert resultat.statut == ECHEC and "correctif" in resultat.message
+
+
+def test_une_version_n_est_pas_un_nombre_decimal():
+    def trois_caracteres(sauvegardee, installee):
+        return bool(sauvegardee) and sauvegardee[:3] == installee[:3]
+
+    resultat = _evaluer("versions_compatibles", trois_caracteres)
+    assert resultat.statut == ECHEC and "pas un nombre décimal" in resultat.message
+
+
+def test_un_modele_sans_version_ne_fait_pas_planter():
+    def sans_garde_fou(sauvegardee, installee):
+        return sauvegardee.split(".")[:2] == installee.split(".")[:2]
+
+    resultat = _evaluer("versions_compatibles", sans_garde_fou)
+    assert resultat.statut == ECHEC and "ancien modèle" in resultat.message
+
+
+def test_predire_lot_appelle_le_modele_une_seule_fois():
+    from defis.corrige_serie_04 import predire_lot
+
+    def client_par_client(pipeline, clients, seuil=0.5):
+        return [r for c in clients for r in predire_lot(pipeline, [c], seuil)]
+
+    resultat = _evaluer("predire_lot", client_par_client)
+    assert resultat.statut == ECHEC and "Vectorisez" in resultat.message
+
+
+def test_predire_lot_renvoie_des_types_json():
+    import numpy as np
+
+    from churn.data import FEATURES
+
+    def types_numpy(pipeline, clients, seuil=0.5):
+        if not clients:
+            return []
+        probas = pipeline.predict_proba(pd.DataFrame(clients)[FEATURES])[:, 1]
+        return [{"churn_probability": p, "at_risk": np.bool_(p >= seuil)} for p in probas]
+
+    resultat = _evaluer("predire_lot", types_numpy)
+    assert resultat.statut == ECHEC and "json.dumps" in resultat.message
+
+
+def test_predire_lot_cible_les_probas_egales_au_seuil():
+    from defis.corrige_serie_04 import predire_lot
+
+    def strict(pipeline, clients, seuil=0.5):
+        return [{**r, "at_risk": r["churn_probability"] > seuil} for r in predire_lot(pipeline, clients, seuil)]
+
+    resultat = _evaluer("predire_lot", strict)
+    assert resultat.statut == ECHEC and ">=" in resultat.message
+
+
+def test_predire_lot_accepte_une_liste_vide():
+    from churn.data import FEATURES
+
+    def sans_garde_fou(pipeline, clients, seuil=0.5):
+        probas = pipeline.predict_proba(pd.DataFrame(clients, columns=FEATURES))[:, 1]
+        return [{"churn_probability": float(p), "at_risk": bool(p >= seuil)} for p in probas]
+
+    resultat = _evaluer("predire_lot", sans_garde_fou)
+    assert resultat.statut == ECHEC and "liste vide" in resultat.message
+
+
+def test_predire_lot_refuse_un_client_incomplet():
+    """La leçon du défi 23 : sans contrôle, un client sans contrat est prédit sans erreur."""
+    from churn.data import FEATURES
+
+    def sans_controle(pipeline, clients, seuil=0.5):
+        if not clients:
+            return []
+        probas = pipeline.predict_proba(pd.DataFrame(clients).reindex(columns=FEATURES))[:, 1]
+        return [{"churn_probability": float(p), "at_risk": bool(p >= seuil)} for p in probas]
+
+    resultat = _evaluer("predire_lot", sans_controle)
+    assert resultat.statut == ECHEC and "silencieuse" in resultat.message
+
+
+def test_predire_lot_ne_modifie_pas_les_clients_recus():
+    from defis.corrige_serie_04 import predire_lot
+
+    def retire_l_identifiant(pipeline, clients, seuil=0.5):
+        for c in clients:
+            c.pop("customer_id", None)
+        return predire_lot(pipeline, clients, seuil)
+
+    resultat = _evaluer("predire_lot", retire_l_identifiant)
+    assert resultat.statut == ECHEC and "appelant" in resultat.message
+
+
+def _alerte_avec(masque, trier=True):
+    def variante(rapport, seuil=0.25):
+        trie = rapport.sort_values("psi", ascending=False, na_position="last") if trier else rapport
+        variables = trie.loc[masque(trie, seuil), "feature"].tolist()
+        return int(bool(variables)), variables
+
+    return variante
+
+
+def test_un_psi_de_0_25_pile_est_une_derive():
+    resultat = _evaluer("alerte_derive", _alerte_avec(lambda t, s: (t["psi"] > s) | t["psi"].isna()))
+    assert resultat.statut == ECHEC and ">=" in resultat.message
+
+
+def test_un_psi_manquant_declenche_l_alerte():
+    """La leçon du défi 24 : NaN >= 0.25 vaut False, et l'absence de mesure passerait pour un feu vert."""
+    resultat = _evaluer("alerte_derive", _alerte_avec(lambda t, s: t["psi"] >= s))
+    assert resultat.statut == ECHEC and "NaN" in resultat.message
+
+
+def test_les_alertes_sont_triees():
+    masque = lambda t, s: (t["psi"] >= s) | t["psi"].isna()  # noqa: E731
+    resultat = _evaluer("alerte_derive", _alerte_avec(masque, trier=False))
+    assert resultat.statut == ECHEC and "na_position" in resultat.message
+
+
+def test_l_alerte_utilise_le_seuil_et_pas_le_statut():
+    resultat = _evaluer("alerte_derive", _alerte_avec(lambda t, s: t["statut"] == "dérive"))
+    assert resultat.statut == ECHEC and "seuil est ignoré" in resultat.message
+
+
+def test_l_alerte_ne_modifie_pas_le_rapport():
+    from defis.corrige_serie_04 import alerte_derive
+
+    def ajoute_une_colonne(rapport, seuil=0.25):
+        rapport["alerte"] = (rapport["psi"] >= seuil) | rapport["psi"].isna()  # écrit dans le DataFrame reçu
+        return alerte_derive(rapport, seuil)
+
+    resultat = _evaluer("alerte_derive", ajoute_une_colonne)
+    assert resultat.statut == ECHEC and "modifié" in resultat.message
