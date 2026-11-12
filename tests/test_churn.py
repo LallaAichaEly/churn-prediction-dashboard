@@ -11,7 +11,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from churn.data import FEATURES, TARGET, generate_customers, validate  # noqa: E402
 from churn.features import add_engineered_features  # noqa: E402
-from churn.model import best_threshold_by_cost, build_pipeline, evaluate, train  # noqa: E402
+from churn.explain import explain_prediction  # noqa: E402
+from churn.model import (  # noqa: E402
+    best_threshold_by_cost,
+    build_pipeline,
+    calibration_points,
+    evaluate,
+    load,
+    pr_points,
+    save,
+    split,
+    train,
+)
 
 
 @pytest.fixture(scope="module")
@@ -86,3 +97,60 @@ def test_unknown_category_is_ignored(df):
     row = X_test.iloc[[0]].copy()
     row["payment_method"] = "Crypto"
     assert 0 <= pipeline.predict_proba(row[FEATURES])[0, 1] <= 1
+
+
+# --------------------------------------------------------------------------- Module 6 (ajouts)
+@pytest.mark.parametrize("model_name", ["logistic", "gboost"])
+def test_saved_model_gives_same_predictions(df, tmp_path, model_name):
+    """Exercice 6.2 : un modèle sauvegardé puis rechargé doit prédire EXACTEMENT pareil."""
+    pipeline, X_test, _, proba, metrics = train(df, model_name, use_engineered=True)
+    path = save(pipeline, metrics, model_dir=tmp_path)
+    assert (tmp_path / "churn_model_metrics.json").exists()
+    np.testing.assert_array_equal(load(path).predict_proba(X_test)[:, 1], proba)
+
+
+def test_pr_curve_beats_random_baseline(df):
+    _, _, y_test, proba, _ = train(df)
+    points, ap = pr_points(y_test, proba)
+    assert points["precision"].between(0, 1).all() and points["recall"].between(0, 1).all()
+    assert ap > y_test.mean() + 0.2, "la précision moyenne doit nettement dépasser le hasard (= taux de churn)"
+
+
+def test_logistic_model_is_well_calibrated(df):
+    """Les données suivent un modèle logistique : les probabilités doivent être fiables."""
+    _, _, y_test, proba, _ = train(df)
+    points, brier = calibration_points(y_test, proba)
+    assert len(points) == 10
+    assert (points["predicted"] - points["observed"]).abs().mean() < 0.08
+    assert brier < 0.2
+
+
+# --------------------------------------------------------------------------- Explication locale
+def test_explanation_covers_every_feature(df):
+    pipeline, X_test, *_ = train(df)
+    exp = explain_prediction(pipeline, X_test.iloc[[0]], df)
+    assert sorted(exp["feature"]) == sorted(FEATURES)
+    assert exp["contribution"].abs().is_monotonic_decreasing
+
+
+def test_explanation_finds_the_monthly_contract(df):
+    """Un client typique en tous points SAUF le contrat : c'est le contrat qui doit ressortir."""
+    pipeline, *_ = train(df)
+    client = df[FEATURES].iloc[[0]].copy()
+    for col in FEATURES:
+        client[col] = df[col].median() if col in client.select_dtypes("number") else df[col].mode().iloc[0]
+    client["contract"] = "Biannuel" if df["contract"].mode().iloc[0] == "Mensuel" else "Mensuel"
+    exp = explain_prediction(pipeline, client, df)
+    assert exp.loc[0, "feature"] == "contract"
+    assert exp.set_index("feature").drop("contract")["contribution"].abs().max() < 1e-9
+
+
+def test_explanation_rejects_several_rows(df):
+    pipeline, X_test, *_ = train(df)
+    with pytest.raises(ValueError):
+        explain_prediction(pipeline, X_test.iloc[:2], df)
+
+
+def test_split_is_stratified(df):
+    _, _, y_train, y_test = split(df)
+    assert abs(y_train.mean() - y_test.mean()) < 0.01

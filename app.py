@@ -26,11 +26,14 @@ from churn.data import (  # noqa: E402
     load_or_create,
     validate,
 )
+from churn.explain import explain_prediction  # noqa: E402
 from churn.model import (  # noqa: E402
     MODELS,
     best_threshold_by_cost,
+    calibration_points,
     evaluate,
     feature_importance,
+    pr_points,
     roc_points,
     threshold_table,
     train,
@@ -39,6 +42,20 @@ from churn.model import (  # noqa: E402
 # Couleurs : une teinte par rôle, toujours la même (bleu = principal, orange = churn/seuil).
 BLUE = "#2a78d6"
 ORANGE = "#eb6834"
+GREY = "#898781"
+
+FEATURE_LABELS = {
+    "tenure_months": "Ancienneté (mois)",
+    "monthly_charges": "Facture mensuelle (€)",
+    "total_charges": "Total facturé (€)",
+    "support_calls": "Appels au support",
+    "num_products": "Nombre de produits",
+    "contract": "Contrat",
+    "payment_method": "Moyen de paiement",
+    "internet_service": "Internet",
+    "tech_support": "Support technique",
+    "senior": "Senior",
+}
 
 st.set_page_config(page_title="Churn Dashboard", page_icon="📉", layout="wide")
 
@@ -57,6 +74,24 @@ def get_model(model_name: str, use_engineered: bool):
 def get_importance(model_name: str, use_engineered: bool) -> pd.DataFrame:
     pipeline, X_test, y_test, _, _ = get_model(model_name, use_engineered)
     return feature_importance(pipeline, X_test, y_test)
+
+
+def explanation_chart(exp: pd.DataFrame, top: int = 6):
+    """Barres divergentes : orange = pousse vers le départ, bleu = retient le client."""
+    exp = exp[exp["contribution"].abs() >= 0.001].head(top).copy()  # on masque les effets nuls
+    exp["label"] = [
+        f"{FEATURE_LABELS.get(f, f)} = {v:g}" if isinstance(v, (int, float)) else f"{FEATURE_LABELS.get(f, f)} = {v}"
+        for f, v in zip(exp["feature"], exp["client_value"])
+    ]
+    exp["sens"] = exp["contribution"].map(lambda c: "Pousse au départ" if c > 0 else "Retient le client")
+    fig = px.bar(exp, x="contribution", y="label", orientation="h", color="sens",
+                 color_discrete_map={"Pousse au départ": ORANGE, "Retient le client": BLUE},
+                 category_orders={"label": list(exp["label"])}, custom_data=["typical_value"])
+    fig.update_traces(hovertemplate="%{y}<br>Effet : %{x:+.1%}<br>(valeur typique : %{customdata[0]})<extra></extra>")
+    fig.add_vline(x=0, line_color=GREY, line_width=1)
+    fig.update_layout(height=320, margin=dict(t=10, b=10), yaxis_title=None, legend_title=None,
+                      xaxis_title="Effet sur la probabilité de churn", xaxis_tickformat="+.0%")
+    return fig
 
 
 def bar(df: pd.DataFrame, x: str, y: str, title: str, pct: bool = True):
@@ -102,26 +137,26 @@ with tab_overview:
 
     left, right = st.columns(2)
     by_contract = df.groupby("contract")[TARGET].mean().reindex(CONTRACTS).reset_index()
-    left.plotly_chart(bar(by_contract, "contract", TARGET, "Taux de churn par contrat"), use_container_width=True)
+    left.plotly_chart(bar(by_contract, "contract", TARGET, "Taux de churn par contrat"), width="stretch")
 
     buckets = pd.cut(df["tenure_months"], [0, 6, 12, 24, 48, 72],
                      labels=["0-6", "7-12", "13-24", "25-48", "49-72"])
     by_tenure = df.groupby(buckets, observed=True)[TARGET].mean().reset_index()
     by_tenure["tenure_months"] = by_tenure["tenure_months"].astype(str)
     right.plotly_chart(bar(by_tenure, "tenure_months", TARGET, "Taux de churn par ancienneté (mois)"),
-                       use_container_width=True)
+                       width="stretch")
 
     left, right = st.columns(2)
     by_calls = df.assign(appels=df["support_calls"].clip(upper=5).astype(str).replace("5", "5+"))
     by_calls = by_calls.groupby("appels")[TARGET].mean().reset_index()
     left.plotly_chart(bar(by_calls, "appels", TARGET, "Taux de churn par nombre d'appels au support"),
-                      use_container_width=True)
+                      width="stretch")
     by_pay = df.groupby("payment_method")[TARGET].mean().sort_values(ascending=False).reset_index()
     right.plotly_chart(bar(by_pay, "payment_method", TARGET, "Taux de churn par moyen de paiement"),
-                       use_container_width=True)
+                       width="stretch")
 
     with st.expander("Voir les données brutes"):
-        st.dataframe(df.head(200), use_container_width=True)
+        st.dataframe(df.head(200), width="stretch")
 
 # --------------------------------------------------------------------------- Performance
 with tab_perf:
@@ -139,18 +174,18 @@ with tab_perf:
                              line=dict(color=BLUE, width=2),
                              hovertemplate="FPR %{x:.2f}<br>TPR %{y:.2f}<extra></extra>"))
     fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Hasard",
-                             line=dict(color="#898781", width=1, dash="dash"), hoverinfo="skip"))
+                             line=dict(color=GREY, width=1, dash="dash"), hoverinfo="skip"))
     fig.update_layout(title=f"Courbe ROC (AUC = {metrics.roc_auc:.3f})",
                       xaxis_title="Taux de faux positifs", yaxis_title="Taux de vrais positifs",
                       margin=dict(t=50, b=10))
-    left.plotly_chart(fig, use_container_width=True)
+    left.plotly_chart(fig, width="stretch")
 
     cm = pd.DataFrame([[metrics.tn, metrics.fp], [metrics.fn, metrics.tp]],
                       index=["Réel : reste", "Réel : part"], columns=["Prédit : reste", "Prédit : part"])
     fig = px.imshow(cm, text_auto=True, color_continuous_scale=["#cde2fb", "#1c5cab"],
                     title=f"Matrice de confusion (seuil = {threshold:.2f})")
     fig.update_layout(coloraxis_showscale=False, margin=dict(t=50, b=10))
-    right.plotly_chart(fig, use_container_width=True)
+    right.plotly_chart(fig, width="stretch")
 
     st.subheader("Le compromis précision / rappel")
     table = threshold_table(y_test, proba)
@@ -158,10 +193,45 @@ with tab_perf:
                       var_name="métrique", value_name="valeur")
     fig = px.line(long, x="threshold", y="valeur", color="métrique", markers=True,
                   color_discrete_sequence=[BLUE, ORANGE, "#1baf7a"])
-    fig.add_vline(x=threshold, line_dash="dot", line_color="#898781",
+    fig.add_vline(x=threshold, line_dash="dot", line_color=GREY,
                   annotation_text="seuil actuel", annotation_position="top")
     fig.update_layout(hovermode="x unified", yaxis_tickformat=".0%", margin=dict(t=30, b=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
+
+    st.subheader("Précision-rappel et calibration")
+    left, right = st.columns(2)
+    pr, ap = pr_points(y_test, proba)
+    base_rate = float(y_test.mean())
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=pr["recall"], y=pr["precision"], mode="lines", name="Modèle",
+                             line=dict(color=BLUE, width=2),
+                             hovertemplate="Rappel %{x:.0%}<br>Précision %{y:.0%}<extra></extra>"))
+    fig.add_hline(y=base_rate, line_dash="dash", line_color=GREY, line_width=1,
+                  annotation_text=f"hasard = taux de churn ({base_rate:.0%})", annotation_position="bottom left")
+    fig.add_trace(go.Scatter(x=[metrics.recall], y=[metrics.precision], mode="markers", name="Seuil actuel",
+                             marker=dict(color=ORANGE, size=11),
+                             hovertemplate="Seuil actuel<br>Rappel %{x:.0%}<br>Précision %{y:.0%}<extra></extra>"))
+    fig.update_layout(title=f"Courbe précision-rappel (AP = {ap:.3f})", xaxis_title="Rappel",
+                      yaxis_title="Précision", xaxis_tickformat=".0%", yaxis_tickformat=".0%",
+                      yaxis_range=[0, 1.02], margin=dict(t=50, b=10), showlegend=False)
+    left.plotly_chart(fig, width="stretch")
+
+    calib, brier = calibration_points(y_test, proba)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Calibration parfaite",
+                             line=dict(color=GREY, width=1, dash="dash"), hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=calib["predicted"], y=calib["observed"], mode="lines+markers", name="Modèle",
+                             line=dict(color=BLUE, width=2), marker=dict(size=7),
+                             hovertemplate="Prédit %{x:.0%}<br>Observé %{y:.0%}<extra></extra>"))
+    fig.update_layout(title=f"Calibration (Brier = {brier:.3f})", xaxis_title="Probabilité prédite (moyenne du groupe)",
+                      yaxis_title="Taux de churn observé", xaxis_tickformat=".0%", yaxis_tickformat=".0%",
+                      margin=dict(t=50, b=10), showlegend=False)
+    right.plotly_chart(fig, width="stretch")
+    st.caption(
+        "À gauche : plus la courbe reste haute, plus on détecte de churners sans multiplier les fausses alertes. "
+        "À droite : chaque point regroupe 10 % des clients ; sur la diagonale, « 70 % de risque » veut vraiment "
+        "dire 7 départs sur 10 — indispensable pour estimer un budget de rétention."
+    )
 
     st.subheader("Choisir le seuil avec le métier 💶")
     c1, c2 = st.columns(2)
@@ -183,7 +253,7 @@ with tab_factors:
                  color_discrete_sequence=[BLUE], title="Variables les plus influentes")
     fig.update_traces(hovertemplate="%{y}<br>Baisse d'AUC : %{x:.4f}<extra></extra>")
     fig.update_layout(height=450, margin=dict(t=50, b=10), yaxis_title=None, xaxis_title="Baisse de ROC-AUC")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.success(
         "🧠 Exercice : ouvrez `src/churn/data.py`, fonction `_churn_logit`. Les vraies causes du "
         "churn y sont écrites. Le modèle les a-t-il retrouvées ? Lesquelles sont sous-estimées, et pourquoi ?"
@@ -198,11 +268,19 @@ with tab_risk:
     c1.metric("Clients signalés (jeu de test)", len(risk))
     c2.metric("Revenu mensuel à risque", f"{risk['monthly_charges'].sum():,.0f} €".replace(",", " "))
     st.dataframe(
-        risk, use_container_width=True, hide_index=True,
+        risk, width="stretch", hide_index=True,
         column_config={"proba_churn": st.column_config.ProgressColumn("Probabilité", min_value=0, max_value=1, format="%.2f")},
     )
     st.download_button("Télécharger (CSV)", risk.to_csv(index=False).encode("utf-8"),
                        "clients_a_risque.csv", "text/csv")
+
+    if len(risk):
+        st.subheader("Pourquoi ce client est-il à risque ?")
+        risk_by_id = dict(zip(risk[ID_COL], risk["proba_churn"]))
+        chosen = st.selectbox("Client (100 plus risqués)", risk[ID_COL].head(100),
+                              format_func=lambda c: f"{c} — {risk_by_id[c]:.0%} de risque")
+        row = risk.loc[risk[ID_COL] == chosen, FEATURES]
+        st.plotly_chart(explanation_chart(explain_prediction(pipeline, row, df[FEATURES])), width="stretch")
 
 # --------------------------------------------------------------------------- Prédiction
 with tab_predict:
@@ -230,3 +308,9 @@ with tab_predict:
         label = "⚠️ À risque" if p >= threshold else "✅ Plutôt fidèle"
         st.metric("Probabilité de churn", f"{p:.1%}", label, delta_color="off")
         st.progress(p)
+
+        st.markdown("**Ce qui pèse le plus dans ce score** — chaque barre montre l'effet de remplacer "
+                    "la valeur du client par celle d'un client typique.")
+        st.plotly_chart(explanation_chart(explain_prediction(pipeline, client, df[FEATURES])),
+                        width="stretch")
+        st.caption("Méthode « et si… ? » (voir `src/churn/explain.py`). Pour aller plus loin : exercice 5.5 (SHAP).")

@@ -17,13 +17,17 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.calibration import calibration_curve
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
+    average_precision_score,
+    brier_score_loss,
     confusion_matrix,
     f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
@@ -100,6 +104,31 @@ def evaluate(y_true, proba, threshold: float = 0.5) -> Metrics:
 def roc_points(y_true, proba) -> pd.DataFrame:
     fpr, tpr, thr = roc_curve(y_true, proba)
     return pd.DataFrame({"fpr": fpr, "tpr": tpr, "threshold": thr})
+
+
+def pr_points(y_true, proba) -> tuple[pd.DataFrame, float]:
+    """Courbe précision-rappel + précision moyenne (AP).
+
+    Plus parlante que la ROC quand la classe positive est minoritaire : le niveau
+    « hasard » n'est plus 0,5 mais le taux de churn lui-même.
+    """
+    precision, recall, _ = precision_recall_curve(y_true, proba)
+    return pd.DataFrame({"recall": recall, "precision": precision}), float(average_precision_score(y_true, proba))
+
+
+def calibration_points(y_true, proba, n_bins: int = 10) -> tuple[pd.DataFrame, float]:
+    """Calibration : quand le modèle annonce 70 %, observe-t-on 70 % de départs ?
+
+    On regroupe les clients en `n_bins` paquets de même taille (quantiles) et on compare
+    la probabilité moyenne prédite au taux de churn réellement observé. Un modèle bien
+    calibré suit la diagonale. Retourne aussi le score de Brier (erreur quadratique
+    moyenne des probabilités : plus bas = mieux).
+    """
+    observed, predicted = calibration_curve(y_true, proba, n_bins=n_bins, strategy="quantile")
+    return (
+        pd.DataFrame({"predicted": predicted, "observed": observed}),
+        float(brier_score_loss(y_true, proba)),
+    )
 
 
 def threshold_table(y_true, proba, steps: int = 19) -> pd.DataFrame:

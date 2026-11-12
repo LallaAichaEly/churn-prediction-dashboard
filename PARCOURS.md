@@ -10,7 +10,12 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 3. Notez vos résultats (avant / après) dans un fichier `JOURNAL.md` : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
 
-Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
+Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé · 📘 solution de référence dans le code
+
+> 📘 **Exercices avec solution de référence.** Certains exercices ont été implémentés pour que
+> le projet soit complet (API, CI, calibration…). Pour eux, l'exercice devient : **lire,
+> expliquer, puis étendre** la solution. Pour vous entraîner « à vide », recréez-la sur une
+> branche partie du premier commit : `git checkout -b refaire-6.4 fad2cb7`.
 
 ---
 
@@ -64,8 +69,8 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 - [ ] 🟢 4.1 — Déplacez le curseur de seuil. Décrivez ce qui arrive à la précision et au rappel.
 - [ ] 🟢 4.2 — Pourquoi l'accuracy est-elle trompeuse ici ? (Indice : que vaut un modèle qui prédit « reste » pour tout le monde ?)
 - [ ] 🟡 4.3 — Avec un coût de 500 € par client perdu et 50 € par action inutile, quel seuil est optimal ? Et à 100 € / 100 € ?
-- [ ] 🟡 4.4 — Ajoutez une courbe précision-rappel (`precision_recall_curve`) dans l'onglet Performance.
-- [ ] 🔴 4.5 — Vérifiez la **calibration** du modèle (`CalibrationDisplay`). Une probabilité de 0,7 signifie-t-elle vraiment 70 % ?
+- [ ] 📘🟡 4.4 — La courbe précision-rappel est dans l'onglet Performance (`pr_points`). Pourquoi sa ligne « hasard » est-elle au niveau du taux de churn et non à 0,5 comme pour la ROC ? Placez le point orange (seuil actuel) là où le rappel atteint 80 % : quelle précision obtenez-vous ?
+- [ ] 📘🔴 4.5 — Lisez `calibration_points`. Comparez la calibration de la logistique et du boosting. Puis enveloppez le boosting dans `CalibratedClassifierCV` : le score de Brier s'améliore-t-il ?
 
 **Auto-évaluation** : Expliquez à un manager non technique ce que signifie « rappel de 63 % ».
 
@@ -77,7 +82,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 - [ ] 🟢 5.1 — Dans « Facteurs de churn », comparez le classement à `_churn_logit`. Qu'est-ce qui est retrouvé ? sous-estimé ?
 - [ ] 🟢 5.2 — Ajoutez un graphique « taux de churn par service internet » dans la vue d'ensemble.
-- [ ] 🟡 5.3 — Dans « Prédire un client », affichez les 3 variables qui poussent le plus la prédiction (coefficients × valeurs pour la logistique).
+- [ ] 📘🟡 5.3 — Lisez `src/churn/explain.py` (méthode « et si… ? », affichée dans « Prédire un client » et « Clients à risque »). Dans « Clients à risque », le contrat mensuel n'apparaît jamais comme cause : pourquoi ? (indice : `typical_profile`). Expliquez aussi pourquoi `tenure_months` et `total_charges` sont mal séparés, puis, pour la logistique, comparez avec coefficients × valeurs normalisées.
 - [ ] 🟡 5.4 — Ajoutez un filtre par contrat dans la barre latérale qui s'applique à la vue d'ensemble.
 - [ ] 🔴 5.5 — Intégrez SHAP (`pip install shap`) pour des explications locales par client.
 
@@ -90,9 +95,9 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 **Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
 
 - [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
-- [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
-- [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
+- [ ] 📘🟡 6.2 — Le test `test_saved_model_gives_same_predictions` existe. Cassez-le volontairement (ex. ré-entraînez avec une autre graine avant de comparer) pour voir le message d'erreur, puis réparez.
+- [ ] 📘🟡 6.3 — La GitHub Action `.github/workflows/tests.yml` lance les tests à chaque push. Ouvrez l'onglet *Actions* du dépôt, puis ajoutez une étape de *linting* (`ruff check .`).
+- [ ] 📘🔴 6.4 — L'API est dans `api.py` (`uvicorn api:app --reload`, puis http://localhost:8000/docs). Ajoutez un endpoint `GET /model-info` qui renvoie les métriques de `models/churn_model_metrics.json`, avec son test.
 - [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
