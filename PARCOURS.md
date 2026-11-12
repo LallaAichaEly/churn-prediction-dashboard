@@ -85,28 +85,59 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 ---
 
-## Module 6 — Industrialiser (`tests/`, déploiement)
+## Module 6 — Industrialiser (`src/churn/api.py`, `tests/`, `.github/workflows/`)
 
-**Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
+**Objectifs** : qualité logicielle, API, intégration continue, mise en ligne.
 
-- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
-- [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
-- [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
-- [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
+- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège. Commencez par `test_saved_model_gives_same_predictions` : pourquoi est-il vital ?
+- [ ] 🟢 6.2 — Lancez l'API (`uvicorn churn.api:app --app-dir src --reload`) et testez `POST /predict` depuis `http://localhost:8000/docs`. Envoyez `"contract": "Hebdo"` : pourquoi une erreur 422 vaut-elle mieux qu'une prédiction ?
+- [ ] 🟡 6.3 — Ajoutez à la réponse de `/predict` les 3 variables qui poussent le plus la prédiction (cf. 5.3). Écrivez le test dans `tests/test_api.py`.
+- [ ] 🟡 6.4 — Lisez `.github/workflows/tests.yml`, puis ouvrez l'onglet *Actions* du dépôt GitHub. Ajoutez une étape `ruff check .` (linter) et corrigez ce qu'il signale.
+- [ ] 🔴 6.5 — Écrivez un `Dockerfile` pour l'API et lancez-la dans un conteneur (`docker run -p 8000:8000 …`).
+- [ ] 🔴 6.6 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
 
-**Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
+**Auto-évaluation** : Quelle est la différence entre un test unitaire (`test_evaluate_confusion_matrix_sums`) et un test de bout en bout (`test_model_signal_is_visible_through_the_api`) ?
+
+---
+
+## Module 7 — Surveiller en production (`src/churn/monitoring.py`, onglet « Surveillance »)
+
+**Objectifs** : détecter qu'un modèle se dégrade avant que le métier ne s'en plaigne.
+
+- [ ] 🟢 7.1 — Dans l'onglet « Surveillance (drift) », augmentez les prix de 20 %. Quelles variables dérivent ? Que devient le churn moyen prédit ?
+- [ ] 🟢 7.2 — Lancez `python scripts/check_drift.py --extra-calls 1`, puis `echo $?`. À quoi sert ce code de sortie dans une tâche planifiée ?
+- [ ] 🟡 7.3 — Avec +20 % de prix, `total_charges` augmente aussi de 20 %… mais reste « stable ». Pourquoi ? (Indice : comparez l'écart-type des deux variables.)
+- [ ] 🟡 7.4 — Calculez à la main le PSI entre une référence 50 % / 50 % et une période 70 % / 30 %. Vérifiez avec `psi_categorical`.
+- [ ] 🔴 7.5 — Le drift des variables n'est pas une baisse de performance. Simulez un *concept drift* (modifiez un coefficient de `_churn_logit`, régénérez les données) et mesurez la chute d'AUC du modèle entraîné sur l'ancien jeu.
+- [ ] 🔴 7.6 — Ajoutez une GitHub Action planifiée (`on: schedule`) qui lance `check_drift.py` chaque nuit.
+
+**Auto-évaluation** : Si le PSI du *score* du modèle est élevé mais qu'aucune variable ne dérive seule, que se passe-t-il ?
 
 ---
 
 ## 🏁 Projet final
 
-Rédigez un mini-rapport (1 page) : problème, données, modèle retenu, seuil choisi et pourquoi,
-impact financier estimé, limites. Ajoutez-le au dépôt — c'est une pièce maîtresse pour un portfolio
-ou un entretien.
+Rédigez un mini-rapport (1 page) **pour un public non technique** : problème, données, modèle retenu,
+seuil choisi et pourquoi, impact financier estimé, limites. Ajoutez-le au dépôt — c'est une pièce
+maîtresse pour un portfolio ou un entretien.
+
+Point de départ : la [fiche modèle](RAPPORT_MODELE.md) générée par `python scripts/report.py`
+contient tous les chiffres, mais elle est écrite pour des data scientists. Votre travail est de la
+**traduire** : que doit retenir un directeur commercial en 2 minutes ? Testez aussi d'autres coûts
+(`--cost-fn 300 --cost-fp 80`) : votre recommandation change-t-elle ?
+
+## 🚀 Et après ? Projets suivants
+
+Une fois ce parcours terminé, réutilisez la même démarche (données → modèle → décision → production)
+sur un problème différent :
+
+1. **Segmentation client** (non supervisé) : K-means sur les mêmes clients, profils de segments, churn par segment.
+2. **Prévision de ventes** (séries temporelles) : saisonnalité, validation temporelle, intervalle de prévision.
+3. **Classification de textes** : avis clients → sentiment, avec un vrai jeu de données public.
 
 ## 📚 Ressources
 
 - Documentation scikit-learn — *User Guide* (pipelines, métriques, inspection)
 - Documentation Streamlit — *Get started*
+- Documentation FastAPI — *Tutorial - User Guide* (validation, tests, dépendances)
 - *Hands-On Machine Learning* (A. Géron) — chapitres 2 et 3

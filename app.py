@@ -17,6 +17,7 @@ import plotly.graph_objects as go  # noqa: E402
 import streamlit as st  # noqa: E402
 
 from churn.data import (  # noqa: E402
+    CATEGORICAL_FEATURES,
     CONTRACTS,
     FEATURES,
     ID_COL,
@@ -35,10 +36,21 @@ from churn.model import (  # noqa: E402
     threshold_table,
     train,
 )
+from churn.monitoring import (  # noqa: E402
+    MODERATE,
+    SIGNIFICANT,
+    drift_report,
+    drift_status,
+    psi_numeric,
+    simulate_new_period,
+)
 
 # Couleurs : une teinte par rôle, toujours la même (bleu = principal, orange = churn/seuil).
 BLUE = "#2a78d6"
 ORANGE = "#eb6834"
+# Couleurs de statut (réservées à l'état, jamais à une série) + icône : jamais la couleur seule.
+STATUS_COLORS = {"stable": "#0ca30c", "modérée": "#fab219", "significative": "#d03b3b"}
+STATUS_ICONS = {"stable": "✅", "modérée": "⚠️", "significative": "🔴"}
 
 st.set_page_config(page_title="Churn Dashboard", page_icon="📉", layout="wide")
 
@@ -57,6 +69,12 @@ def get_model(model_name: str, use_engineered: bool):
 def get_importance(model_name: str, use_engineered: bool) -> pd.DataFrame:
     pipeline, X_test, y_test, _, _ = get_model(model_name, use_engineered)
     return feature_importance(pipeline, X_test, y_test)
+
+
+@st.cache_data
+def get_new_period(price_increase: float, extra_calls: float, to_monthly: float) -> pd.DataFrame:
+    return simulate_new_period(price_increase=price_increase, extra_support_calls=extra_calls,
+                               to_monthly=to_monthly)
 
 
 def bar(df: pd.DataFrame, x: str, y: str, title: str, pct: bool = True):
@@ -87,8 +105,9 @@ metrics = evaluate(y_test, proba, threshold)
 st.title("📉 Tableau de bord — Prédiction du churn")
 st.caption("Projet d'apprentissage : chaque onglet correspond à un module du fichier PARCOURS.md.")
 
-tab_overview, tab_perf, tab_factors, tab_risk, tab_predict = st.tabs(
-    ["Vue d'ensemble", "Performance", "Facteurs de churn", "Clients à risque", "Prédire un client"]
+tab_overview, tab_perf, tab_factors, tab_risk, tab_predict, tab_drift = st.tabs(
+    ["Vue d'ensemble", "Performance", "Facteurs de churn", "Clients à risque", "Prédire un client",
+     "Surveillance (drift)"]
 )
 
 # --------------------------------------------------------------------------- Vue d'ensemble
@@ -102,26 +121,23 @@ with tab_overview:
 
     left, right = st.columns(2)
     by_contract = df.groupby("contract")[TARGET].mean().reindex(CONTRACTS).reset_index()
-    left.plotly_chart(bar(by_contract, "contract", TARGET, "Taux de churn par contrat"), use_container_width=True)
+    left.plotly_chart(bar(by_contract, "contract", TARGET, "Taux de churn par contrat"))
 
     buckets = pd.cut(df["tenure_months"], [0, 6, 12, 24, 48, 72],
                      labels=["0-6", "7-12", "13-24", "25-48", "49-72"])
     by_tenure = df.groupby(buckets, observed=True)[TARGET].mean().reset_index()
     by_tenure["tenure_months"] = by_tenure["tenure_months"].astype(str)
-    right.plotly_chart(bar(by_tenure, "tenure_months", TARGET, "Taux de churn par ancienneté (mois)"),
-                       use_container_width=True)
+    right.plotly_chart(bar(by_tenure, "tenure_months", TARGET, "Taux de churn par ancienneté (mois)"))
 
     left, right = st.columns(2)
     by_calls = df.assign(appels=df["support_calls"].clip(upper=5).astype(str).replace("5", "5+"))
     by_calls = by_calls.groupby("appels")[TARGET].mean().reset_index()
-    left.plotly_chart(bar(by_calls, "appels", TARGET, "Taux de churn par nombre d'appels au support"),
-                      use_container_width=True)
+    left.plotly_chart(bar(by_calls, "appels", TARGET, "Taux de churn par nombre d'appels au support"))
     by_pay = df.groupby("payment_method")[TARGET].mean().sort_values(ascending=False).reset_index()
-    right.plotly_chart(bar(by_pay, "payment_method", TARGET, "Taux de churn par moyen de paiement"),
-                       use_container_width=True)
+    right.plotly_chart(bar(by_pay, "payment_method", TARGET, "Taux de churn par moyen de paiement"))
 
     with st.expander("Voir les données brutes"):
-        st.dataframe(df.head(200), use_container_width=True)
+        st.dataframe(df.head(200))
 
 # --------------------------------------------------------------------------- Performance
 with tab_perf:
@@ -143,14 +159,14 @@ with tab_perf:
     fig.update_layout(title=f"Courbe ROC (AUC = {metrics.roc_auc:.3f})",
                       xaxis_title="Taux de faux positifs", yaxis_title="Taux de vrais positifs",
                       margin=dict(t=50, b=10))
-    left.plotly_chart(fig, use_container_width=True)
+    left.plotly_chart(fig)
 
     cm = pd.DataFrame([[metrics.tn, metrics.fp], [metrics.fn, metrics.tp]],
                       index=["Réel : reste", "Réel : part"], columns=["Prédit : reste", "Prédit : part"])
     fig = px.imshow(cm, text_auto=True, color_continuous_scale=["#cde2fb", "#1c5cab"],
                     title=f"Matrice de confusion (seuil = {threshold:.2f})")
     fig.update_layout(coloraxis_showscale=False, margin=dict(t=50, b=10))
-    right.plotly_chart(fig, use_container_width=True)
+    right.plotly_chart(fig)
 
     st.subheader("Le compromis précision / rappel")
     table = threshold_table(y_test, proba)
@@ -161,7 +177,7 @@ with tab_perf:
     fig.add_vline(x=threshold, line_dash="dot", line_color="#898781",
                   annotation_text="seuil actuel", annotation_position="top")
     fig.update_layout(hovermode="x unified", yaxis_tickformat=".0%", margin=dict(t=30, b=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig)
 
     st.subheader("Choisir le seuil avec le métier 💶")
     c1, c2 = st.columns(2)
@@ -183,7 +199,7 @@ with tab_factors:
                  color_discrete_sequence=[BLUE], title="Variables les plus influentes")
     fig.update_traces(hovertemplate="%{y}<br>Baisse d'AUC : %{x:.4f}<extra></extra>")
     fig.update_layout(height=450, margin=dict(t=50, b=10), yaxis_title=None, xaxis_title="Baisse de ROC-AUC")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig)
     st.success(
         "🧠 Exercice : ouvrez `src/churn/data.py`, fonction `_churn_logit`. Les vraies causes du "
         "churn y sont écrites. Le modèle les a-t-il retrouvées ? Lesquelles sont sous-estimées, et pourquoi ?"
@@ -198,7 +214,7 @@ with tab_risk:
     c1.metric("Clients signalés (jeu de test)", len(risk))
     c2.metric("Revenu mensuel à risque", f"{risk['monthly_charges'].sum():,.0f} €".replace(",", " "))
     st.dataframe(
-        risk, use_container_width=True, hide_index=True,
+        risk, hide_index=True,
         column_config={"proba_churn": st.column_config.ProgressColumn("Probabilité", min_value=0, max_value=1, format="%.2f")},
     )
     st.download_button("Télécharger (CSV)", risk.to_csv(index=False).encode("utf-8"),
@@ -230,3 +246,71 @@ with tab_predict:
         label = "⚠️ À risque" if p >= threshold else "✅ Plutôt fidèle"
         st.metric("Probabilité de churn", f"{p:.1%}", label, delta_color="off")
         st.progress(p)
+
+# --------------------------------------------------------------------------- Surveillance
+with tab_drift:
+    st.write(
+        "Le modèle a appris sur le passé. Simulez une **nouvelle période** de clients et observez "
+        "quelles variables dérivent, mesuré par le **PSI** (*Population Stability Index*)."
+    )
+    c1, c2, c3 = st.columns(3)
+    price = c1.slider("Hausse des prix (%)", 0, 50, 0, 5)
+    extra_calls = c2.slider("Appels au support en plus (moyenne)", 0.0, 3.0, 0.0, 0.25)
+    to_monthly = c3.slider("Contrats longs repassés en mensuel (%)", 0, 100, 0, 10)
+
+    current = get_new_period(price / 100, extra_calls, to_monthly / 100)
+    report = drift_report(df, current)
+    p_ref = pipeline.predict_proba(df[FEATURES])[:, 1]
+    p_cur = pipeline.predict_proba(current[FEATURES])[:, 1]
+    score_psi = psi_numeric(p_ref, p_cur)
+    score_status = drift_status(score_psi)
+
+    k = st.columns(3)
+    k[0].metric("Variables en dérive significative",
+                f"{(report['statut'] == 'significative').sum()} / {len(report)}")
+    k[1].metric(f"PSI du score du modèle — {STATUS_ICONS[score_status]} {score_status}", f"{score_psi:.3f}",
+                help="Les probabilités prédites ont-elles changé de distribution ?")
+    k[2].metric("Churn moyen prédit", f"{p_cur.mean():.1%}",
+                f"{100 * (p_cur.mean() - p_ref.mean()):+.1f} pts vs référence", delta_color="inverse")
+
+    left, right = st.columns([3, 2])
+    fig = px.bar(report.sort_values("psi"), x="psi", y="feature", orientation="h", color="statut",
+                 color_discrete_map=STATUS_COLORS,
+                 category_orders={"statut": list(STATUS_COLORS)},
+                 title="Dérive par variable (PSI)")
+    for x, label in [(MODERATE, "0,10"), (SIGNIFICANT, "0,25")]:
+        fig.add_vline(x=x, line_dash="dot", line_color="#898781", annotation_text=label,
+                      annotation_position="top")
+    fig.update_traces(hovertemplate="%{y}<br>PSI : %{x:.3f}<br>Dérive : %{fullData.name}<extra></extra>")
+    fig.update_layout(height=420, margin=dict(t=60, b=10), yaxis_title=None, xaxis_title="PSI",
+                      legend_title_text="Dérive", bargap=0.3)
+    left.plotly_chart(fig)
+
+    feature = right.selectbox("Comparer la distribution de", report["feature"].tolist(),
+                              help="Par défaut : la variable qui dérive le plus.")
+    both = pd.concat([df[[feature]].assign(période="Référence"),
+                      current[[feature]].assign(période="Nouvelle période")], ignore_index=True)
+    colors = [BLUE, ORANGE]
+    if feature in CATEGORICAL_FEATURES:
+        shares = (both.groupby("période")[feature].value_counts(normalize=True)
+                  .rename("part").reset_index())
+        fig = px.bar(shares, x=feature, y="part", color="période", barmode="group",
+                     category_orders={"période": ["Référence", "Nouvelle période"]},
+                     color_discrete_sequence=colors)
+        fig.update_traces(hovertemplate="%{x}<br>%{y:.1%} des clients<extra>%{fullData.name}</extra>")
+        fig.update_yaxes(tickformat=".0%")
+    else:
+        fig = px.histogram(both, x=feature, color="période", histnorm="probability", barmode="overlay",
+                           opacity=0.6, nbins=30, color_discrete_sequence=colors,
+                           category_orders={"période": ["Référence", "Nouvelle période"]})
+        fig.update_traces(hovertemplate="%{x}<br>%{y:.1%} des clients<extra>%{fullData.name}</extra>")
+        fig.update_yaxes(tickformat=".0%")
+    psi_value = report.set_index("feature").loc[feature, "psi"]
+    fig.update_layout(title=f"{feature} — PSI {psi_value:.3f}", height=360, margin=dict(t=60, b=10),
+                      yaxis_title="Part des clients", xaxis_title=None, legend_title_text=None)
+    right.plotly_chart(fig)
+
+    st.caption(
+        "Règle empirique : PSI < 0,10 stable · 0,10 – 0,25 dérive modérée · > 0,25 dérive significative "
+        "→ réentraîner ou enquêter. En ligne de commande : `python scripts/check_drift.py --price-increase 0.2`."
+    )

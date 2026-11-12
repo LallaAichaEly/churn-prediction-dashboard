@@ -1,0 +1,37 @@
+# Intégration continue : à chaque push / pull request, GitHub installe le projet,
+# entraîne le modèle et lance tous les tests. Une croix rouge = quelque chose a cassé.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Entraîner le modèle
+        run: python scripts/train.py
+
+      - name: Lancer les tests
+        run: pytest -q
+
+      - name: Générer la fiche modèle
+        run: python scripts/report.py --output /tmp/RAPPORT_MODELE.md
+
+      - name: Surveiller le drift (scénario neutre, doit passer)
+        run: python scripts/check_drift.py
