@@ -9,6 +9,8 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
 3. Notez vos résultats (avant / après) dans un fichier `JOURNAL.md` : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
+5. Bloqué ou terminé ? Comparez avec [`CORRIGES.md`](CORRIGES.md) — **après** avoir essayé.
+   Tous les chiffres des corrigés se reproduisent avec `python scripts/corriges.py`.
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
@@ -89,10 +91,13 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
 
+Les briques d'industrialisation sont **fournies** (test de persistance, intégration continue,
+API) : le travail consiste à les comprendre, les casser, puis les étendre.
+
 - [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
-- [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
-- [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
+- [ ] 🟡 6.2 — Lisez `test_saved_model_gives_same_predictions` : pourquoi comparer les probabilités plutôt que les classes ? Puis enregistrez la version de scikit-learn dans `churn_model_metrics.json` et levez un avertissement au chargement si elle diffère.
+- [ ] 🟡 6.3 — Le workflow `.github/workflows/tests.yml` lance les tests à chaque push. Cassez volontairement un test sur une branche, poussez, observez l'échec, réparez. Puis ajoutez une étape de lint (`ruff check .`).
+- [ ] 🔴 6.4 — Lancez l'API (`uvicorn api:app --reload`) et testez-la depuis http://localhost:8000/docs. Ajoutez ensuite `POST /predict/batch` (une liste de clients) avec ses tests dans `tests/test_api.py`.
 - [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?

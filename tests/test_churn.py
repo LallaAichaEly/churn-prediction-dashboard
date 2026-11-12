@@ -1,22 +1,16 @@
 """Module 6 — Les tests. Un code de data science non testé est un code qui casse en silence."""
 
-import sys
-from pathlib import Path
+import json
 
 import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from churn.data import FEATURES, TARGET, generate_customers, validate
+from churn.features import add_engineered_features
+from churn.model import best_threshold_by_cost, build_pipeline, evaluate, load, save, train
 
-from churn.data import FEATURES, TARGET, generate_customers, validate  # noqa: E402
-from churn.features import add_engineered_features  # noqa: E402
-from churn.model import best_threshold_by_cost, build_pipeline, evaluate, train  # noqa: E402
-
-
-@pytest.fixture(scope="module")
-def df() -> pd.DataFrame:
-    return generate_customers(n=1500, seed=0)
+# Le jeu de test `df` est défini dans tests/conftest.py (partagé avec test_api.py).
 
 
 def test_generation_is_reproducible():
@@ -86,3 +80,12 @@ def test_unknown_category_is_ignored(df):
     row = X_test.iloc[[0]].copy()
     row["payment_method"] = "Crypto"
     assert 0 <= pipeline.predict_proba(row[FEATURES])[0, 1] <= 1
+
+
+def test_saved_model_gives_same_predictions(df, tmp_path):
+    """Ce qui est servi en production (fichier .joblib) doit prédire exactement comme en entraînement."""
+    pipeline, X_test, _, proba, metrics = train(df)
+    path = save(pipeline, metrics, model_dir=tmp_path)
+    np.testing.assert_allclose(load(path).predict_proba(X_test)[:, 1], proba)
+    saved = json.loads((tmp_path / "churn_model_metrics.json").read_text())
+    assert saved["roc_auc"] == pytest.approx(metrics.roc_auc)

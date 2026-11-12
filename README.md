@@ -6,7 +6,8 @@ de partir (*churn*).
 
 > 🎯 **Objectif : apprendre en construisant.** Le fichier [`PARCOURS.md`](PARCOURS.md) est
 > un parcours de compétences en 6 modules, avec des exercices progressifs et une checklist
-> pour suivre votre progression.
+> pour suivre votre progression. Les [`CORRIGES.md`](CORRIGES.md) donnent des réponses
+> détaillées, chiffres vérifiés à l'appui (à lire **après** avoir essayé).
 
 ## Ce que vous allez pratiquer
 
@@ -18,7 +19,9 @@ de partir (*churn*).
 | Évaluation : ROC-AUC, précision, rappel, seuil métier | `src/churn/model.py` |
 | Interprétabilité (importance par permutation) | `src/churn/model.py` |
 | Tableau de bord interactif | `app.py` (Streamlit + Plotly) |
-| Tests automatisés | `tests/test_churn.py` (pytest) |
+| API de prédiction | `api.py` (FastAPI + Pydantic) |
+| Tests automatisés | `tests/` (pytest : modèle, API, tableau de bord) |
+| Intégration continue | `.github/workflows/tests.yml` (GitHub Actions) |
 
 ## Démarrage rapide
 
@@ -26,9 +29,10 @@ de partir (*churn*).
 python -m venv .venv && source .venv/bin/activate   # Windows : .venv\Scripts\activate
 pip install -r requirements.txt
 
-python scripts/train.py          # entraîne et compare les modèles
+python scripts/train.py          # entraîne, compare les modèles et sauvegarde le meilleur
 streamlit run app.py             # ouvre le tableau de bord sur http://localhost:8501
-pytest -q                        # lance les tests
+uvicorn api:app --reload         # API sur http://localhost:8000/docs (après train.py)
+pytest -q                        # lance les tests (~15 s)
 ```
 
 Les données sont **synthétiques** et générées au premier lancement dans `data/customers.csv`
@@ -46,6 +50,19 @@ Les données sont **synthétiques** et générées au premier lancement dans `da
 
 Dans la barre latérale : choix du modèle, activation des variables dérivées, seuil de décision.
 
+## L'API
+
+```bash
+curl -X POST "localhost:8000/predict?threshold=0.3" -H "Content-Type: application/json" -d '{
+  "tenure_months": 3, "monthly_charges": 95, "support_calls": 4, "num_products": 1,
+  "contract": "Mensuel", "payment_method": "Chèque", "internet_service": "Fibre",
+  "tech_support": "Non", "senior": "Non"}'
+# → {"churn_probability": 0.9699, "at_risk": true, "threshold": 0.3}
+```
+
+Les entrées sont validées : une modalité inconnue ou une valeur hors bornes renvoie une erreur 422.
+`total_charges` est facultatif (par défaut : facture × ancienneté).
+
 ## Résultats de référence
 
 ```
@@ -55,17 +72,27 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ```
 
 💡 *Pourquoi le modèle simple gagne-t-il ?* C'est la question de l'exercice 3.3 du parcours.
+Ces chiffres viennent d'un seul découpage train/test : l'exercice 3.4 montre ce que donne une
+validation croisée, plus honnête.
 
 ## Structure
 
 ```
 ├── app.py                  # Tableau de bord Streamlit
-├── scripts/train.py        # Entraînement + comparaison en ligne de commande
+├── api.py                  # API FastAPI (POST /predict)
+├── scripts/
+│   ├── train.py            # Entraînement + comparaison en ligne de commande
+│   └── corriges.py         # Reproduit tous les chiffres des corrigés
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
 │   └── model.py            # Entraînement, évaluation, seuil, importance
-├── tests/test_churn.py     # Tests
+├── tests/
+│   ├── test_churn.py       # Données, modèles, métriques, persistance
+│   ├── test_api.py         # Contrat de l'API
+│   └── test_app.py         # Test de fumée du tableau de bord
+├── .github/workflows/      # Intégration continue (tests à chaque push)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
+├── CORRIGES.md             # ✅ Corrigés détaillés
 └── requirements.txt
 ```
