@@ -30,6 +30,8 @@ clients risquent de partir (*churn*).
 > La série 09 (`defis/serie_09.py`, défis 56 à 61) prépare l'entretien technique : les classiques
 > d'algorithmique (table de hachage, pile, fenêtre glissante, intervalles, tas, parcours en largeur),
 > avec un correcteur qui refuse les solutions justes mais trop lentes ou trop gourmandes en mémoire.
+> La série 10 (`defis/serie_10.py`, défis 62 à 67) entraîne le SQL de tous les jours : NULL,
+> anti-jointure, `LEFT JOIN` (ON ou WHERE ?), explosion des jointures, fonctions de fenêtre, îlots et trous.
 
 ## Ce que vous allez pratiquer
 
@@ -51,7 +53,8 @@ clients risquent de partir (*churn*).
 | Code réutilisable : `datetime`, encodages et CSV Excel, complexité (`set`), générateurs, classes, décorateurs | `defis/serie_07.py` |
 | Assembler les données : regex, jointures, JSON d'API, vectorisation, upsert idempotent, fuite temporelle | `defis/serie_08.py` |
 | Algorithmique d'entretien : complexité, dictionnaire, pile, deux pointeurs, intervalles, tas (`heapq`), BFS (`deque`) | `defis/serie_09.py` |
-| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_09.py` + `scripts/defis.py` |
+| SQL pour l'analyse : NULL, anti-jointure, `LEFT JOIN`, fan-out, CTE, `LAG` et cumuls, îlots et trous | `defis/serie_10.py` (SQLite) |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_10.py` + `scripts/defis.py` |
 
 ## Démarrage rapide
 
@@ -134,8 +137,10 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── serie_07.py         # 🧱 Série 07 — code réutilisable : dates, Excel, set, yield, classes, décorateurs (6 défis)
 │   ├── serie_08.py         # 🔗 Série 08 — assembler les données : regex, jointures, JSON, upsert, événements (6 défis)
 │   ├── serie_09.py         # 🧠 Série 09 — algorithmes d'entretien : dict, pile, fenêtre, intervalles, tas, BFS (6 défis)
-│   ├── corrige_serie_0X.py # Corrigés commentés (après avoir essayé !)
-│   └── checks_serie_0X.py  # Vérifications automatiques
+│   ├── serie_10.py         # 🗄️ Série 10 — SQL pour l'analyse : NULL, jointures, fenêtres, îlots (6 défis)
+│   ├── donnees_sql.py      # La base SQLite de la série 10 (clients, factures, appels) + essayer()
+│   ├── corrige_serie_XX.py # Corrigés commentés (après avoir essayé !)
+│   └── checks_serie_XX.py  # Vérifications automatiques
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables

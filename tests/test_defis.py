@@ -2233,3 +2233,182 @@ def test_clients_exposes_recursion_sur_une_longue_chaine():
 
     resultat = _evaluer("clients_exposes", profondeur_minimale)
     assert resultat.statut == ECHEC and "RecursionError" in resultat.message, resultat.message
+
+
+# --------------------------------------------------------------------------- Série 10 : SQL pour l'analyse
+
+
+def _sql_10(nom, *remplacements):
+    """La requête du corrigé de la série 10, avec une seule erreur introduite à la fois."""
+    import defis.corrige_serie_10 as corrige
+
+    sql = getattr(corrige, nom)()
+    for avant, apres in remplacements:
+        assert avant in sql, f"{avant!r} introuvable dans le corrigé de {nom}"
+        sql = sql.replace(avant, apres)
+    return sql
+
+
+def _verdict_10(nom, sql):
+    return _evaluer(nom, lambda: sql)
+
+
+_BUGS_SERIE_10 = [
+    # Défi 62 : NULL
+    ("requete_churn_par_region", _sql_10("requete_churn_par_region",
+                                         ("COUNT(churn_date)", "COUNT(churn_date IS NOT NULL)")), "0 n'est pas NULL"),
+    ("requete_churn_par_region", _sql_10("requete_churn_par_region", ("COUNT(churn_date)", "COUNT(*)")),
+     "0 n'est pas NULL"),
+    ("requete_churn_par_region",
+     "SELECT COALESCE(region, 'Inconnue') AS region, COUNT(*) AS clients, "
+     "SUM(CASE WHEN churn_date <> NULL THEN 1 ELSE 0 END) AS partis, "
+     "AVG(CASE WHEN churn_date <> NULL THEN 1.0 ELSE 0 END) AS taux_churn "
+     "FROM clients GROUP BY 1 ORDER BY taux_churn DESC, region", "IS NULL"),
+    ("requete_churn_par_region", _sql_10("requete_churn_par_region",
+                                         ("COALESCE(region, 'Inconnue')  AS region", "region AS region"),
+                                         ("GROUP BY COALESCE(region, 'Inconnue')", "GROUP BY region")), "COALESCE"),
+    ("requete_churn_par_region", _sql_10("requete_churn_par_region",
+                                         ("FROM clients\n", "FROM clients WHERE region IS NOT NULL\n")), "disparu"),
+    ("requete_churn_par_region", _sql_10("requete_churn_par_region",
+                                         ("AVG(churn_date IS NOT NULL)", "COUNT(churn_date) / COUNT(*)")),
+     "division ENTIÈRE"),
+    ("requete_churn_par_region", _sql_10("requete_churn_par_region",
+                                         ("AVG(churn_date IS NOT NULL)", "AVG(churn_date IS NULL)")), "RESTÉS"),
+    ("requete_churn_par_region", _sql_10("requete_churn_par_region", (", region ", ", region DESC ")),
+     "départager"),
+    # Défi 63 : anti-jointure
+    ("requete_actifs_sans_appel",
+     "SELECT customer_id FROM clients WHERE churn_date IS NULL "
+     "AND customer_id NOT IN (SELECT customer_id FROM appels) ORDER BY customer_id", "NOT EXISTS"),
+    ("requete_actifs_sans_appel", _sql_10("requete_actifs_sans_appel", ("c.churn_date IS NULL", "1 = 1")),
+     "churn_date IS NULL"),
+    ("requete_actifs_sans_appel", _sql_10("requete_actifs_sans_appel", ("AND a.call_id IS NULL", "")),
+     "B a appelé"),
+    ("requete_actifs_sans_appel", _sql_10("requete_actifs_sans_appel", ("c.churn_date IS NULL", "c.churn_date = NULL")),
+     "IS NULL"),
+    # Défi 64 : LEFT JOIN, ON ou WHERE
+    ("requete_appels_recents", _sql_10("requete_appels_recents",
+                                       ("ON a.customer_id = c.customer_id\n              AND",
+                                        "ON a.customer_id = c.customer_id\n        WHERE"),
+                                       ("WHERE c.signup_date", "AND c.signup_date")), "dans le ON"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents", ("COUNT(a.call_id)", "COUNT(*)")), "COUNT(a.call_id)"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents",
+                                       ("a.call_date <  :date_extraction", "a.call_date <= :date_extraction")),
+     "jour de l'extraction"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents", ("AND a.call_date <  :date_extraction", "")),
+     "jour de l'extraction"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents", (">= date(", "> date(")), "(>=, pas >)"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents", ("'-90 days'", "'-3 months'")), "« 3 mois »"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents",
+                                       ("AND (c.churn_date IS NULL OR c.churn_date > :date_extraction)",
+                                        "AND c.churn_date IS NULL OR c.churn_date > :date_extraction")),
+     "priorité des opérateurs"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents",
+                                       ("AND (c.churn_date IS NULL OR c.churn_date > :date_extraction)",
+                                        "AND c.churn_date IS NULL")), "« photos » passées"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents", ("c.signup_date <= :date_extraction", "1 = 1")),
+     "pas encore client"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents",
+                                       ("c.churn_date > :date_extraction", "c.churn_date >= :date_extraction")),
+     "strictement après"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents", (":date_extraction", "'2026-06-30'")), "en dur"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents", (":date_extraction", "?")), "paramètre NOMMÉ"),
+    ("requete_appels_recents", _sql_10("requete_appels_recents", ("appels_90j DESC, c.customer_id", "c.customer_id")),
+     "ORDER BY appels_90j DESC"),
+    # Défi 65 : explosion des jointures
+    ("requete_bilan_par_contrat",
+     "SELECT c.contract, COUNT(*) AS clients, COALESCE(SUM(f.amount), 0) AS chiffre_affaires, "
+     "COUNT(a.call_id) AS appels FROM clients c LEFT JOIN factures f ON f.customer_id = c.customer_id "
+     "LEFT JOIN appels a ON a.customer_id = c.customer_id GROUP BY c.contract ORDER BY c.contract", "fan-out"),
+    ("requete_bilan_par_contrat",
+     "SELECT c.contract, COUNT(DISTINCT c.customer_id) AS clients, COALESCE(SUM(f.amount), 0) AS chiffre_affaires, "
+     "COUNT(DISTINCT a.call_id) AS appels FROM clients c LEFT JOIN factures f ON f.customer_id = c.customer_id "
+     "LEFT JOIN appels a ON a.customer_id = c.customer_id GROUP BY c.contract ORDER BY c.contract",
+     "DISTINCT ne répare pas"),
+    ("requete_bilan_par_contrat", _sql_10("requete_bilan_par_contrat", ("LEFT JOIN ca_client", "JOIN ca_client")),
+     "Biannuel a disparu"),
+    ("requete_bilan_par_contrat", _sql_10("requete_bilan_par_contrat",
+                                          ("COALESCE(SUM(f.montant), 0)", "SUM(f.montant)")), "COALESCE(SUM(…), 0)"),
+    ("requete_bilan_par_contrat", _sql_10("requete_bilan_par_contrat", ("ORDER BY c.contract", "ORDER BY clients DESC")),
+     "ORDER BY contract"),
+    # Défi 66 : fonctions de fenêtre
+    ("requete_evolution_mensuelle", _sql_10("requete_evolution_mensuelle",
+                                            ("strftime('%Y-%m', invoice_date)", "invoice_date")), "une par mois"),
+    ("requete_evolution_mensuelle", _sql_10("requete_evolution_mensuelle",
+                                            ("strftime('%Y-%m', invoice_date)", "strftime('%m', invoice_date)")),
+     "'AAAA-MM'"),
+    ("requete_evolution_mensuelle", _sql_10("requete_evolution_mensuelle", ("100.0 *", "100 *")), "division ENTIÈRE"),
+    ("requete_evolution_mensuelle", _sql_10("requete_evolution_mensuelle", ("100.0 *", "1.0 *")), "proportions"),
+    ("requete_evolution_mensuelle", _sql_10("requete_evolution_mensuelle",
+                                            ("(ORDER BY mois)", "(ORDER BY mois DESC)")), "mois SUIVANT"),
+    ("requete_evolution_mensuelle", _sql_10("requete_evolution_mensuelle",
+                                            ("100.0 * (", "COALESCE(100.0 * ("),
+                                            ("OVER chrono          AS evolution_pct",
+                                             "OVER chrono, 0)      AS evolution_pct")), "au lieu de NULL"),
+    ("requete_evolution_mensuelle", _sql_10("requete_evolution_mensuelle",
+                                            ("/ LAG(chiffre_affaires) OVER chrono ", "/ chiffre_affaires ")),
+     "mois COURANT"),
+    ("requete_evolution_mensuelle", _sql_10("requete_evolution_mensuelle",
+                                            ("SUM(chiffre_affaires) OVER chrono", "SUM(chiffre_affaires) OVER ()")),
+     "total général"),
+    # Défi 67 : îlots et trous
+    ("requete_series_appels", _sql_10("requete_series_appels", ("SELECT DISTINCT", "SELECT")), "DISTINCT"),
+    ("requete_series_appels", _sql_10("requete_series_appels",
+                                      ("CAST(strftime('%Y', call_date) AS INTEGER) * 12\n                 + ", "")),
+     "année × 12 + mois"),
+    ("requete_series_appels", _sql_10("requete_series_appels", ("WHERE customer_id IS NOT NULL", "")),
+     "numéros inconnus"),
+    ("requete_series_appels", _sql_10("requete_series_appels", (":mois_min", "2")), "HAVING"),
+    ("requete_series_appels", _sql_10("requete_series_appels", ("HAVING MAX(longueur) >= :mois_min", "")), "HAVING"),
+    ("requete_series_appels",
+     "SELECT customer_id, COUNT(DISTINCT strftime('%Y-%m', call_date)) AS plus_longue_serie FROM appels "
+     "WHERE customer_id IS NOT NULL GROUP BY customer_id HAVING plus_longue_serie >= :mois_min "
+     "ORDER BY plus_longue_serie DESC, customer_id", "CONSÉCUTIFS"),
+    ("requete_series_appels",
+     "SELECT customer_id, COUNT(*) AS plus_longue_serie FROM appels WHERE customer_id IS NOT NULL "
+     "GROUP BY customer_id HAVING COUNT(*) >= :mois_min ORDER BY plus_longue_serie DESC, customer_id", "APPELS"),
+    ("requete_series_appels",
+     "SELECT customer_id, COUNT(*) AS plus_longue_serie FROM appels WHERE COUNT(*) >= :mois_min GROUP BY customer_id",
+     "HAVING"),
+]
+
+
+@pytest.mark.parametrize("nom,sql,attendu", _BUGS_SERIE_10,
+                         ids=[f"{n.removeprefix('requete_')}-{i}" for i, (n, _, _) in enumerate(_BUGS_SERIE_10)])
+def test_serie_10_chaque_piege_sql_a_son_diagnostic(nom, sql, attendu):
+    resultat = _verdict_10(nom, sql)
+    assert resultat.statut == ECHEC and attendu in resultat.message, resultat.message
+
+
+@pytest.mark.parametrize("nom,sql", [
+    ("requete_actifs_sans_appel",
+     "SELECT customer_id FROM clients c WHERE churn_date IS NULL "
+     "AND NOT EXISTS (SELECT 1 FROM appels a WHERE a.customer_id = c.customer_id) ORDER BY customer_id"),
+    ("requete_bilan_par_contrat",
+     "SELECT c.contract, COUNT(*) AS clients, "
+     "COALESCE(SUM((SELECT SUM(amount) FROM factures f WHERE f.customer_id = c.customer_id)), 0) AS chiffre_affaires, "
+     "COALESCE(SUM((SELECT COUNT(*) FROM appels a WHERE a.customer_id = c.customer_id)), 0) AS appels "
+     "FROM clients c GROUP BY c.contract ORDER BY c.contract"),
+    ("requete_churn_par_region", _sql_10("requete_churn_par_region",
+                                         ("GROUP BY COALESCE(region, 'Inconnue')", "GROUP BY region"))),
+], ids=["not_exists", "sous_requetes_correlees", "group_by_alias"])
+def test_serie_10_une_autre_ecriture_juste_est_acceptee(nom, sql):
+    """En SQL, il y a souvent plusieurs écritures justes : le correcteur juge le résultat, pas le style."""
+    resultat = _verdict_10(nom, sql)
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_10_la_base_d_exemple_est_reproductible_et_piegee():
+    """La base de démonstration doit contenir les pièges dont parlent les docstrings."""
+    from defis.donnees_sql import generer_tables
+
+    a, b = generer_tables(n_clients=50, seed=3), generer_tables(n_clients=50, seed=3)
+    for nom in a:
+        pd.testing.assert_frame_equal(a[nom], b[nom])
+    tables = generer_tables()
+    assert tables["clients"]["region"].isna().any(), "il faut des régions inconnues (défi 62)"
+    assert tables["appels"]["customer_id"].isna().any(), "il faut des appels anonymes (défis 63 et 67)"
+    assert tables["clients"]["churn_date"].notna().any() and tables["clients"]["churn_date"].isna().any()
+    premiere = tables["factures"].groupby("customer_id")["invoice_date"].min()
+    inscription = tables["clients"].set_index("customer_id")["signup_date"]
+    assert (premiere >= inscription.loc[premiere.index]).all(), "aucune facture avant l'inscription"

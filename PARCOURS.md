@@ -24,7 +24,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 61 fonctions et classes courtes dans `defis/serie_00.py` à `defis/serie_09.py`, corrigées par
+> [défis](defis/README.md) : 67 fonctions, classes et requêtes SQL courtes dans `defis/serie_00.py` à `defis/serie_10.py`, corrigées par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -45,7 +45,9 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > vectorisation, mise à jour de nuit idempotente, variables tirées d'un journal d'événements sans fuite
 > temporelle. Pour viser un poste, la série 09 (`defis/serie_09.py`, défis 56 à 61) entraîne l'exercice
 > d'algorithmique de l'entretien technique : choisir la bonne structure de données (dictionnaire, pile,
-> tas, file) et annoncer la complexité de sa solution.
+> tas, file) et annoncer la complexité de sa solution. Et parce que presque toutes les offres data
+> demandent du SQL, la série 10 (`defis/serie_10.py`, défis 62 à 67) entraîne les requêtes qui donnent
+> un chiffre faux sans planter : NULL, anti-jointure, `LEFT JOIN`, explosion des jointures, fenêtres.
 
 ---
 

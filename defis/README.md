@@ -37,6 +37,10 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 >
 > 🧠 **Vous préparez un entretien technique ?** La **série 09** (défis 56 à 61) reprend les classiques
 > de l'algorithmique sur des données de churn. Elle ne demande que les séries 00 et 07.
+>
+> 🗄️ **Votre futur poste demandera du SQL ?** La **série 10** (défis 62 à 67) entraîne ce qui sépare
+> une requête qui « tourne » d'une requête juste : NULL, anti-jointure, `LEFT JOIN` (ON ou WHERE ?),
+> explosion des jointures, fonctions de fenêtre et « îlots et trous ». Elle suit la série 05.
 
 | Série | Fichier à compléter | Thèmes | Défis |
 |---|---|---|---|
@@ -50,6 +54,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | **07 — Écrire du code réutilisable** 🧱 | `defis/serie_07.py` | ancienneté en mois avec **`datetime`** (fins de mois), **complexité** : `set` contre liste sur 200 000 clients, lire un **export Excel** français (`;`, virgule décimale, encodages, identifiants « 00123 »), **générateur** `yield` par lots, une **classe** avec état (attribut d'objet ou de classe ?), un **décorateur** de cache | 6, n° 44 à 49 (🟢×2 🟡×3 🔴×1) |
 | **08 — Assembler les données** 🔗 | `defis/serie_08.py` | retrouver des identifiants dans des notes avec une **regex** (`\b`, `re.IGNORECASE`), **jointure** sans dupliquer ni perdre de clients (`groupby` puis `map`/`merge`), aplatir le **JSON** d'une API (champs absents ou `null`), **vectoriser** un barème (`np.select`, sans `iterrows`), **upsert** idempotent de la mise à jour de nuit (`concat` + `drop_duplicates`), variables d'un **journal d'événements** sans **fuite temporelle** | 6, n° 50 à 55 (🟢×2 🟡×3 🔴×1) |
 | **09 — Penser en algorithmes** 🧠 | `defis/serie_09.py` | la méthode d'entretien en 5 étapes et les **complexités** O(1) à O(n²) ; « two sum » avec un **dictionnaire** (la position 0 est « fausse »), délimiteurs d'une formule avec une **pile**, pic d'appels par **fenêtre glissante** (deux pointeurs), **fusion d'intervalles** de dates (`timedelta`, périodes contenues), top k d'un **flux** avec un **tas** (`heapq`, mémoire O(k), égalités), clients proches d'un parti par **parcours en largeur** multi-sources (`deque`) | 6, n° 56 à 61 (🟢×2 🟡×3 🔴×1) |
+| **10 — SQL pour l'analyse** 🗄️ | `defis/serie_10.py` | l'ordre d'évaluation d'une requête et la logique à trois valeurs de **NULL** (`IS NULL`, `COUNT(col)`, `COALESCE`), **anti-jointure** (le piège de `NOT IN` face à un NULL), **`LEFT JOIN` : ON ou WHERE ?** et `COUNT(*)` qui compte 1 pour « aucun appel », une variable de « photo » à une date passée (paramètre nommé, priorité AND/OR), **explosion des jointures** (fan-out) et CTE, **fonctions de fenêtre** (`LAG`, cumul `SUM() OVER`, fenêtre nommée), **îlots et trous** (mois consécutifs avec `ROW_NUMBER()`, `HAVING`) | 6, n° 62 à 67 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -59,6 +64,13 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 3. Une fois ✅, ouvrez `defis/corrige_serie_XX.py` et comparez. Souvent, on découvre une
    écriture plus courte ou un piège évité par chance.
 4. Notez dans votre `JOURNAL.md` : ce qui vous a bloqué, ce que vous avez appris.
+
+> 🗄️ En SQL, une erreur ne fait presque jamais planter : elle donne un chiffre faux, en silence. Le
+> correcteur de la série 10 exécute votre requête sur de petites tables où chaque piège se voit (un
+> appel anonyme, un client sans facture, un appel le jour même de l'extraction, décembre suivi de
+> janvier), puis sur 600 clients comparés à pandas. Pour essayer une requête en l'écrivant :
+> `from defis.donnees_sql import essayer`, puis `essayer("SELECT …")`. Pour voir les tables :
+> `python -m defis.donnees_sql`.
 
 > 🕵️ Dans la série 09, une solution juste ne suffit pas : le correcteur compte combien de fois votre
 > code relit le catalogue (défi 56), combien de scores il garde en mémoire à la fois (défi 60), et
