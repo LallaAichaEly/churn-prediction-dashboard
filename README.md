@@ -6,40 +6,39 @@ Un projet complet **et pédagogique** pour développer ses compétences en data 
 des données brutes jusqu'à un tableau de bord interactif et une API qui prédisent quels
 clients risquent de partir (*churn*).
 
-> 🎯 **Objectif : apprendre en construisant.**
->
-> 1. [`PARCOURS.md`](PARCOURS.md) — 7 modules, 37 exercices progressifs et une checklist ;
->    `python scripts/progression.py` vous dit où vous en êtes et quoi faire ensuite.
-> 2. [`CORRIGES.md`](CORRIGES.md) — un indice puis une solution pour chaque exercice
->    (à ouvrir **après** avoir cherché), complétés par des scripts exécutables dans `solutions/`.
-> 3. [`JOURNAL.md`](JOURNAL.md) — votre carnet de bord : mesures avant / après et ce que vous avez compris.
-> 4. [`defis/`](defis/README.md) — ⚡ des fonctions courtes à compléter, corrigées instantanément
->    par `python scripts/defis.py` (✅ / ❌ avec l'explication de l'erreur).
-> 5. [`projets/`](projets/README.md) — 🏗️ un **projet guidé** : construire de A à Z, en 7 étapes corrigées
->    par `python scripts/projet.py`, le programme qui transforme les prédictions en plan d'action.
->
-> 👋 **Vous débutez ?** Commencez par la série 00 des défis (`defis/serie_00.py`) : les bases de Python
-> et de pandas, avec un message clair à chaque erreur. Puis le module 1 du parcours.
->
-> 🛠️ **Vous voulez développer, mais ne vous sentez pas encore compétent·e ?** Après la série 00, la
-> série 06 (`defis/serie_06.py`, défis 38 à 43) entraîne les gestes du métier : lire une erreur, écrire
-> un test qui attrape les bugs, gérer une saisie invalide, refactoriser sans rien casser, écrire une
-> ligne de commande, retrouver le commit fautif comme `git bisect`. La série 07 (`defis/serie_07.py`,
-> défis 44 à 49) passe ensuite du script au code réutilisable : dates, export Excel, `set` contre liste,
-> générateurs, classes, décorateurs. La série 08 (`defis/serie_08.py`, défis 50 à 55) apprend à construire
-> la table du modèle à partir de vraies sources : regex sur des notes, jointures, JSON d'une API,
-> vectorisation, mise à jour idempotente, variables tirées d'un journal d'événements sans fuite temporelle.
-> La série 09 (`defis/serie_09.py`, défis 56 à 61) prépare l'entretien technique : les classiques
-> d'algorithmique (table de hachage, pile, fenêtre glissante, intervalles, tas, parcours en largeur),
-> avec un correcteur qui refuse les solutions justes mais trop lentes ou trop gourmandes en mémoire.
-> La série 10 (`defis/serie_10.py`, défis 62 à 67) entraîne le SQL de tous les jours : NULL,
-> anti-jointure, `LEFT JOIN` (ON ou WHERE ?), explosion des jointures, fonctions de fenêtre, îlots et trous.
->
-> 🏗️ **Et ensuite, construire un vrai programme.** Les défis entraînent une fonction à la fois ; le
-> [projet 2](projets/README.md) fait tout assembler : lire un CSV imparfait, appliquer des règles métier,
-> répartir un budget, écrire un rapport, offrir une ligne de commande, et écrire le test qui protège le
-> tout. Sept étapes corrigées automatiquement (`python scripts/projet.py`), un corrigé complet, et à la fin
-> un outil qui tourne : `python -m projets.retention --clients projets/exemple_clients.csv --budget 1500`.
+> 🎯 **Objectif : apprendre en construisant.** Inutile de tout lire avant de commencer : faites la
+> première séance ci-dessous, puis avancez d'un défi à la fois. Les scripts vous disent si c'est juste
+> et, sinon, pourquoi.
+
+## 🚀 Par où commencer — première séance (20 minutes)
+
+1. **Installer** (5 min) : suivez le [démarrage rapide](#démarrage-rapide), puis lancez
+   `python scripts/defis.py`. Presque tout est ⬜ « à faire », c'est normal. Le défi 34 commence en ❌
+   parce que c'est un code à déboguer.
+2. **Réussir un premier défi** (10 min) : ouvrez `defis/serie_00.py`, lisez la docstring de
+   `taux_en_pourcentage` (défi 30), remplacez `raise NotImplementedError` par votre code, puis lancez
+   `python scripts/defis.py --defi 30`. Corrigez et relancez jusqu'au ✅.
+3. **Noter** (5 min) : écrivez une fiche dans [`JOURNAL.md`](JOURNAL.md) avec ce qui vous a bloqué·e
+   et ce que vous avez compris.
+
+Ensuite, faites **un défi par séance**, dans l'ordre qui correspond à votre objectif :
+
+| Votre objectif | Commencez par | Puis |
+|---|---|---|
+| Je débute, ou je ne me sens pas encore « à niveau » | série 00 (défis 30 à 37) | série 01, puis le module 1 de [`PARCOURS.md`](PARCOURS.md) |
+| Je veux développer : écrire du code fiable, en équipe | série 00 | séries 06 → 07 → 08, puis le [projet guidé](projets/README.md) |
+| Je prépare un entretien technique | séries 00 et 07 | série 09 (algorithmique), puis séries 05 et 10 (SQL) |
+| Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05 |
+
+Pour aller plus loin :
+
+- [`defis/README.md`](defis/README.md) détaille les 11 séries de défis.
+- [`PARCOURS.md`](PARCOURS.md) propose des exercices en 7 modules sur le vrai projet.
+  `python scripts/progression.py` suit votre avancement.
+- [`CORRIGES.md`](CORRIGES.md) donne un indice puis la solution de chaque exercice. Ouvrez-le
+  **après** avoir cherché.
+- [`projets/README.md`](projets/README.md) décrit le projet guidé, corrigé par `python scripts/projet.py` :
+  un vrai programme à construire en 7 étapes, du CSV imparfait au plan de rétention.
 
 ## Ce que vous allez pratiquer
 
