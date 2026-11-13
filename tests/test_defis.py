@@ -3014,3 +3014,522 @@ def test_serie_12_les_outils_du_fichier_eleve_sont_ceux_du_correcteur():
     assert eleve.CONTRATS == checks._CONTRATS
     client = eleve.essayer(_lecture()(eleve.exemple_clients()))
     assert client.get("/clients/C001").json()["id"] == "C001"
+
+
+# --------------------------------------------------------------------------- Série 13 : écrire du code sûr
+
+import hashlib  # noqa: E402
+import hmac  # noqa: E402
+import os  # noqa: E402
+import pickle  # noqa: E402
+import sqlite3  # noqa: E402
+
+_MOTS_13 = ("password", "mot_de_passe", "secret", "token", "api_key", "authorization")
+_DEBUTS_13 = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _echec_13(nom, fonction, *mots):
+    resultat = _evaluer(nom, fonction)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+# Défi 80 : injection SQL
+
+
+def _sql_fstring(connexion, nom, contrat=None):
+    return [ligne[0] for ligne in connexion.execute(f"SELECT id FROM clients WHERE nom = '{nom}' ORDER BY id")]
+
+
+def _sql_echappe(connexion, nom, contrat=None):
+    nom = nom.replace("'", "''")
+    sql = f"SELECT id FROM clients WHERE nom = '{nom}'"
+    if contrat is not None:
+        sql += f" AND contrat = '{contrat}'"
+    return [ligne[0] for ligne in connexion.execute(sql + " ORDER BY id")]
+
+
+def _sql_sans_virgule(connexion, nom, contrat=None):
+    return [ligne[0] for ligne in connexion.execute("SELECT id FROM clients WHERE nom = ? ORDER BY id", (nom))]
+
+
+def _sql_param(ordre=True, like=False, contrat_toujours=False, contrat_colle=False, tuples=False, retour=True):
+    def clients_par_nom(connexion, nom, contrat=None):
+        sql = f"SELECT id FROM clients WHERE nom {'LIKE' if like else '='} ?"
+        valeurs = [nom]
+        if contrat_colle and contrat is not None:
+            sql += f" AND contrat = '{contrat}'"
+        elif contrat_toujours or contrat is not None:
+            sql += " AND contrat = ?"
+            valeurs.append(contrat)
+        lignes = connexion.execute(sql + (" ORDER BY id" if ordre else ""), valeurs).fetchall()
+        if not retour:
+            return None
+        return lignes if tuples else [ligne[0] for ligne in lignes]
+    return clients_par_nom
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_sql_fstring, ("toutes lettres", "TOUTE la table", "?")),
+    (_sql_echappe, ("toutes lettres", "doublez")),
+    (_sql_sans_virgule, ("(nom,)", "virgule")),
+    (_sql_param(ordre=False), ("ORDER BY id",)),
+    (_sql_param(like=True), ("LIKE", "EXACT")),
+    (_sql_param(contrat_toujours=True), ("contrat = NULL",)),
+    (_sql_param(contrat_colle=True), ("contrat est collé",)),
+    (_sql_param(tuples=True), ("ligne[0]",)),
+    (_sql_param(retour=False), ("return",)),
+], ids=["fstring", "echappement_maison", "tuple_sans_virgule", "sans_tri", "like", "contrat_null", "contrat_colle",
+        "tuples", "sans_return"])
+def test_serie_13_injection_sql_erreurs_classiques(mutant, mots):
+    _echec_13("clients_par_nom", mutant, *mots)
+
+
+def test_serie_13_injection_sql_autres_ecritures_justes_acceptees():
+    """pandas, un curseur, `with connexion`, row_factory, paramètres nommés : tout ce qui est juste passe."""
+
+    def avec_pandas(connexion, nom, contrat=None):
+        sql, valeurs = "SELECT id FROM clients WHERE nom = :nom", {"nom": nom}
+        if contrat is not None:
+            sql, valeurs = sql + " AND contrat = :contrat", {**valeurs, "contrat": contrat}
+        return pd.read_sql_query(sql + " ORDER BY id", connexion, params=valeurs)["id"].tolist()
+
+    def avec_curseur(connexion, nom, contrat=None):
+        connexion.row_factory = sqlite3.Row
+        with connexion:
+            curseur = connexion.cursor()
+            curseur.execute("SELECT id FROM clients WHERE nom = ? AND (? IS NULL OR contrat = ?) ORDER BY id",
+                            (nom, contrat, contrat))
+            return [ligne["id"] for ligne in curseur.fetchall()]
+
+    for juste in (avec_pandas, avec_curseur):
+        resultat = _evaluer("clients_par_nom", juste)
+        assert resultat.statut == REUSSI, resultat.message
+
+
+# Défi 81 : secrets dans les journaux
+
+
+def _masquer(sur_place=False, minuscules=True, tirets=True, contient=True, recursion=True, listes=True,
+             dict_sensible_masque=True, types=True, supprimer=False, mots=_MOTS_13):
+    def sensible(cle):
+        nom = str(cle)
+        nom = nom.lower() if minuscules else nom
+        nom = nom.replace("-", "_") if tirets else nom
+        return any(m in nom for m in mots) if contient else nom in mots
+
+    def valeur(v):
+        if recursion and isinstance(v, dict):
+            return masquer_secrets(v)
+        if listes and isinstance(v, list):
+            return [valeur(x) for x in v]
+        return v if types else str(v)
+
+    def masquer_secrets(donnees):
+        if sur_place:
+            for cle in list(donnees):
+                if sensible(cle):
+                    donnees[cle] = "***"
+            return donnees
+        resultat = {}
+        for cle, v in donnees.items():
+            if not dict_sensible_masque and isinstance(v, dict):
+                resultat[cle] = masquer_secrets(v)
+            elif sensible(cle):
+                if not supprimer:
+                    resultat[cle] = "***"
+            else:
+                resultat[cle] = valeur(v)
+        return resultat
+    return masquer_secrets
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_masquer(sur_place=True), ("MODIFIÉ", "NOUVEAU dictionnaire")),
+    (_masquer(minuscules=False), ("Authorization", "lower()")),
+    (_masquer(contient=False), ("access_token", "CONTIENT")),
+    (_masquer(tirets=False), ("X-API-Key", "replace")),
+    (_masquer(recursion=False), ("headers", "récursion")),
+    (_masquer(listes=False), ("corps.clients[0].token", "LISTE")),
+    (_masquer(dict_sensible_masque=False), ("corps.secret", "ENTIÈRE")),
+    (_masquer(types=False), ("TYPE", "0.8")),
+    (_masquer(supprimer=True), ("disparu",)),
+    (_masquer(mots=_MOTS_13 + ("a",)), ("contrat", "pas des secrets")),
+], ids=["sur_place", "casse", "egalite", "tirets", "sans_recursion", "listes", "dict_sensible", "types", "supprimer",
+        "trop"])
+def test_serie_13_masquer_secrets_erreurs_classiques(mutant, mots):
+    _echec_13("masquer_secrets", mutant, *mots)
+
+
+def test_serie_13_masquer_secrets_copie_superficielle_detectee():
+    def copie_puis_modifie(donnees):
+        import copy as _copy
+        resultat = _copy.copy(donnees)
+        for cle, v in resultat.items():
+            if isinstance(v, dict):
+                for k in v:
+                    if any(m in k.lower().replace("-", "_") for m in _MOTS_13):
+                        v[k] = "***"
+            elif any(m in cle.lower().replace("-", "_") for m in _MOTS_13):
+                resultat[cle] = "***"
+        return resultat
+
+    _echec_13("masquer_secrets", copie_puis_modifie, "MODIFIÉ", "imbriqués")
+
+
+# Défi 82 : traversée de répertoire
+
+
+def _export_13(resoudre=True, resoudre_dossier=True, mode="relative_to", refuser_dossier=True, refus_points=False,
+            composants=False, erreur=ValueError, abspath=False, none_si_refus=False):
+    def chemin_export(dossier, nom_fichier):
+        if refus_points and ".." in nom_fichier:
+            raise erreur("..")
+        if composants and ".." in Path(nom_fichier).parts:
+            raise erreur("..")
+        racine = Path(dossier).resolve() if resoudre_dossier else Path(dossier)
+        if abspath:
+            chemin = Path(os.path.abspath(os.path.join(racine, nom_fichier)))
+        else:
+            chemin = (racine / nom_fichier).resolve() if resoudre else racine / nom_fichier
+        refus = refuser_dossier and chemin == racine
+        if mode == "relative_to":
+            refus = refus or not chemin.is_relative_to(racine)
+        elif mode == "startswith":
+            refus = refus or not str(chemin).startswith(str(racine))
+        if refus:
+            if none_si_refus:
+                return None
+            raise erreur(nom_fichier)
+        return chemin
+    return chemin_export
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_export_13(resoudre=False, mode=None), ("ACCEPTÉ", "« .. » remonte")),
+    (_export_13(refus_points=True), ("rapport..v2.csv", "noms honnêtes")),
+    (_export_13(resoudre=False, mode=None, composants=True), ("absolu REMPLACE",)),
+    (_export_13(mode="startswith"), ("exports_pirate", "is_relative_to")),
+    (_export_13(refuser_dossier=False), ("LUI-MÊME", "chemin == racine")),
+    (_export_13(abspath=True), ("lien symbolique", "resolve()")),
+    (_export_13(resoudre_dossier=False), ("RELATIF", "AUSSI le dossier")),
+    (_export_13(erreur=PermissionError), ("PermissionError", "ValueError")),
+    (_export_13(none_si_refus=True), ("None", "ValueError")),
+], ids=["sans_controle", "points_dans_le_texte", "chemin_absolu", "prefixe_texte", "le_dossier_lui_meme", "lien",
+        "dossier_relatif", "mauvaise_exception", "none"])
+def test_serie_13_chemin_export_erreurs_classiques(mutant, mots):
+    _echec_13("chemin_export", mutant, *mots)
+
+
+# Défi 83 : injection de formules
+
+
+def _formules(debuts=_DEBUTS_13, toutes_colonnes=False, sans_isinstance=False, sur_place=False, contient=False,
+              retirer=False, texte_manquant=False, deja=False, reset_index=False):
+    def cellule(v):
+        if sans_isinstance:
+            texte = str(v)
+        elif isinstance(v, str):
+            texte = v
+        else:
+            return v
+        if texte_manquant and texte in ("None", "nan"):
+            return texte
+        if sans_isinstance and v is None:
+            return v
+        dangereux = any(d in texte for d in debuts) if contient else texte.startswith(debuts + (("'",) if deja else ()))
+        if not dangereux:
+            return v
+        return texte.lstrip("".join(_DEBUTS_13)) if retirer else "'" + texte
+
+    def neutraliser_formules(df):
+        resultat = df if sur_place else df.copy()
+        for colonne in resultat.columns:
+            texte = resultat[colonne].dtype == object or pd.api.types.is_string_dtype(resultat[colonne].dtype)
+            if toutes_colonnes or texte:
+                serie = resultat[colonne].astype(object) if texte_manquant else resultat[colonne]
+                if texte_manquant:
+                    serie = serie.map(lambda v: str(v) if v is None or (isinstance(v, float) and v != v) else v)
+                resultat[colonne] = serie.map(cellule)
+        return resultat.reset_index(drop=True) if reset_index else resultat
+    return neutraliser_formules
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_formules(debuts=("=",)), ("'+'", "DEBUTS_DANGEREUX")),
+    (_formules(debuts=("=", "+", "-", "@")), ("'\\t'", "'\\r'")),
+    (_formules(toutes_colonnes=True, sans_isinstance=True), ("colonne numérique", "-12.5")),
+    (_formules(sans_isinstance=True), ("-7", "isinstance(valeur, str)")),
+    (_formules(sur_place=True), ("REÇU", "df.copy()")),
+    (_formules(contient=True), ("remise=10%", "PREMIER caractère")),
+    (_formules(retirer=True), ("DEVANT", "-Dupont")),
+    (_formules(texte_manquant=True), ("manquante",)),
+    (_formules(deja=True), ("déjà du texte",)),
+    (_formules(reset_index=True), ("même index",)),
+], ids=["egal_seulement", "sans_tab_cr", "nombres_convertis", "nombres_dans_le_texte", "sur_place", "contient",
+        "retirer", "manquants", "double_apostrophe", "index"])
+def test_serie_13_neutraliser_formules_erreurs_classiques(mutant, mots):
+    _echec_13("neutraliser_formules", mutant, *mots)
+
+
+# Défi 84 : désérialisation
+
+
+def _modele(verifier=True, avant=True, deux_lectures=False, nettoyer=True, hacher_nom=False, exception=ValueError,
+            none_si_faux=False, avec_joblib=False):
+    def charger_modele_verifie(chemin, empreinte_attendue):
+        octets = Path(chemin).read_bytes()
+        objet = None if avant else pickle.loads(octets)
+        attendu = empreinte_attendue.strip().lower() if nettoyer else empreinte_attendue
+        empreinte = hashlib.sha256(str(chemin).encode() if hacher_nom else octets).hexdigest()
+        if verifier and empreinte != attendu:
+            if none_si_faux:
+                return None
+            raise exception("empreinte inattendue")
+        if not avant:
+            return objet
+        if avec_joblib:
+            import joblib
+            return joblib.load(chemin)
+        if deux_lectures:
+            with open(chemin, "rb") as fichier:
+                return pickle.load(fichier)
+        return pickle.loads(octets)
+    return charger_modele_verifie
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_modele(avant=False), ("EXÉCUTÉ DU CODE", "AVANT")),
+    (_modele(verifier=False), ("EXÉCUTÉ DU CODE",)),
+    (_modele(deux_lectures=True), ("2 fois", "UNE seule fois")),
+    (_modele(avec_joblib=True), ("2 fois", "pickle.loads(octets)")),
+    (_modele(nettoyer=False), ("MAJUSCULES", "strip().lower()")),
+    (_modele(hacher_nom=True), ("INTACT", "OCTETS")),
+    (_modele(exception=RuntimeError), ("RuntimeError", "ValueError")),
+    (_modele(none_si_faux=True), ("None", "exception")),
+], ids=["charge_avant", "sans_verification", "deux_lectures", "joblib_relit", "empreinte_brute", "hache_le_nom",
+        "runtime_error", "none"])
+def test_serie_13_charger_modele_erreurs_classiques(mutant, mots):
+    import defis.checks_serie_13 as checks
+
+    checks._PIEGES.clear()
+    _echec_13("charger_modele_verifie", mutant, *mots)
+
+
+def test_serie_13_le_piege_est_inoffensif_et_l_open_est_restaure():
+    import builtins
+    import io
+
+    import defis.checks_serie_13 as checks
+
+    ouvrir_avant, io_avant = builtins.open, io.open
+    _evaluer("charger_modele_verifie", _modele(deux_lectures=True))
+    assert builtins.open is ouvrir_avant and io.open is io_avant
+    checks._PIEGES.clear()
+    assert pickle.loads(pickle.dumps(checks._ObjetPiege())) == {"modele": "piégé"}
+    assert checks._PIEGES == ["le fichier piégé a exécuté du code pendant son chargement"]
+    checks._PIEGES.clear()
+
+
+# Défi 85 : lien signé
+
+
+def _signataire(sep=".", signer_exp=True, compare="octets", construction="hmac", verifier_sig=True, strict=True,
+                cle_aleatoire=False, controle_longueur=True, url="hex", inferieur_strict=True, secret_utilise=True):
+    import base64
+    import secrets as _secrets
+
+    class Signataire:
+        def __init__(self, secret):
+            if controle_longueur and len(secret) < 16:
+                raise ValueError("court")
+            self._secret = _secrets.token_bytes(32) if cle_aleatoire else secret
+
+        def _sig(self, message):
+            if not secret_utilise:
+                brut = hashlib.sha256(message.encode()).digest()
+            elif construction == "hmac":
+                brut = hmac.new(self._secret, message.encode(), hashlib.sha256).digest()
+            else:
+                brut = hashlib.sha256(self._secret + message.encode()).digest()
+            return base64.b64encode(brut).decode() if url == "b64" else brut.hex()
+
+        def _message(self, client_id, expiration):
+            return f"{client_id}{sep}{expiration}" if signer_exp else client_id
+
+        def signer(self, client_id, expiration):
+            return f"{client_id}.{expiration}.{self._sig(self._message(client_id, expiration))}"
+
+        def verifier(self, jeton, maintenant):
+            morceaux = jeton.split(".")
+            if strict:
+                client_id, expiration, signature = morceaux
+            else:
+                client_id, expiration, signature = morceaux[0], morceaux[1], morceaux[2]
+            attendue = self._sig(self._message(client_id, expiration))
+            if verifier_sig:
+                a, b = (signature, attendue) if compare == "texte" else (signature.encode(), attendue.encode())
+                if not hmac.compare_digest(a, b):
+                    raise ValueError("signature")
+            if (int(expiration) <= maintenant) if inferieur_strict else (int(expiration) < maintenant):
+                raise ValueError("expiré")
+            return client_id
+
+    return Signataire
+
+
+_BASE_EGAL = _signataire()
+
+
+class _SignataireEgal(_BASE_EGAL):
+    """Tout est juste, sauf la comparaison finale, faite avec == (le correcteur lit le code, pas ce texte)."""
+
+    def verifier(self, jeton, maintenant):
+        client_id, expiration, signature = jeton.split(".")
+        if signature != self._sig(f"{client_id}.{expiration}"):  # et non compare_digest
+            raise ValueError("signature")
+        if int(expiration) <= maintenant:
+            raise ValueError("expiré")
+        return client_id
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_signataire(signer_exp=False), ("APRÈS la date", "prolongé")),
+    (_signataire(sep=""), ("SÉPARÉS", "C0011")),
+    (_signataire(construction="maison"), ("hash(secret + message)", "HMAC")),
+    (_SignataireEgal, ("compare_digest", "temps")),
+    (_signataire(verifier_sig=False), ("AUTRE secret",)),
+    (_signataire(strict=False), ("IndexError", "ValueError")),
+    (_signataire(compare="texte"), ("non ASCII", "octets")),
+    (_signataire(cle_aleatoire=True), ("NOUVEL objet", "redémarrage")),
+    (_signataire(controle_longueur=False), ("court", "16")),
+    (_signataire(url="b64"), ("adresse web", "urlsafe")),
+    (_signataire(inferieur_strict=False), ("seconde même",)),
+    (_signataire(secret_utilise=False), ("ne dépend pas du secret",)),
+], ids=["expiration_non_signee", "sans_separateur", "construction_maison", "egalite", "signature_ignoree",
+        "index_error", "compare_digest_texte", "cle_aleatoire", "cle_courte", "base64_standard", "borne",
+        "sans_secret"])
+def test_serie_13_signataire_erreurs_classiques(mutant, mots):
+    _echec_13("Signataire", mutant, *mots)
+
+
+def test_serie_13_compare_digest_dans_une_docstring_ne_compte_pas():
+    """Le correcteur lit le CODE : un commentaire ou une docstring qui cite compare_digest ne suffit pas."""
+    import defis.checks_serie_13 as checks
+
+    assert not checks._utilise_compare_digest(_SignataireEgal)
+    assert checks._utilise_compare_digest(_signataire())
+
+
+def test_serie_13_les_tests_du_corrige_passent():
+    import defis.corrige_serie_13 as corrige
+
+    tests = [f for nom, f in vars(corrige).items() if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_13_les_outils_du_fichier_eleve_sont_ceux_du_correcteur():
+    import defis.checks_serie_13 as checks
+    import defis.corrige_serie_13 as corrige
+    import defis.serie_13 as eleve
+
+    for module in (eleve, corrige):
+        assert module.MOTS_SENSIBLES == checks.MOTS_SENSIBLES
+        assert module.MASQUE == checks.MASQUE
+        assert module.DEBUTS_DANGEREUX == checks.DEBUTS_DANGEREUX
+        assert module.base_exemple().execute("SELECT * FROM clients").fetchall() == \
+            checks._base().execute("SELECT * FROM clients").fetchall()
+    exports = eleve.bac_a_sable()
+    assert (exports / "equipe").is_dir() and (exports.parent / "exports_pirate").is_dir()
+    chemin, empreinte = eleve.modele_exemple(exports)
+    assert corrige.charger_modele_verifie(chemin, empreinte)["modele"] == "logistique"
+    assert corrige.neutraliser_formules(eleve.exemple_export())["nom"].tolist()[2:] == ["'+33 6 12 34 56 78", "'-Dupont"]
+
+
+def test_serie_13_autres_ecritures_justes_acceptees():
+    """Le correcteur juge le comportement : des solutions justes écrites autrement doivent passer."""
+    import base64
+    import copy as _copy
+    import io as _io
+    import json
+    import re as _re
+
+    def masquer_par_copie_profonde(donnees):
+        resultat = _copy.deepcopy(donnees)
+        a_visiter = [resultat]
+        while a_visiter:
+            objet = a_visiter.pop()
+            elements = objet.items() if isinstance(objet, dict) else enumerate(objet)
+            for cle, valeur in list(elements):
+                if isinstance(objet, dict) and any(m in str(cle).lower().replace("-", "_") for m in _MOTS_13):
+                    objet[cle] = "***"
+                elif isinstance(valeur, (dict, list)):
+                    a_visiter.append(valeur)
+        return resultat
+
+    def export_avec_os_path(dossier, nom_fichier):
+        racine = os.path.realpath(dossier)
+        chemin = os.path.realpath(os.path.join(racine, nom_fichier))
+        if chemin == racine or os.path.commonpath([racine, chemin]) != racine:
+            raise ValueError(nom_fichier)
+        return chemin  # un str : accepté aussi
+
+    def formules_avec_dataframe_map(df):
+        def cellule(v):
+            return "'" + v if isinstance(v, str) and v[:1] in _DEBUTS_13 and v else v
+        texte = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
+        resultat = df.copy()
+        resultat[texte] = resultat[texte].map(cellule)
+        return resultat
+
+    def modele_avec_file_digest(chemin, empreinte_attendue):
+        with open(chemin, "rb") as fichier:
+            empreinte = hashlib.file_digest(fichier, "sha256").hexdigest()
+            if not hmac.compare_digest(empreinte, empreinte_attendue.strip().lower()):
+                raise ValueError("empreinte")
+            fichier.seek(0)
+            return pickle.load(fichier)
+
+    def modele_avec_joblib(chemin, empreinte_attendue):
+        import joblib
+        octets = Path(chemin).read_bytes()
+        if hashlib.sha256(octets).hexdigest() != empreinte_attendue.strip().lower():
+            raise ValueError("empreinte")
+        return joblib.load(_io.BytesIO(octets))
+
+    class SignataireJson:
+        """Charge utile JSON en base64 « URL », signature HMAC sur les octets décodés (malléable, mais sûre)."""
+
+        def __init__(self, secret):
+            if len(secret) < 16:
+                raise ValueError("court")
+            self._secret = secret
+
+        def signer(self, client_id, expiration):
+            charge = base64.urlsafe_b64encode(json.dumps([client_id, expiration]).encode()).decode().rstrip("=")
+            return f"{charge}.{self._signature(charge.encode() + b'===')}"
+
+        def _signature(self, charge_b64):
+            octets = base64.urlsafe_b64decode(charge_b64)
+            return base64.urlsafe_b64encode(hmac.new(self._secret, octets, hashlib.sha256).digest()).decode().rstrip("=")
+
+        def verifier(self, jeton, maintenant):
+            if not _re.fullmatch(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}", jeton):
+                raise ValueError("forme")
+            charge, signature = jeton.split(".")
+            if not hmac.compare_digest(signature.encode(), self._signature(charge.encode() + b"===").encode()):
+                raise ValueError("signature")
+            client_id, expiration = json.loads(base64.urlsafe_b64decode(charge + "==="))
+            if expiration <= maintenant:
+                raise ValueError("expiré")
+            return client_id
+
+    for nom, juste in [("masquer_secrets", masquer_par_copie_profonde), ("chemin_export", export_avec_os_path),
+                       ("neutraliser_formules", formules_avec_dataframe_map),
+                       ("charger_modele_verifie", modele_avec_file_digest),
+                       ("charger_modele_verifie", modele_avec_joblib), ("Signataire", SignataireJson)]:
+        resultat = _evaluer(nom, juste)
+        assert resultat.statut == REUSSI, (nom, juste.__name__, resultat.message)

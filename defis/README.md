@@ -38,9 +38,13 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > décorateurs, les notions de Python qu'on rencontre dès la première vraie tâche en équipe.
 > Et la **série 08** (défis 50 à 55) : construire la table du modèle à partir de sources réelles
 > (texte, plusieurs tables, JSON, mises à jour, journal d'événements) sans abîmer les données.
-> Pour finir, la **série 12** (défis 74 à 79) : écrire vous-même les routes d'une API web avec FastAPI
+> Puis la **série 12** (défis 74 à 79) : écrire vous-même les routes d'une API web avec FastAPI
 > (lire, chercher, créer, modifier, protéger par une clé, rejouer une requête sans envoyer deux SMS).
 > Elle ne demande que la série 00 et le défi 40, et prépare l'exercice 6.4 du parcours.
+> Pour finir, la **série 13** (défis 80 à 85) : écrire du code qu'on ne peut pas détourner. Injection SQL, secrets dans
+> les journaux, noms de fichiers qui remontent les dossiers, formules cachées dans un export CSV, modèle pickle
+> piégé, lien de désinscription falsifié : le correcteur joue l'attaquant contre votre code. Elle ne demande que la
+> série 00 et le défi 40.
 >
 > 🧠 **Vous préparez un entretien technique ?** La **série 09** (défis 56 à 61) reprend les classiques
 > de l'algorithmique sur des données de churn. Elle ne demande que les séries 00 et 07.
@@ -64,6 +68,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | **10 — SQL pour l'analyse** 🗄️ | `defis/serie_10.py` | l'ordre d'évaluation d'une requête et la logique à trois valeurs de **NULL** (`IS NULL`, `COUNT(col)`, `COALESCE`), **anti-jointure** (le piège de `NOT IN` face à un NULL), **`LEFT JOIN` : ON ou WHERE ?** et `COUNT(*)` qui compte 1 pour « aucun appel », une variable de « photo » à une date passée (paramètre nommé, priorité AND/OR), **explosion des jointures** (fan-out) et CTE, **fonctions de fenêtre** (`LAG`, cumul `SUM() OVER`, fenêtre nommée), **îlots et trous** (mois consécutifs avec `ROW_NUMBER()`, `HAVING`) | 6, n° 62 à 67 (🟢×2 🟡×3 🔴×1) |
 | **11 — Tester comme un·e pro** 🧪 | `defis/serie_11.py` | choisir ses exemples aux **frontières** (`pytest.mark.parametrize`, le piège de 0 dans un `if`), comparer des flottants avec **`pytest.approx`** (et pourquoi `1 - 2/3 != 1/3`), tester le chemin d'erreur avec **`pytest.raises`** (`match`, ni trop large ni fragile), remplacer un service d'e-mails par un **faux** (injection de dépendance, panne simulée, `unittest.mock`), tester un **fichier** dans un dossier temporaire (`tmp_path`, ne jamais écraser), **tests par propriétés** sur des centaines de cas tirés au hasard (graine fixe, Hypothesis) | 6, n° 68 à 73 (🟢×2 🟡×3 🔴×1) |
 | **12 — Construire une API web** 🌐 | `defis/serie_12.py` | une route `GET` et son paramètre de chemin, répondre **404** plutôt que planter (500) ou renvoyer `null`, **paramètres de requête** typés et bornés (`Query(ge=…, le=…)` → 422), corps JSON validé par un **modèle Pydantic** (`pattern` ancré, `gt`/`le`, `Literal`, `extra="forbid"`), **201** et en-tête `Location`, **409** pour un doublon, **PATCH** partiel (`exclude_unset`, refuser `null`, tout ou rien), clé d'API dans un en-tête avec **`Depends`** (**401 contre 403**, contrôler l'accès avant l'existence, révocation), **idempotence** d'un `POST` avec l'en-tête `Idempotency-Key` (rejeu, panne → **503**, ne mémoriser qu'après succès) | 6, n° 74 à 79 (🟢×2 🟡×3 🔴×1) |
+| **13 — Écrire du code sûr** 🔐 | `defis/serie_13.py` | **injection SQL** : requête paramétrée (`?`, `(nom,)` avec la virgule, filtre facultatif sans `= NULL`), **secrets** masqués dans les journaux (noms normalisés, récursion dans les dictionnaires et les listes, copie sans toucher l'original), **traversée de répertoire** (`resolve()`, `is_relative_to` plutôt que `startswith`, chemin absolu, lien symbolique), **injection de formules** dans un export CSV pour Excel (texte seulement, nombres et valeurs manquantes intacts), **désérialisation** : empreinte SHA-256 vérifiée AVANT `pickle.loads`, une seule lecture (TOCTOU), **lien signé** avec HMAC (expiration signée, séparateur, `compare_digest`, toute entrée mal formée → ValueError) | 6, n° 80 à 85 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -107,6 +112,13 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > opérateur SMS en panne. Il vérifie le code HTTP ET l'état de la base après coup : une requête refusée
 > ne doit rien changer. Pour essayer vos routes en les écrivant : `essayer(routes_lecture(exemple_clients()))`
 > (voir le haut de `defis/serie_12.py`).
+
+> 🔐 Dans la série 13, le correcteur joue l'attaquant : il envoie « ' OR '1'='1 » à votre requête, « ../ » et un
+> lien symbolique à votre chemin d'export, un fichier pickle piégé à votre chargeur de modèle (son seul effet : noter
+> qu'il a été exécuté), et il modifie votre jeton signé caractère par caractère. Il vérifie aussi que les cas honnêtes
+> mais inhabituels passent (« D'Almeida », « rapport..v2.csv », une facture négative) : une protection qui bloque les
+> vrais utilisateurs n'est pas une bonne protection. Tout reste sur votre ordinateur : n'essayez jamais ces entrées sur
+> un service qui ne vous appartient pas.
 
 > 💡 Les défis 🔴 réutilisent le code du projet (`churn.model.build_pipeline`) : vous
 > apprenez aussi à lire et réutiliser un code existant, compétence clé en entreprise.
