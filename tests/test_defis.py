@@ -7431,3 +7431,530 @@ def test_serie_19_autres_ecritures_justes_acceptees():
         return {"version": 2, "canaux": sorted(set(canaux)), "heure": heure, "langue": donnees.get("langue", "fr")}
 
     assert _evaluer("lire_preferences", lire_preferences).statut == REUSSI
+
+
+# --------------------------------------------------------------------------- Série 20 : le texte sans surprises
+
+import codecs  # noqa: E402
+import re as re20  # noqa: E402
+import unicodedata as ud20  # noqa: E402
+
+from defis.textes import APOSTROPHES as APOSTROPHES_20  # noqa: E402
+from defis.textes import EXPORT_ABIME as EXPORT_20  # noqa: E402
+from defis.textes import GSM_BASE as GSM_BASE_20  # noqa: E402
+from defis.textes import GSM_EXTENSION as GSM_EXT_20  # noqa: E402
+from defis.textes import LETTRES_LIEES as LETTRES_20  # noqa: E402
+from defis.textes import MESSAGES_EXEMPLE as MESSAGES_20  # noqa: E402
+from defis.textes import NOMS_EXEMPLE as NOMS_20  # noqa: E402
+from defis.textes import NUMEROS_EXEMPLE as NUMEROS_20  # noqa: E402
+from defis.textes import TIRETS as TIRETS_20  # noqa: E402
+from defis.textes import ZWJ as ZWJ_20  # noqa: E402
+
+
+def _echec_20(nom, objet, *mots):
+    resultat = _evaluer(nom, objet)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+def test_serie_20_les_tables_gsm_sont_celles_de_la_norme():
+    assert len(GSM_BASE_20) == len(set(GSM_BASE_20)) == 127        # 128 positions, moins le caractère d'échappement
+    assert len(GSM_EXT_20) == len(set(GSM_EXT_20)) == 10
+    assert not set(GSM_BASE_20) & set(GSM_EXT_20)
+    assert all(c in GSM_BASE_20 for c in "@£$¥èéùìòÇØøÅåΔ_ÆæßÉ¤¡ÄÖÑÜ§¿äöñüà\n\r")
+    assert not any(c in GSM_BASE_20 + GSM_EXT_20 for c in "êâîôûëïç’«»…`\t")
+
+
+# Défi 122 : cle_comparaison
+
+
+def _cle_comparaison_20(defaut=None):
+    def cle_comparaison(texte):
+        forme = {"nfc": "NFC", "decompose": "NFKD", "sans_normaliser": None}.get(defaut, "NFKC")
+        if forme:
+            texte = ud20.normalize(forme, texte)
+        texte = texte.lower() if defaut == "lower" else texte.casefold()
+        if defaut != "garde_invisibles":
+            texte = "".join(c for c in texte if ud20.category(c) != "Cf")
+        if forme:
+            texte = ud20.normalize(forme, texte)
+        if defaut == "sans_accents":
+            texte = ud20.normalize("NFC", "".join(c for c in ud20.normalize("NFD", texte) if not ud20.combining(c)))
+        if defaut == "oublie_return":
+            return None
+        if defaut == "strip_seulement":
+            return texte.strip()
+        if defaut == "split_espace":
+            return " ".join(mot for mot in texte.split(" ") if mot)
+        return " ".join(texte.split())
+
+    return cle_comparaison
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_cle_comparaison_20("sans_normaliser"), ("Mac", 'normalize("NFKC"')),
+    (_cle_comparaison_20("nfc"), ("pleine chasse", "NFKC")),
+    (_cle_comparaison_20("decompose"), ("DÉCOMPOSÉE",)),
+    (_cle_comparaison_20("lower"), ("ß", "casefold")),
+    (_cle_comparaison_20("garde_invisibles"), ("LARGEUR NULLE", "« Cf »")),
+    (_cle_comparaison_20("strip_seulement"), ("UNE espace",)),
+    (_cle_comparaison_20("split_espace"), ("SANS argument",)),
+    (_cle_comparaison_20("sans_accents"), ("Gardez les accents",)),
+    (_cle_comparaison_20("oublie_return"), ("return",)),
+])
+def test_serie_20_cle_comparaison_erreurs_classiques(mutant, mots):
+    _echec_20("cle_comparaison", mutant, *mots)
+
+
+# Défi 123 : cle_recherche
+
+
+def _cle_recherche_20(defaut=None):
+    from defis.corrige_serie_20 import cle_comparaison
+
+    def cle_recherche(texte):
+        if defaut == "ascii_ignore":
+            return cle_comparaison(texte).encode("ascii", "ignore").decode()
+        base = ud20.normalize("NFC", texte).lower() if defaut == "sans_cle_comparaison" else cle_comparaison(texte)
+        forme = "NFC" if defaut == "nfc_au_lieu_de_nfd" else "NFD"
+        texte = "".join(c for c in ud20.normalize(forme, base) if not ud20.combining(c))
+        table = {}
+        if defaut != "sans_lettres_liees":
+            table.update(LETTRES_20)
+        if defaut != "sans_apostrophes":
+            table.update({a: "'" for a in APOSTROPHES_20})
+        if defaut != "sans_tirets":
+            table.update({t: "-" for t in TIRETS_20})
+        return ud20.normalize("NFC", texte.translate(str.maketrans(table)))
+
+    return cle_recherche
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_cle_recherche_20("ascii_ignore"), ('encode("ascii", "ignore")',)),
+    (_cle_recherche_20("sans_cle_comparaison"), ("cle_comparaison",)),
+    (_cle_recherche_20("nfc_au_lieu_de_nfd"), ("NFD", "combining")),
+    (_cle_recherche_20("sans_lettres_liees"), ("LETTRES_LIEES",)),
+    (_cle_recherche_20("sans_apostrophes"), ("APOSTROPHES",)),
+    (_cle_recherche_20("sans_tirets"), ("TIRETS",)),
+])
+def test_serie_20_cle_recherche_erreurs_classiques(mutant, mots):
+    _echec_20("cle_recherche", mutant, *mots)
+
+
+# Défi 124 : numero_e164
+
+
+def _numero_20(defaut=None):
+    def refuser(texte):
+        if defaut == "renvoie_none":
+            return None
+        raise ValueError(f"numéro illisible : {texte!r}")
+
+    def numero_e164(texte):
+        if defaut == "espace_seulement":
+            brut = texte.replace(" ", "").replace(".", "").replace("-", "").replace("/", "")
+        else:
+            brut = "".join(c for c in texte if not c.isspace() and c not in ".-/")
+        if defaut == "indexe" and brut[0] == "?":
+            return None
+        if defaut != "sans_zero_entre_parentheses":
+            for prefixe in ("+33(0)", "0033(0)"):
+                if brut.startswith(prefixe):
+                    brut = prefixe[:-3] + brut[len(prefixe):]
+        chiffre = str.isdigit if defaut == "isdigit" else (lambda c: c in "0123456789")
+        if brut.count("+") > (1 if brut.startswith("+") else 0) or any(c != "+" and not chiffre(c) for c in brut):
+            return refuser(texte)
+        if brut.startswith("+"):
+            if not brut.startswith("+33") and defaut != "tout_indicatif":
+                return refuser(texte)
+            national = brut[3:]
+        elif brut.startswith("0033") and defaut != "sans_0033":
+            national = brut[4:]
+        elif len(brut) == 10 and brut.startswith("0"):
+            national = brut[1:]
+        elif len(brut) == 9 and defaut != "sans_excel":
+            national = brut
+        else:
+            return refuser(texte)
+        if defaut == "accepte_zero_apres_33" and len(national) == 10 and national[0] == "0":
+            national = national[1:]
+        if len(national) != 9 or national[0] == "0":
+            return refuser(texte)
+        return ("+330" if defaut == "garde_le_zero" else "+33") + national
+
+    return numero_e164
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_numero_20("garde_le_zero"), ("E.164", "SANS son 0")),
+    (_numero_20("espace_seulement"), ("INSÉCABLES", "isspace")),
+    (_numero_20("sans_zero_entre_parentheses"), ("lève ValueError", "(0)")),
+    (_numero_20("sans_0033"), ("0033",)),
+    (_numero_20("sans_excel"), ("Excel",)),
+    (_numero_20("renvoie_none"), ("devrait lever ValueError", "None")),
+    (_numero_20("indexe"), ("IndexError", "au lieu de ValueError")),
+    (_numero_20("accepte_zero_apres_33"), ("+33 06",)),
+    (_numero_20("tout_indicatif"), ("Belgique",)),
+    (_numero_20("isdigit"), ("isdigit", "0123456789")),
+])
+def test_serie_20_numero_erreurs_classiques(mutant, mots):
+    _echec_20("numero_e164", mutant, *mots)
+
+
+# Défi 125 : cout_sms
+
+
+def _cout_20(defaut=None):
+    gsm, extension = set(GSM_BASE_20), set(GSM_EXT_20)
+
+    def segments(tailles, seul, par_segment):
+        if sum(tailles) <= seul:
+            return 1
+        if defaut == "division":
+            return -(-sum(tailles) // par_segment)
+        nombre, place = 1, par_segment
+        for taille in tailles:
+            if taille > place:
+                nombre, place = nombre + 1, par_segment
+            place -= taille
+        return nombre
+
+    def cout_sms(message):
+        if defaut == "normalise":
+            message = ud20.normalize("NFC", message)
+        if message == "" and defaut != "vide_accepte":
+            raise ValueError("message vide")
+        if all(c in gsm or c in extension for c in message):
+            tailles = [1 if defaut == "euro_1" or c in gsm else 2 for c in message]
+            return ("GSM7" if defaut == "nom" else "GSM-7"), segments(tailles, 160, 160 if defaut == "par_160" else 153)
+        tailles = [1 if defaut == "len_utf16" or ord(c) <= 0xFFFF else 2 for c in message]
+        seul, par_segment = (160, 153) if defaut == "ucs2_comme_gsm" else (70, 67)
+        return "UCS-2", segments(tailles, seul, par_segment)
+
+    return cout_sms
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_cout_20("nom"), ("exactement « GSM-7 »",)),
+    (_cout_20("par_160"), ("153",)),
+    (_cout_20("euro_1"), ("2 unités", "`len()`")),
+    (_cout_20("division"), ("JAMAIS", "place restante")),
+    (_cout_20("ucs2_comme_gsm"), ("70", "pas 160")),
+    (_cout_20("len_utf16"), ("UTF-16", "0xFFFF")),
+    (_cout_20("normalise"), ("tel qu'il partira",)),
+    (_cout_20("vide_accepte"), ("ValueError", "message vide")),
+])
+def test_serie_20_cout_sms_erreurs_classiques(mutant, mots):
+    _echec_20("cout_sms", mutant, *mots)
+
+
+# Défi 126 : reparer_mojibake
+
+
+def _reparer_20(defaut=None):
+    def octets(texte):
+        if defaut == "latin1":
+            return texte.encode("latin-1")
+        if defaut == "cp1252_strict":
+            return texte.encode("cp1252")
+        resultat = bytearray()
+        for c in texte:
+            try:
+                resultat += c.encode("cp1252")
+            except UnicodeEncodeError:
+                if ord(c) > 0xFF or (defaut == "trous_seulement" and ord(c) not in (0x81, 0x8D, 0x8F, 0x90, 0x9D)):
+                    raise
+                resultat.append(ord(c))
+        return bytes(resultat)
+
+    def reparer_un(texte):
+        while True:
+            try:
+                repare = octets(texte).decode("utf-8")
+            except (UnicodeDecodeError if defaut == "decode_seulement" else UnicodeError):
+                return texte
+            if repare == texte and defaut != "sans_arret":
+                return texte
+            texte = repare
+            if defaut == "un_seul_tour":
+                return texte
+
+    def reparer_mojibake(texte):
+        if defaut == "ignore":
+            return texte.encode("cp1252", errors="ignore").decode("utf-8", errors="ignore")
+        if defaut == "mot_a_mot":
+            return " ".join(reparer_un(mot) for mot in texte.split(" "))
+        return reparer_un(texte)
+
+    return reparer_mojibake
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_reparer_20("ignore"), ('errors="ignore"', "SAIN")),
+    (_reparer_20("decode_seulement"), ("UnicodeEncodeError", "`UnicodeError`")),
+    (_reparer_20("sans_arret"), ("ne s'arrête jamais", "CHANGE")),
+    (_reparer_20("latin1"), ("pas latin-1",)),
+    (_reparer_20("cp1252_strict"), ("TROUS",)),
+    (_reparer_20("un_seul_tour"), ("DEUX fois",)),
+    (_reparer_20("trous_seulement"), ("latin-1", "pas seulement les 5 trous")),
+    (_reparer_20("mot_a_mot"), ("EN ENTIER",)),
+])
+def test_serie_20_reparer_erreurs_classiques(mutant, mots):
+    _echec_20("reparer_mojibake", mutant, *mots)
+
+
+def test_serie_20_la_garde_anti_boucle_rend_le_traceur_precedent():
+    """Arrêter une boucle sans fin ne doit pas désactiver un débogueur ou un outil de couverture."""
+    def traceur(frame, evenement, arg):
+        return None
+
+    precedent = sys.gettrace()
+    sys.settrace(traceur)
+    try:
+        resultat = _evaluer("reparer_mojibake", _reparer_20("sans_arret"))
+        assert sys.gettrace() is traceur
+    finally:
+        sys.settrace(precedent)
+    assert resultat.statut == ECHEC and "ne s'arrête jamais" in resultat.message
+
+
+# Défi 127 : tronquer
+
+
+def _tronquer_20(defaut=None):
+    def est_drapeau(c):
+        return 0x1F1E6 <= ord(c) <= 0x1F1FF
+
+    def graphemes(texte):
+        if defaut == "points_de_code":
+            return list(texte)
+        groupes, colle = [], False
+        for c in texte:
+            if defaut == "drapeaux_en_chaine":
+                drapeau = est_drapeau(c) and bool(groupes) and est_drapeau(groupes[-1][-1])
+            elif defaut == "sans_drapeaux":
+                drapeau = False
+            else:
+                drapeau = est_drapeau(c) and bool(groupes) and len(groupes[-1]) == 1 and est_drapeau(groupes[-1])
+            marque = ud20.combining(c) != 0 if defaut == "combining" else ud20.category(c).startswith("M")
+            attache = (colle and defaut != "sans_zwj") or marque or drapeau \
+                or (0x1F3FB <= ord(c) <= 0x1F3FF and defaut != "sans_teinte") or (c == ZWJ_20 and defaut != "sans_zwj")
+            if attache and (groupes or defaut == "debut"):
+                groupes[-1] += c
+            else:
+                groupes.append(c)
+            colle = c == ZWJ_20
+        return groupes
+
+    def tronquer(texte, limite):
+        if limite < 1 and defaut != "sans_valueerror":
+            raise ValueError("limite")
+        morceaux = graphemes(texte)
+        taille = len(texte) if defaut == "len" else len(morceaux)
+        if taille <= limite and defaut != "toujours":
+            return texte.rstrip() if defaut == "rstrip_toujours" else texte
+        garde = "".join(morceaux[: limite if defaut == "points_en_plus" else limite - 1])
+        if defaut != "sans_rstrip":
+            garde = garde.rstrip()
+        return garde + ("..." if defaut == "trois_points" else "…")
+
+    return tronquer
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_tronquer_20("trois_points"), ("trois points",)),
+    (_tronquer_20("points_en_plus"), ("compte dans la limite",)),
+    (_tronquer_20("sans_rstrip"), ("rstrip",)),
+    (_tronquer_20("toujours"), ("TEL QUEL",)),
+    (_tronquer_20("rstrip_toujours"), ("espaces finales",)),
+    (_tronquer_20("points_de_code"), ("15 points de code",)),
+    (_tronquer_20("len"), ("15 points de code",)),
+    (_tronquer_20("combining"), ("U+FE0F",)),
+    (_tronquer_20("sans_teinte"), ("teinte",)),
+    (_tronquer_20("sans_zwj"), ("ZWJ",)),
+    (_tronquer_20("sans_drapeaux"), ("drapeau",)),
+    (_tronquer_20("drapeaux_en_chaine"), ("3 caractères visibles",)),
+    (_tronquer_20("debut"), ("IndexError", "pas vide")),
+    (_tronquer_20("sans_valueerror"), ("ValueError",)),
+])
+def test_serie_20_tronquer_erreurs_classiques(mutant, mots):
+    _echec_20("tronquer", mutant, *mots)
+
+
+@pytest.mark.parametrize("nom,fabrique", [("cle_comparaison", _cle_comparaison_20), ("cle_recherche", _cle_recherche_20),
+                                          ("numero_e164", _numero_20), ("cout_sms", _cout_20),
+                                          ("reparer_mojibake", _reparer_20), ("tronquer", _tronquer_20)])
+def test_serie_20_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_20_les_tests_du_corrige_passent():
+    import defis.corrige_serie_20 as corrige
+
+    tests = [f for nom, f in list(vars(corrige).items()) if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_20_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.serie_20 as eleve
+    import defis.textes as textes
+
+    for nom in ("APOSTROPHES", "EXPORT_ABIME", "GSM_BASE", "GSM_EXTENSION", "LETTRES_LIEES", "MESSAGES_EXEMPLE",
+                "NOMS_EXEMPLE", "NUMEROS_EXEMPLE", "TIRETS", "ZWJ", "montrer"):
+        assert getattr(eleve, nom) is getattr(textes, nom), nom
+
+
+def test_serie_20_le_fichier_eleve_s_importe_et_tout_est_a_faire():
+    from defis.checks_serie_20 import SERIE
+
+    assert [r.statut for r in evaluer(SERIE)] == [A_FAIRE] * 6
+
+
+def test_serie_20_le_correcteur_ne_touche_pas_aux_donnees_d_exemple():
+    from defis.checks_serie_20 import SERIE
+
+    copies = [list(NOMS_20), list(NUMEROS_20), list(MESSAGES_20), list(EXPORT_20), dict(LETTRES_20)]
+    import defis.corrige_serie_20 as corrige
+
+    for defi in SERIE.defis:
+        assert evaluer_defi(corrige, defi).statut == REUSSI
+    assert copies == [NOMS_20, NUMEROS_20, MESSAGES_20, EXPORT_20, LETTRES_20]
+
+
+def test_serie_20_les_exemples_des_docstrings_sont_justes():
+    """Les exemples de defis/serie_20.py et defis/textes.py, rejoués avec le corrigé."""
+    from defis.corrige_serie_20 import (cle_comparaison, cle_recherche, cout_sms, montrer, numero_e164,
+                                        reparer_mojibake, tronquer)
+
+    assert (NOMS_20[0] == NOMS_20[1], len(NOMS_20[0]), len(NOMS_20[1])) == (False, 12, 15)
+    assert ("€" in GSM_BASE_20, "€" in GSM_EXT_20) == (False, True)
+    assert montrer(NOMS_20[1])[:3] == ["U+0048 LATIN CAPITAL LETTER H", "U+0065 LATIN SMALL LETTER E",
+                                       "U+0301 COMBINING ACUTE ACCENT"]
+    assert montrer("é") == ["U+0065 LATIN SMALL LETTER E", "U+0301 COMBINING ACUTE ACCENT"]
+
+    assert {cle_comparaison(nom) for nom in NOMS_20[:5]} == {"hélène dupré"}
+    assert cle_comparaison("JÜRGEN STRASSE") == cle_comparaison("Jürgen Straße")
+    assert cle_comparaison("Hélène Dupre") != cle_comparaison("Hélène Dupré")
+
+    assert cle_recherche("Hélène Dupré") == "helene dupre"
+    assert cle_recherche("Cœur d’Alène – Ørsted") == "coeur d'alene - orsted"
+    assert [n for n in ["Hélène Dupré", "Anne Martin"] if cle_recherche("DUPRE") in cle_recherche(n)] == ["Hélène Dupré"]
+    assert cle_recherche("Анна Ёлкина") == "анна елкина"
+
+    assert [numero_e164(n) for n in NUMEROS_20] == ["+33612345678"] * 7
+    with pytest.raises(ValueError) as erreur:
+        numero_e164("06 12 34 56 7O")
+    assert str(erreur.value) == "numéro illisible : '06 12 34 56 7O'"
+    assert "٠٦١٢٣٤٥٦٧٨".isdigit() and "²".isdigit() and int("٣") == 3          # ce que dit la docstring
+
+    assert [cout_sms(m) for m in MESSAGES_20] == [("GSM-7", 1), ("UCS-2", 2), ("GSM-7", 1)]
+    assert MESSAGES_20[0].replace("dimanche", "l’été") == MESSAGES_20[1]
+
+    assert [reparer_mojibake(ligne) for ligne in EXPORT_20] == [
+        "Hélène Dupré", "Prix : 20 € par mois", "ÁLVAREZ Ángel", "François", "Hélène Dupré"]
+    assert "é".encode("utf-8") == b"\xc3\xa9" and "é".encode("utf-8").decode("cp1252") == "Ã©"
+    assert reparer_mojibake("Łódź") == "Łódź"
+
+    famille = "👨" + ZWJ_20 + "👩" + ZWJ_20 + "👧"
+    assert (len(famille), len("🇫🇷"), len(NOMS_20[1])) == (5, 2, 15)
+    assert tronquer("Votre offre expire bientôt", 10) == "Votre off…"
+    assert tronquer("Votre offre expire bientôt", 7) == "Votre…"
+    assert repr(tronquer(f"Bravo {famille} !", 8)) == "'Bravo 👨\\u200d👩\\u200d👧…'"
+    assert tronquer(NOMS_20[1], 12) == NOMS_20[1]
+
+
+def test_serie_20_autres_ecritures_justes_acceptees():
+    """Des solutions justes qui ne ressemblent pas au corrigé : le correcteur ne doit pas les refuser."""
+
+    def cle_comparaison(texte):                  # casefold d'abord, invisibles d'abord, regex pour les blancs
+        visibles = "".join(c for c in texte if ud20.category(c) != "Cf")
+        return re20.sub(r"\s+", " ", ud20.normalize("NFKC", visibles.casefold())).strip()
+
+    assert _evaluer("cle_comparaison", cle_comparaison).statut == REUSSI
+
+    def cle_recherche(texte):                    # replace() en boucle, NFKD, catégorie « Mn »
+        texte = cle_comparaison(texte)
+        for lettre, remplacement in LETTRES_20.items():
+            texte = texte.replace(lettre, remplacement)
+        for apostrophe in APOSTROPHES_20:
+            texte = texte.replace(apostrophe, "'")
+        for tiret in TIRETS_20:
+            texte = texte.replace(tiret, "-")
+        return "".join(c for c in ud20.normalize("NFKD", texte) if ud20.category(c) != "Mn")
+
+    assert _evaluer("cle_recherche", cle_recherche).statut == REUSSI
+
+    def numero_e164(texte):                      # une seule expression régulière, chiffres ASCII
+        brut = re20.sub(r"[\s./-]", "", texte)
+        trouve = re20.fullmatch(r"(?:(?:\+33|0033)(?:\(0\))?|0)?([1-9][0-9]{8})", brut)
+        if trouve is None:
+            raise ValueError(f"numéro invalide : {texte!r}")
+        return "+33" + trouve.group(1)
+
+    assert _evaluer("numero_e164", numero_e164).statut == REUSSI
+
+    def cout_sms(message):                       # UTF-16 pour compter, segments remplis avec une liste
+        if not message:
+            raise ValueError("vide")
+        gsm = all(c in GSM_BASE_20 + GSM_EXT_20 for c in message)
+        tailles = [(2 if c in GSM_EXT_20 else 1) if gsm else len(c.encode("utf-16-le")) // 2 for c in message]
+        seul, par_segment = (160, 153) if gsm else (70, 67)
+        if sum(tailles) <= seul:
+            return ("GSM-7" if gsm else "UCS-2"), 1
+        remplis = [0]
+        for taille in tailles:
+            if remplis[-1] + taille > par_segment:
+                remplis.append(0)
+            remplis[-1] += taille
+        return ("GSM-7" if gsm else "UCS-2"), len(remplis)
+
+    assert _evaluer("cout_sms", cout_sms).statut == REUSSI
+
+    def _trous(erreur):                          # un gestionnaire d'erreurs d'encodage (codecs.register_error)
+        caractere = erreur.object[erreur.start]
+        if ord(caractere) > 0xFF:
+            raise erreur
+        return bytes([ord(caractere)]), erreur.start + 1
+
+    codecs.register_error("test_serie_20_trous", _trous)
+
+    def reparer_mojibake(texte):                 # récursif
+        try:
+            repare = texte.encode("cp1252", errors="test_serie_20_trous").decode("utf-8")
+        except UnicodeError:
+            return texte
+        return texte if repare == texte else reparer_mojibake(repare)
+
+    assert _evaluer("reparer_mojibake", reparer_mojibake).statut == REUSSI
+
+    def tronquer(texte, limite):                 # parcours par indices, sans construire toute la liste
+        if limite < 1:
+            raise ValueError("limite >= 1")
+
+        def fin_du_grapheme(i):
+            debut, i = i, i + 1
+            while i < len(texte):
+                c, precedent = texte[i], texte[i - 1]
+                drapeau = 0x1F1E6 <= ord(c) <= 0x1F1FF and i - debut == 1 and 0x1F1E6 <= ord(texte[debut]) <= 0x1F1FF
+                if precedent == ZWJ_20 or c == ZWJ_20 or ud20.category(c)[0] == "M" \
+                        or 0x1F3FB <= ord(c) <= 0x1F3FF or drapeau:
+                    i += 1
+                else:
+                    break
+            return i
+
+        coupures, i = [], 0
+        while i < len(texte):
+            i = fin_du_grapheme(i)
+            coupures.append(i)
+        if len(coupures) <= limite:
+            return texte
+        return texte[: coupures[limite - 2] if limite > 1 else 0].rstrip() + "…"
+
+    assert _evaluer("tronquer", tronquer).statut == REUSSI

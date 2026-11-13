@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 121 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_19.py`, corrigés par
+> [défis](defis/README.md) : 127 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_20.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -85,13 +85,19 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > parcourir, un cache borné qui périme ses résultats, lire un export de 10 Go avec 1 Mo de mémoire, et accélérer une
 > fonction de 40 minutes en gardant EXACTEMENT son résultat. Faites-la quand le tableau de bord ou l'entraînement
 > (`python scripts/train.py`) vous semble lent : mesurez avant de toucher à quoi que ce soit (exercices 3.4 et 6.4).
-> Enfin, la série 19 (`defis/serie_19.py`, défis 116 à 121) vous apprend à faire évoluer un code qui tourne déjà, sans
+> Puis la série 19 (`defis/serie_19.py`, défis 116 à 121) vous apprend à faire évoluer un code qui tourne déjà, sans
 > rien casser : photographier le comportement d'une vieille fonction avant d'y toucher, renommer un paramètre utilisé
 > partout (`DeprecationWarning`), extraire la décision d'un script de nuit pour la rendre testable, lire l'ancien et le
 > nouveau format d'un fichier, brancher un nouvel opérateur SMS derrière l'ancienne interface, et faire tourner une
 > réécriture dans l'ombre de l'ancienne version. C'est le quotidien d'un premier poste. Le défi 116 prépare l'exercice
 > 6.2 (le modèle rechargé doit prédire exactement comme avant), et le défi 121 est la façon prudente de remplacer le
 > modèle servi par l'API de l'exercice 6.4 : le nouveau tourne dans l'ombre de l'ancien avant de prendre sa place.
+> Enfin, la série 20 (`defis/serie_20.py`, défis 122 à 127) vous apprend à manipuler du texte sans surprises : deux
+> « Hélène Dupré » identiques à l'écran mais différents pour `==` (normalisation Unicode, `casefold`, caractères
+> invisibles), une recherche qui ignore les accents, sept formats de numéro ramenés à un seul (ou refusés), le prix
+> d'un SMS qui double à cause d'une apostrophe, un export « HÃ©lÃ¨ne » réparé sans abîmer le reste, et un aperçu qui
+> ne coupe jamais un emoji. Faites-la avant l'exercice 1.5 : le vrai jeu de données Kaggle arrive par un fichier, et
+> les noms de colonnes, de contrats ou de villes s'y écrivent rarement d'une seule façon.
 
 ---
 
