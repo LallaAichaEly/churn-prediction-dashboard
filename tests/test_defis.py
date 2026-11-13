@@ -9428,6 +9428,35 @@ def test_serie_23_gradient_erreurs_classiques(mutant, mots):
     _echec_23("gradient_logistique", mutant, *mots)
 
 
+@pytest.mark.parametrize("nom,mutant,mots", [
+    ("sigmoide", _sigmoide_23("lent"), ("boucle Python", "2 millions")),
+    ("perte_logistique", _perte_23("lent"), ("boucle Python", "2 millions")),
+    ("gradient_logistique", _gradient_23("lent"), ("boucle Python", "300 000")),
+])
+def test_serie_23_boucle_detectee_meme_sur_une_machine_tres_rapide(monkeypatch, nom, mutant, mots):
+    """Une boucle Python ne doit pas passer parce que la machine de CI est rapide (chronomètre neutralisé)."""
+    import defis.checks_serie_23 as checks23
+
+    monkeypatch.setattr(checks23, "_chronometrer", lambda appel, seuil: (appel(), 0.0))
+    _echec_23(nom, mutant, *mots)
+
+
+def test_serie_23_compteur_de_lignes_rend_le_traceur_precedent():
+    """Le compteur de boucles remet en place le traceur d'avant (débogueur, couverture de code)."""
+    import defis.checks_serie_23 as checks23
+
+    def traceur(frame, evenement, arg):
+        return None
+
+    precedent = sys.gettrace()
+    sys.settrace(traceur)
+    try:
+        assert checks23._lignes_executees(_sigmoide_23("lent"), lambda: _sigmoide_23("lent")(np23.zeros(50))) >= 50
+        assert sys.gettrace() is traceur
+    finally:
+        sys.settrace(precedent)
+
+
 # Défi 143 : RegressionLogistiqueGD
 
 

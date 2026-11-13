@@ -10,8 +10,10 @@ Ici, le correcteur traite vos fonctions comme un numéricien :
 - il compare vos coupures et vos arbres à ceux de scikit-learn (`DecisionTreeClassifier`), nœud par
   nœud : à chaque nœud, il recalcule toutes les coupures possibles et vérifie que la vôtre est la
   meilleure, ou à égalité avec elle ;
-- il chronomètre sur des centaines de milliers de lignes : une boucle Python par client, ou une boucle
-  dans une boucle, se voit tout de suite.
+- il compte les lignes de VOTRE fichier exécutées pour 1 000 puis 10 000 clients (`sys.settrace`) : si
+  ce nombre grandit avec les données, c'est une boucle Python par client, quelle que soit la vitesse de
+  la machine ; puis il chronomètre sur des centaines de milliers de lignes, où une boucle dans une
+  boucle se voit tout de suite.
 
 Quand un résultat est faux, il rejoue les versions boguées classiques (la somme au lieu de la moyenne,
 le signe du gradient, l'ordonnée à l'origine pénalisée, une coupure entre deux valeurs égales, des
@@ -23,6 +25,7 @@ from __future__ import annotations
 
 import math
 import numbers
+import sys
 import time
 import warnings
 
@@ -125,6 +128,44 @@ def _chronometrer(appel, seuil: float):
         if duree < seuil:
             break
     return resultat, duree
+
+
+def _lignes_executees(f, appel) -> int:
+    """Nombre de lignes exécutées dans le FICHIER de f pendant appel() (sys.settrace).
+
+    Une boucle Python par client exécute au moins une ligne par client ; numpy, lui, boucle en C et
+    n'en exécute aucune. Ce compte ne dépend pas de la vitesse de la machine, contrairement au
+    chronomètre : c'est lui qui décide s'il y a une boucle.
+    """
+    code = getattr(f, "__code__", None)
+    if code is None:
+        return 0
+    fichier, compte = code.co_filename, [0]
+
+    def local(frame, evenement, arg):
+        if evenement == "line":
+            compte[0] += 1
+        return local
+
+    def global_(frame, evenement, arg):
+        return local if frame.f_code.co_filename == fichier else None
+
+    precedent = sys.gettrace()
+    sys.settrace(global_)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            appel()
+    finally:
+        sys.settrace(precedent)
+    return compte[0]
+
+
+def _boucle_par_ligne(f, appel_de_taille, petit: int = 1_000, grand: int = 10_000) -> tuple[int, int] | None:
+    """(lignes pour `petit`, lignes pour `grand`) si le nombre de lignes exécutées grandit avec les données."""
+    a = _lignes_executees(f, lambda: appel_de_taille(petit))
+    b = _lignes_executees(f, lambda: appel_de_taille(grand))
+    return (a, b) if b - a > (grand - petit) // 10 else None
 
 
 def _proches(a, b, rtol: float = 1e-9, atol: float = 1e-12) -> bool:
@@ -314,7 +355,15 @@ def verifier_sigmoide(f) -> None:
     _appel(lambda: f(z3), "sigmoide(z)")
     _verifier_intact(z3, np.array([-3.0, 0.0, 2.5, 800.0]), "sigmoide(z)")
 
-    # 6. Vectorisée.
+    # 6. Vectorisée : d'abord compter les lignes exécutées (ne dépend pas de la machine), puis chronométrer.
+    scores = np.random.default_rng(1400).normal(0, 6, 10_000)
+    boucle = _boucle_par_ligne(f, lambda n: f(scores[:n].copy()))
+    if boucle:
+        raise AssertionError(f"Les valeurs sont justes, mais votre code fait une boucle Python sur les scores : 1 000 scores "
+                             f"exécutent {boucle[0]} lignes de votre fichier, 10 000 en exécutent {boucle[1]}. Sur 2 millions "
+                             f"de scores, c'est 2 millions d'appels de fonction (environ 10 fois plus lent que numpy). "
+                             f"`np.exp`, `np.abs` et `np.where` traitent tout le tableau d'un coup, en C : aucune ligne ne "
+                             f"se répète.")
     grand = np.random.default_rng(140).normal(0, 6, 2_000_000)
     obtenu, duree = _chronometrer(lambda: f(grand), seuil=0.25)
     if duree >= 0.25:
@@ -440,6 +489,14 @@ def verifier_perte_logistique(f) -> None:
     _appel(lambda: f(yy, zz), "perte_logistique(y, z)")
     _verifier_intact(yy, y.astype(float), "perte_logistique(y, z)")
     _verifier_intact(zz, z, "perte_logistique(y, z)")
+    rng = np.random.default_rng(1412)
+    petit_y, petit_z = rng.integers(0, 2, 10_000), rng.normal(0, 4, 10_000)
+    boucle = _boucle_par_ligne(f, lambda n: f(petit_y[:n].copy(), petit_z[:n].copy()))
+    if boucle:
+        raise AssertionError(f"Les valeurs sont justes, mais votre code fait une boucle Python sur les clients : 1 000 "
+                             f"clients exécutent {boucle[0]} lignes de votre fichier, 10 000 en exécutent {boucle[1]}. Sur "
+                             f"2 millions de clients, c'est 2 millions de tours. Pas de boucle : une seule expression sur "
+                             f"les tableaux entiers (`np.mean(np.logaddexp(0, z) - y * z)`).")
     grand_y = np.random.default_rng(1410).integers(0, 2, 2_000_000)
     grand_z = np.random.default_rng(1411).normal(0, 4, 2_000_000)
     obtenu, duree = _chronometrer(lambda: f(grand_y, grand_z), seuil=0.4)
@@ -583,7 +640,15 @@ def verifier_gradient_logistique(f) -> None:
     for apres, avant, nom in zip((X, y, w), copies, ("X", "y", "w")):
         _verifier_intact(apres, avant, f"gradient_logistique (sur {nom})")
 
-    # 6. Vectorisé.
+    # 6. Vectorisé : d'abord compter les lignes exécutées (ne dépend pas de la machine), puis chronométrer.
+    rng = np.random.default_rng(1421)
+    pX, py, pw = rng.normal(0, 1, (10_000, 10)), rng.integers(0, 2, 10_000), rng.normal(0, 0.3, 10)
+    boucle = _boucle_par_ligne(f, lambda n: f(pX[:n].copy(), py[:n].copy(), pw.copy(), 0.2, 0.01))
+    if boucle:
+        raise AssertionError(f"Les valeurs sont justes, mais votre code fait une boucle Python sur les clients : 1 000 "
+                             f"clients exécutent {boucle[0]} lignes de votre fichier, 10 000 en exécutent {boucle[1]}. Sur "
+                             f"300 000 clients et 10 colonnes, c'est 300 000 tours. Pas de boucle sur les clients : "
+                             f"`X.T @ erreur` fait toutes les sommes d'un coup.")
     rng = np.random.default_rng(1420)
     X, y, w = rng.normal(0, 1, (300_000, 10)), rng.integers(0, 2, 300_000), rng.normal(0, 0.3, 10)
     obtenu, duree = _chronometrer(lambda: f(X, y, w, 0.2, 0.01), seuil=0.15)
