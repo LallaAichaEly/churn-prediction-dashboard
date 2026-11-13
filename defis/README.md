@@ -60,11 +60,17 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > réponse plus d'une seconde, envoyer 500 SMS 10 par 10, un seul jeton d'accès pour 50 tâches pressées, garder la réponse
 > du serveur le plus rapide, et monter un lecteur de pages avec 4 travailleurs qui ne déborde jamais. Elle ne demande que
 > la série 00 et le défi 40 (et une classe, défi 48, pour le défi 101). C'est aussi la clé pour lire du code FastAPI.
-> Pour finir, la **série 17** (défis 104 à 109) : concevoir ses propres types, pour ne vérifier les données qu'une fois. Un
+> Puis la **série 17** (défis 104 à 109) : concevoir ses propres types, pour ne vérifier les données qu'une fois. Un
 > `Client` qui refuse d'exister s'il est invalide (`@dataclass(frozen=True)`), un `Contrat` qui ne peut valoir que trois
 > choses (`Enum`), un `Montant` en centimes qui ne perd jamais un centime et n'additionne pas des euros et des dollars, un
 > envoi de SMS qui ne part qu'en entier (`with`), un portefeuille qu'on parcourt avec `for`, et des règles de ciblage qu'on
 > combine avec `&`, `|` et `~` comme dans pandas. Elle ne demande que la série 00, le défi 40 et la classe du défi 48.
+> Pour finir, la **série 18** (défis 110 à 115) : rendre un code rapide, preuves à l'appui. Chronométrer sans se tromper
+> (`perf_counter`, répéter, garder le minimum), trouver la fonction lente avec `cProfile` (tottime, pas cumtime), le bon
+> tarif parmi 50 000 avec `bisect` au lieu de tout parcourir, un cache qui ne grossit pas à l'infini et ne sert pas de
+> vieilles réponses (LRU et durée de vie), un export de 10 Go lu avec 1 Mo de mémoire, et une fonction de 40 minutes
+> ramenée à une seconde sans changer son résultat d'un octet. Elle ne demande que la série 00, les `set` du défi 45 et le
+> décorateur du défi 49.
 >
 > 🧠 **Vous préparez un entretien technique ?** La **série 09** (défis 56 à 61) reprend les classiques
 > de l'algorithmique sur des données de churn. Elle ne demande que les séries 00 et 07.
@@ -93,6 +99,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | **15 — Enregistrer sans rien perdre** 💾 | `defis/serie_15.py` | **transaction** « tout ou rien » (deux écritures, `with conn:`, `rollback` après N'IMPORTE QUELLE erreur, jamais de transaction laissée ouverte), **pagination par curseur** (`WHERE id > ? ORDER BY id LIMIT taille + 1`, pourquoi pas `OFFSET`), le problème des **requêtes N+1** (`IN (?, ?, …)` fabriqué sans coller de valeur, générateur lu une fois), **migrations** versionnées (`PRAGMA user_version`, `BEGIN` explicite car sqlite3 n'en ouvre pas avant un `CREATE TABLE`, le piège d'`executescript`, version écrite dans la même transaction), **verrou optimiste** (`WHERE id = ? AND version = ?`, `rowcount`, conflit contre client inconnu), **file de tâches** à plusieurs travailleurs (réclamer une tâche sans course, bail expiré, `RETURNING`) | 6, n° 92 à 97 (🟢×2 🟡×3 🔴×1) |
 | **16 — Faire plusieurs choses à la fois** ⚡ | `defis/serie_16.py` | **`asyncio.gather`** (lancer d'abord, attendre ensuite ; l'ordre des résultats ; doublons), **délai maximal** avec `wait_for` ou `asyncio.timeout` (l'appel lent est ANNULÉ ; seule la lenteur donne la valeur par défaut, pas une erreur ; un score de 0.0), **`Semaphore`** pour 10 envois à la fois (pas de paquets qui attendent le plus lent, `return_exceptions=True`, garder l'exception elle-même), **`Lock`** et double vérification (50 tâches, une seule demande de jeton ; expiration avec marge ; verrou rendu après une panne), **le premier qui répond** (`create_task`, `as_completed`, une erreur n'est pas une réponse, annuler les perdants), **producteur / travailleurs** (`Queue(maxsize=…)` et contre-pression, signal de fin, `TaskGroup` qui arrête tout à la première erreur au lieu d'un `join()` bloqué pour toujours) | 6, n° 98 à 103 (🟢×2 🟡×3 🔴×1) |
 | **17 — Concevoir ses propres types** 🧩 | `defis/serie_17.py` | **`@dataclass(frozen=True)`** et `__post_init__` (TypeError ou ValueError, `True` est un entier, NaN qui passe `< 0`, options gardées en tuple, `object.__setattr__`), **`Enum`** (membres, `@classmethod depuis_texte`, `@property`, `__str__`, le dictionnaire qui devient un membre), **objet valeur** `Montant` (centimes entiers, `Decimal` et pas de float, `InvalidOperation` qui n'est pas une ValueError, `NotImplemented`, `__radd__` pour `sum`, `__rmul__`, `@total_ordering` et le piège d'`order=True`, `-5 // 100`), **gestionnaire de contexte** (`@contextmanager`, `try / except BaseException / else / finally`, ne rien avaler, Ctrl+C), **protocole des collections** (`__len__`, `__contains__`, `__getitem__` et KeyError, `__iter__` qui fabrique un NOUVEL itérateur, ajout pendant un parcours, O(1) sur 20 000 clients), **surcharge d'opérateurs** (`&` `|` `~` qui renvoient une NOUVELLE règle, court-circuit, `__call__`, `__bool__` qui interdit `and` / `or` / `not`) | 6, n° 104 à 109 (🟢×2 🟡×3 🔴×1) |
+| **18 — Rendre le code rapide** ⏱️ | `defis/serie_18.py` | **chronométrer** (`perf_counter` et pas `time.time`, répéter et garder le MINIMUM, horloge injectée, ne rien avaler), **profiler** avec `cProfile` et `pstats` (tottime contre cumtime et ncalls, profileur arrêté même si le programme plante : `runcall`), **recherche dichotomique** avec `bisect` (trier une fois, `bisect_right` le jour même d'un changement, l'indice -1 qui renvoie le DERNIER tarif, `sorted` et pas `.sort()`), **cache borné et périmé** (`OrderedDict`, `move_to_end`, `popitem(last=False)`, l'âge part du calcul, `>=` à la seconde près, un cache par fonction, décorateur à paramètres), **lire en flux** un gros CSV (`csv.DictReader`, colonnes par leur nom, virgule entre guillemets, montants vides, `with`, `chunksize` ; pic de mémoire mesuré avec `tracemalloc`), **optimiser sans rien changer** (`Counter`, `set`, calcul sorti de la boucle mais pas quand elle ne tourne pas, tri stable, `sum / len` contre `statistics.mean`, comparaison à l'ancienne version sur 300 cas tirés au hasard) | 6, n° 110 à 115 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -171,6 +178,15 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > fois de suite, les combine avec `&`… et vérifie que chaque mauvaise utilisation est refusée avec la BONNE erreur (TypeError
 > pour un mauvais type, ValueError pour une mauvaise valeur, et un message qui nomme le champ fautif). Au défi 107, il lève
 > lui-même des erreurs dans votre bloc `with`, y compris un Ctrl+C simulé, et lit le journal de la fausse passerelle SMS.
+
+> ⏱️ Dans la série 18, le correcteur ne chronomètre presque jamais : un temps dépend de la machine. Il COMPTE. Au défi 110, il
+> vous passe une fausse horloge qu'il avance lui-même pendant chaque appel. Aux défis 112 et 115, il vous passe des dates, des
+> clients et des listes « espions » qui comptent chaque comparaison et chaque lecture, et il arrête votre fonction dès
+> qu'elle dépasse le budget d'une solution efficace : une boucle dans une boucle est arrêtée au bout de quelques clients, et
+> le message dit quelle liste vous relisez. Au défi 114, il mesure le pic de mémoire (`tracemalloc`) sur un export, puis sur
+> un export deux fois plus long : si la mémoire double, vous chargez tout le fichier. Au défi 115, il compare votre version
+> à l'ancienne sur 300 cas tirés au hasard et sur les cas limites qu'elle gérait sans le dire (aucun client, client pile à
+> la moyenne, égalités, doublons) : c'est ce qu'on fait avant de remplacer une fonction en production.
 
 > 💡 Les défis 🔴 réutilisent le code du projet (`churn.model.build_pipeline`) : vous
 > apprenez aussi à lire et réutiliser un code existant, compétence clé en entreprise.

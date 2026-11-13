@@ -6156,3 +6156,594 @@ def test_un_fichier_qui_ne_se_charge_pas_n_empeche_pas_les_autres_series(tmp_pat
         for mot in (f"{module}.py ne se charge pas", *mots):
             assert mot in resultats[0].message, resultats[0].message
     assert all(r.statut == A_FAIRE for r in evaluer(SERIE))  # le vrai fichier élève, lui, se charge toujours
+
+
+# --------------------------------------------------------------------------- Série 18 : rendre le code rapide
+
+import bisect  # noqa: E402
+import cProfile  # noqa: E402
+import csv  # noqa: E402
+import functools  # noqa: E402
+import pstats  # noqa: E402
+import statistics  # noqa: E402
+from collections import Counter, OrderedDict  # noqa: E402
+from datetime import date as d18  # noqa: E402
+
+from defis.performance import HorlogeFactice as Horloge18  # noqa: E402
+from defis.performance import TARIFS_EXEMPLE as TARIFS_18  # noqa: E402
+from defis.performance import clients_a_rappeler_lent, ecrire_factures, exemple_rappels  # noqa: E402
+
+
+def _echec_18(nom, objet, *mots):
+    resultat = _evaluer(nom, objet)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+# Défi 110 : chronométrer
+
+
+def _chronometrer_18(defaut=None):
+    def chronometrer(fonction, repetitions=5, horloge=time.time if defaut == "time_time" else time.perf_counter):
+        if repetitions < 1 and defaut != "sans_validation":
+            raise ValueError(f"repetitions doit valoir au moins 1 (reçu : {repetitions})")
+        lire = time.perf_counter if defaut == "horloge_reelle" else horloge
+        durees = []
+        for _ in range(1 if defaut == "premiere" else repetitions):
+            debut = lire()
+            try:
+                fonction()
+            except Exception:
+                if defaut != "avale":
+                    raise
+            durees.append(lire() - debut)
+        if defaut == "moyenne":
+            return sum(durees) / len(durees)
+        if defaut == "total":
+            return sum(durees)
+        if defaut == "max":
+            return max(durees)
+        return min(durees)
+
+    return chronometrer
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_chronometrer_18("moyenne"), ("MOYENNE", "min(durees)")),
+    (_chronometrer_18("total"), ("TOTALE",)),
+    (_chronometrer_18("max"), ("plus LONGUE",)),
+    (_chronometrer_18("premiere"), ("appelée 1 fois au lieu de 5",)),
+    (_chronometrer_18("horloge_reelle"), ("vraie horloge", "horloge()")),
+    (_chronometrer_18("avale"), ("devrait lever Panne", "avale")),
+    (_chronometrer_18("sans_validation"), ("doit nommer `repetitions`", "min() arg is an empty sequence")),
+    (_chronometrer_18("time_time"), ("time.time par défaut", "perf_counter")),
+])
+def test_serie_18_chronometrer_erreurs_classiques(mutant, mots):
+    _echec_18("chronometrer", mutant, *mots)
+
+
+def test_serie_18_chronometrer_qui_lit_l_horloge_une_fois_par_tour_est_accepte():
+    def chronometrer(fonction, repetitions=5, horloge=time.perf_counter):
+        if repetitions < 1:
+            raise ValueError("repetitions doit valoir au moins 1")
+        durees, avant = [], horloge()
+        for _ in range(repetitions):
+            fonction()
+            apres = horloge()
+            durees.append(apres - avant)
+            avant = apres
+        return min(durees)
+
+    assert _evaluer("chronometrer", chronometrer).statut == REUSSI
+
+
+# Défi 111 : profiler
+
+
+def _point_chaud_18(defaut=None):
+    def point_chaud(programme):
+        if defaut == "deux_fois":
+            programme()
+        profileur = cProfile.Profile()
+        if defaut == "sans_finally":
+            profileur.enable()
+            programme()
+            profileur.disable()
+        elif defaut == "avale":
+            try:
+                profileur.runcall(programme)
+            except Exception:
+                return "erreur"
+        else:
+            profileur.runcall(programme)
+        stats = pstats.Stats(profileur).stats
+        colonne = {"cumtime": 3, "ncalls": 1}.get(defaut, 2)
+        cle = max(stats, key=lambda c: stats[c][colonne])
+        return cle if defaut == "cle" else cle[2]
+
+    return point_chaud
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_point_chaud_18("cumtime"), ("« programme_rapport »", "CUMULÉ", "tottime")),
+    (_point_chaud_18("ncalls"), ("« nettoyer_ligne »", "APPELÉE", "ncalls")),
+    (_point_chaud_18("cle"), ("seulement le NOM", "élément 2")),
+    (_point_chaud_18("deux_fois"), ("2 fois",)),
+    (_point_chaud_18("avale"), ("devrait lever RuntimeError",)),
+    (_point_chaud_18("sans_finally"), ("resté ACTIF", "finally")),
+])
+def test_serie_18_point_chaud_erreurs_classiques(mutant, mots):
+    _echec_18("point_chaud", mutant, *mots)
+
+
+def test_serie_18_un_profileur_oublie_est_arrete_par_le_correcteur():
+    """Sinon tout le reste des tests serait profilé (et, depuis Python 3.12, plus aucun profileur ne démarrerait)."""
+    from defis.checks_serie_18 import _profileurs_actifs
+
+    _echec_18("point_chaud", _point_chaud_18("sans_finally"), "resté ACTIF")
+    assert not _profileurs_actifs()
+    assert _evaluer("point_chaud", _point_chaud_18()).statut == REUSSI
+
+
+def test_serie_18_point_chaud_avec_sort_stats_est_accepte():
+    def point_chaud(programme):
+        profileur = cProfile.Profile()
+        profileur.enable()
+        try:
+            programme()
+        finally:
+            profileur.disable()
+        stats = pstats.Stats(profileur).sort_stats("tottime")
+        return stats.fcn_list[0][2]
+
+    assert _evaluer("point_chaud", point_chaud).statut == REUSSI
+
+
+# Défi 112 : bisect
+
+
+def _prix_18(defaut=None):
+    def prix_en_vigueur(changements, dates):
+        if not changements:
+            raise ValueError("historique vide")
+        if defaut == "en_place":
+            changements.sort()
+            historique = changements
+        else:
+            historique = sorted(changements, key=lambda c: c[0])
+        jours = [j for j, _ in historique]
+        prix = [p for _, p in historique]
+        if defaut != "sans_doublon" and len(set(jours)) != len(jours):
+            raise ValueError("deux tarifs le même jour")
+        resultat = []
+        for jour in (sorted(dates) if defaut == "ordre" else dates):
+            if defaut == "naif":
+                i = sum(1 for j in jours if j <= jour)
+            elif defaut == "left":
+                i = bisect.bisect_left(jours, jour)
+            else:
+                i = bisect.bisect_right(jours, jour)
+            if i == 0 and defaut != "moins_un":
+                raise ValueError("date trop ancienne" if defaut == "sans_date" else f"aucun tarif le {jour}")
+            resultat.append(prix[i - 1])
+        return resultat
+
+    return prix_en_vigueur
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_prix_18("left"), ("ANCIEN prix", "bisect_right")),
+    (_prix_18("moins_un"), ("devrait lever ValueError", "l'indice -1 est le DERNIER")),
+    (_prix_18("sans_date"), ("2023-12-31",)),
+    (_prix_18("en_place"), ("MODIFIÉ", "sorted(liste)")),
+    (_prix_18("sans_doublon"), ("le 1er juin 2024", "devrait lever ValueError")),
+    (_prix_18("ordre"), ("dans l'ordre de `dates`",)),
+    (_prix_18("naif"), ("1 500 000 comparaisons", "le correcteur l'a arrêtée", "bisect.bisect_right")),
+])
+def test_serie_18_prix_erreurs_classiques(mutant, mots):
+    _echec_18("prix_en_vigueur", mutant, *mots)
+
+
+def test_serie_18_prix_avec_des_ordinaux_et_bisect_key_est_accepte():
+    def prix_en_vigueur(changements, dates):
+        if not changements:
+            raise ValueError("vide")
+        historique = sorted((j.toordinal(), p) for j, p in changements)
+        if any(a[0] == b[0] for a, b in zip(historique, historique[1:])):
+            raise ValueError("doublon")
+        resultat = []
+        for jour in dates:
+            i = bisect.bisect_right(historique, jour.toordinal(), key=lambda c: c[0])
+            if i == 0:
+                raise ValueError(f"pas de tarif le {jour.isoformat()}")
+            resultat.append(historique[i - 1][1])
+        return resultat
+
+    assert _evaluer("prix_en_vigueur", prix_en_vigueur).statut == REUSSI
+
+
+def test_serie_18_les_dates_espionnes_comptent_et_se_comparent_comme_des_dates():
+    from defis.checks_serie_18 import _Compteur, _Jour
+
+    _Jour.compteur = compteur = _Compteur()
+    try:
+        a, b = _Jour(2024, 1, 1), _Jour(2024, 7, 1)
+        assert a < b and b >= a and a != b and d18(2024, 1, 1) == a and sorted([b, a]) == [a, b]
+        assert bisect.bisect_right([a, b], _Jour(2024, 7, 1)) == 2
+        assert compteur.total >= 6 and len({a, d18(2024, 1, 1)}) == 1
+    finally:
+        _Jour.compteur = None
+
+
+# Défi 113 : cache borné et périmé
+
+
+def _cache_18(defaut=None):
+    def cache_lru(taille_max, duree, horloge=time.monotonic):
+        if defaut != "validation" and (taille_max < 1 or duree <= 0):
+            raise ValueError("taille_max et duree doivent être positifs")
+        partage = OrderedDict()
+
+        def decorateur(fonction):
+            memoire = partage if defaut == "partage" else OrderedDict()
+            valeurs, ordre = {}, []
+            compteurs = {"calculs": 0, "reutilisations": 0}
+
+            @functools.wraps(fonction)
+            def enveloppe(*args):
+                maintenant = time.monotonic() if defaut == "horloge" else horloge()
+                if defaut == "fuite":
+                    ordre.append(args)
+                present = bool(valeurs.get(args)) if defaut == "get" else args in memoire
+                if present:
+                    calcule_a, resultat = memoire[args]
+                    age = maintenant - calcule_a
+                    if (age <= duree) if defaut == "strict" else (age < duree):
+                        if defaut != "fifo":
+                            memoire.move_to_end(args)
+                        if defaut == "rajeunit":
+                            memoire[args] = (maintenant, resultat)
+                        compteurs["reutilisations"] += 1
+                        return resultat
+                    if defaut != "evince":
+                        del memoire[args]
+                if defaut == "evince" and len(memoire) >= taille_max:
+                    valeurs.pop(memoire.popitem(last=False)[0], None)
+                try:
+                    resultat = fonction(*args)
+                except Exception:
+                    if defaut == "exception":
+                        memoire[args] = (maintenant, None)
+                        return None
+                    raise
+                compteurs["calculs"] += 1
+                memoire[args] = (maintenant, resultat)
+                valeurs[args] = resultat
+                memoire.move_to_end(args)
+                if defaut not in ("infini", "evince") and len(memoire) > taille_max:
+                    valeurs.pop(memoire.popitem(last=False)[0], None)
+                return resultat
+
+            enveloppe.cache_info = lambda: {**compteurs, "taille": len(memoire)}
+            if defaut == "wraps":
+                del enveloppe.__wrapped__
+                enveloppe.__name__, enveloppe.__doc__ = "enveloppe", None
+            return enveloppe
+
+        return decorateur
+
+    return cache_lru
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_cache_18("validation"), ("cache_lru(0, 60) devrait lever ValueError",)),
+    (_cache_18("partage"), ("MÊME `memo", "DANS decorateur(fonction)")),
+    (_cache_18("horloge"), ("horloge(), le paramètre",)),
+    (_cache_18("fuite"), ("retient encore", "`ordre` qui ne fait que grandir")),
+    (_cache_18("get"), ("None", "if cle in memoire")),
+    (_cache_18("strict"), ("60 secondes PILE", "âge >= duree")),
+    (_cache_18("fifo"), ("moins récemment UTILISÉ", "move_to_end")),
+    (_cache_18("rajeunit"), ("ne le rajeunit pas",)),
+    (_cache_18("evince"), ("B (calculé il y a 52 s", "DÉPASSE taille_max")),
+    (_cache_18("exception"), ("devrait lever Panne",)),
+    (_cache_18("infini"), ("'taille': 3",)),
+    (_cache_18("wraps"), ("functools.wraps",)),
+])
+def test_serie_18_cache_erreurs_classiques(mutant, mots):
+    _echec_18("cache_lru", mutant, *mots)
+
+
+def test_serie_18_cache_avec_un_dict_ordinaire_est_accepte():
+    """Depuis Python 3.7, un dict garde l'ordre d'insertion : pop + réinsertion fait le même travail qu'OrderedDict."""
+    def cache_lru(taille_max, duree, horloge=time.monotonic):
+        if taille_max < 1 or duree <= 0:
+            raise ValueError("taille_max >= 1 et duree > 0")
+
+        def decorateur(fonction):
+            memoire, stats = {}, {"calculs": 0, "reutilisations": 0}
+
+            @functools.wraps(fonction)
+            def enveloppe(*args):
+                maintenant = horloge()
+                if args in memoire:
+                    instant, valeur = memoire.pop(args)
+                    if maintenant - instant < duree:
+                        memoire[args] = (instant, valeur)
+                        stats["reutilisations"] += 1
+                        return valeur
+                valeur = fonction(*args)
+                stats["calculs"] += 1
+                memoire[args] = (maintenant, valeur)
+                if len(memoire) > taille_max:
+                    del memoire[next(iter(memoire))]
+                return valeur
+
+            enveloppe.cache_info = lambda: dict(stats, taille=len(memoire))
+            return enveloppe
+
+        return decorateur
+
+    assert _evaluer("cache_lru", cache_lru).statut == REUSSI
+
+
+# Défi 114 : lire en flux
+
+
+def _totaux_18(defaut=None):
+    def totaux_par_contrat(chemin):
+        if defaut == "tout_pandas":
+            df = pd.read_csv(chemin).dropna(subset=["montant"])
+            groupes = df.groupby("contrat")["montant"]
+            return {c: (int(n), round(float(s), 2)) for c, n, s in zip(groupes.count().index, groupes.count(), groupes.sum())}
+        nombres, sommes = {}, {}
+
+        def ajouter(contrat, montant):
+            if montant or defaut == "annulees":
+                nombres[contrat] = nombres.get(contrat, 0) + 1
+                sommes[contrat] = sommes.get(contrat, 0.0) + float(montant or 0)
+
+        if defaut == "split":
+            with open(chemin, encoding="utf-8") as fichier:
+                entete = next(fichier).strip().split(",")
+                for ligne in fichier:
+                    if ligne.strip():
+                        champs = dict(zip(entete, ligne.strip().split(",")))
+                        ajouter(champs["contrat"], champs["montant"])
+        else:
+            fichier = open(chemin, newline="", encoding="utf-8")
+            lignes = fichier.readlines() if defaut == "readlines" else fichier
+            if defaut == "position":
+                lecteur = csv.reader(lignes)
+                next(lecteur)
+                for champs in lecteur:
+                    if champs:
+                        ajouter(champs[1], champs[3])
+            else:
+                for ligne in csv.DictReader(lignes):
+                    ajouter(ligne["contrat"], ligne["montant"])
+            if defaut != "ouvert":
+                fichier.close()
+        return {c: (nombres[c], round(sommes[c], 2)) for c in nombres}
+
+    return totaux_par_contrat
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_totaux_18("tout_pandas"), ("La mémoire grandit avec le fichier", "chunksize")),
+    (_totaux_18("readlines"), ("La mémoire grandit avec le fichier",)),
+    (_totaux_18("split"), ("lève ValueError", "module csv")),
+    (_totaux_18("position"), ("autre ordre", "par leur NOM")),
+    (_totaux_18("ouvert"), ("OUVERT", "with open")),
+    (_totaux_18("annulees"), ("factures annulées", "size()")),
+])
+def test_serie_18_totaux_erreurs_classiques(mutant, mots):
+    _echec_18("totaux_par_contrat", mutant, *mots)
+
+
+def test_serie_18_totaux_avec_pandas_par_paquets_est_accepte():
+    def totaux_par_contrat(chemin):
+        nombres, sommes = Counter(), Counter()
+        for paquet in pd.read_csv(chemin, chunksize=10_000, usecols=["contrat", "montant"]):
+            paquet = paquet.dropna(subset=["montant"])
+            for contrat, montants in paquet.groupby("contrat")["montant"]:
+                nombres[contrat] += len(montants)
+                sommes[contrat] += float(montants.sum())
+        return {c: (nombres[c], round(sommes[c], 2)) for c in nombres}
+
+    resultat = _evaluer("totaux_par_contrat", totaux_par_contrat)
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_18_le_fichier_de_factures_a_tous_les_pieges_annonces(tmp_path):
+    chemin = ecrire_factures(tmp_path / "f.csv", lignes=2_000, graine=1)
+    texte = chemin.read_text(encoding="utf-8")
+    assert texte.startswith("client_id,contrat,offre,montant\n") and texte.endswith("\n\n")
+    assert '"Fibre, TV"' in texte and "\r" not in texte
+    lignes = list(csv.DictReader(texte.splitlines()))
+    assert len(lignes) == 2_000
+    assert 10 < sum(not ligne["montant"] for ligne in lignes) < 100
+    autre = ecrire_factures(tmp_path / "g.csv", lignes=2_000, graine=1, colonnes=("montant", "contrat", "offre", "client_id"))
+    assert [dict(sorted(d.items())) for d in csv.DictReader(autre.read_text(encoding="utf-8").splitlines())] == \
+        [dict(sorted(d.items())) for d in lignes]
+
+
+# Défi 115 : optimiser sans rien changer
+
+
+def _rappel_18(defaut=None):
+    def clients_a_rappeler(clients, appels, deja_contactes, seuil_appels=3):
+        if not clients and defaut != "vide":
+            return []
+        if defaut == "dict":
+            nb = {}
+            for appel in appels:
+                if appel["motif"] != "information":
+                    nb[appel["client_id"]] = nb.get(appel["client_id"], 0) + 1
+        else:
+            nb = Counter(a["client_id"] for a in appels if defaut == "information" or a["motif"] != "information")
+        if defaut == "mean":
+            moyenne = statistics.mean(c["facture"] for c in clients)
+        elif defaut == "moyenne_filtree":
+            gardes = [c for c in clients if c["client_id"] not in set(deja_contactes)]
+            moyenne = sum(c["facture"] for c in gardes) / len(gardes) if gardes else 0
+        else:
+            moyenne = sum(c["facture"] for c in clients) / len(clients)
+        exclus = deja_contactes if defaut == "lent_deja" else set(deja_contactes)
+        resultat, vus = [], set()
+        for client in clients:
+            if defaut == "lent_moyenne":
+                moyenne = sum(c["facture"] for c in clients) / len(clients)
+            client_id = client["client_id"]
+            if client_id in exclus or (defaut == "doublon" and client_id in vus):
+                continue
+            vus.add(client_id)
+            if defaut == "lent_appels":
+                n = sum(1 for a in appels if a["client_id"] == client_id and a["motif"] != "information")
+            else:
+                n = nb[client_id]
+            assez = client["facture"] > moyenne if defaut == "strict" else client["facture"] >= moyenne
+            if n >= seuil_appels and assez:
+                resultat.append([client_id, n] if defaut == "listes" else (client_id, n))
+        if defaut == "tri_id":
+            resultat.sort(key=lambda paire: (-paire[1], paire[0]))
+        else:
+            resultat.sort(key=lambda paire: paire[1], reverse=True)
+        if defaut == "modifie":
+            deja_contactes.clear()
+        return resultat
+
+    return clients_a_rappeler
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_rappel_18("vide"), ("divise par zéro",)),
+    (_rappel_18("dict"), ("KeyError", "nb.get(client_id, 0)")),
+    (_rappel_18("information"), ("« information » ne comptent pas",)),
+    (_rappel_18("strict"), ("pile à la moyenne", "(>=)")),
+    (_rappel_18("mean"), ("0.10000000000000002", "statistics.mean")),
+    (_rappel_18("moyenne_filtree"), ("TOUS les clients", "66,67")),
+    (_rappel_18("doublon"), ("deux fois C1",)),
+    (_rappel_18("listes"), ("TUPLES",)),
+    (_rappel_18("tri_id"), ("tri est stable", "Ne triez pas en plus par identifiant")),
+    (_rappel_18("modifie"), ("MODIFIÉ une des listes",)),
+    (_rappel_18("lent_appels"), ("le correcteur l'a arrêtée", "« appels »", "Counter")),
+    (_rappel_18("lent_moyenne"), ("le correcteur l'a arrêtée", "« clients »", "avant la boucle")),
+    (_rappel_18("lent_deja"), ("le correcteur l'a arrêtée", "« deja_contactes »", "set")),
+    (clients_a_rappeler_lent, ("le correcteur l'a arrêtée",)),
+])
+def test_serie_18_rappel_erreurs_classiques(mutant, mots):
+    _echec_18("clients_a_rappeler", mutant, *mots)
+
+
+def test_serie_18_un_except_exception_n_arrete_pas_le_correcteur():
+    """Le budget dépassé est une BaseException : un `except Exception` ne peut pas l'avaler."""
+    def clients_a_rappeler(clients, appels, deja_contactes, seuil_appels=3):
+        try:
+            return clients_a_rappeler_lent(clients, appels, deja_contactes, seuil_appels)
+        except Exception:
+            return []
+
+    _echec_18("clients_a_rappeler", clients_a_rappeler, "le correcteur l'a arrêtée")
+
+
+def test_serie_18_la_reference_rapide_du_correcteur_est_juste():
+    from defis.checks_serie_18 import _CAS_LIMITES, _reference_rapide, _tirer_cas
+
+    for _, clients, appels, deja, seuil, _ in _CAS_LIMITES:
+        assert _reference_rapide(clients, appels, deja, seuil) == clients_a_rappeler_lent(clients, appels, deja, seuil)
+    rng = random.Random(2026)
+    for _ in range(1_000):
+        clients, appels, deja, seuil = _tirer_cas(rng)
+        assert _reference_rapide(clients, appels, deja, seuil) == clients_a_rappeler_lent(clients, appels, deja, seuil)
+    clients, appels, deja = exemple_rappels(n_clients=300, graine=4)
+    assert _reference_rapide(clients, appels, deja) == clients_a_rappeler_lent(clients, appels, deja)
+
+
+def test_serie_18_les_listes_espionnes_se_comportent_comme_des_listes():
+    from defis.checks_serie_18 import _BudgetDepasse, _Compteur, _espionner
+
+    compteur = _Compteur(budget=50)
+    lignes = _espionner(compteur, "appels", [{"client_id": "C1", "motif": "panne"}] * 3, True)
+    assert lignes == [{"client_id": "C1", "motif": "panne"}] * 3 and len(lignes) == 3
+    assert [ligne["motif"] for ligne in lignes] == ["panne"] * 3
+    assert compteur.par_categorie == {"appels": 6}
+    ids = _espionner(compteur, "deja_contactes", ["C1", "C2"], False)
+    assert "C2" in ids and set(ids) == {"C1", "C2"} and compteur.par_categorie["deja_contactes"] == 4
+    with pytest.raises(_BudgetDepasse):
+        for _ in range(30):
+            "C3" in ids  # noqa: B015
+    assert not issubclass(_BudgetDepasse, Exception)
+
+
+# Toute la série
+
+
+@pytest.mark.parametrize("nom,fabrique", [("chronometrer", _chronometrer_18), ("point_chaud", _point_chaud_18),
+                                          ("prix_en_vigueur", _prix_18), ("cache_lru", _cache_18),
+                                          ("totaux_par_contrat", _totaux_18), ("clients_a_rappeler", _rappel_18)])
+def test_serie_18_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_18_les_tests_du_corrige_passent():
+    import defis.corrige_serie_18 as corrige
+
+    tests = [f for nom, f in vars(corrige).items() if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_18_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.performance as performance
+    import defis.serie_18 as eleve
+
+    for nom in ("CONTRATS", "TARIFS_EXEMPLE", "HorlogeFactice", "clients_a_rappeler_lent", "ecrire_factures",
+                "exemple_rappels", "programme_exemple"):
+        assert getattr(eleve, nom) is getattr(performance, nom), nom
+
+
+def test_serie_18_le_fichier_eleve_s_importe_et_tout_est_a_faire():
+    from defis.checks_serie_18 import SERIE
+
+    assert [r.statut for r in evaluer(SERIE)] == [A_FAIRE] * 6
+
+
+def test_serie_18_les_exemples_des_docstrings_sont_justes(tmp_path, capsys):
+    """Les exemples de defis/serie_18.py, rejoués avec le corrigé."""
+    from defis.corrige_serie_18 import (cache_lru, chronometrer, clients_a_rappeler, point_chaud, prix_en_vigueur,
+                                        programme_exemple, totaux_par_contrat)
+
+    assert point_chaud(programme_exemple) == "calculer_scores"
+    assert 0 < chronometrer(programme_exemple) < 1
+
+    assert repr(TARIFS_18) == ("[(datetime.date(2025, 1, 1), 34.9), (datetime.date(2024, 1, 1), 29.9), "
+                               "(datetime.date(2024, 7, 1), 32.9)]")
+    assert prix_en_vigueur(TARIFS_18, [d18(2024, 3, 15), d18(2024, 7, 1), d18(2026, 1, 1)]) == [29.9, 32.9, 34.9]
+
+    horloge = Horloge18()
+
+    @cache_lru(taille_max=2, duree=60, horloge=horloge)
+    def score(client_id):
+        print("calcul", client_id)
+        return 0.5
+
+    assert [score(c) for c in ("C1", "C1", "C2")] == [0.5] * 3
+    assert capsys.readouterr().out == "calcul C1\ncalcul C2\n"
+    assert [score(c) for c in ("C1", "C3")] == [0.5] * 2
+    assert capsys.readouterr().out == "calcul C3\n"
+    assert score.cache_info() == {"calculs": 3, "reutilisations": 2, "taille": 2}
+    horloge.avancer(60)
+    assert score("C1") == 0.5 and capsys.readouterr().out == "calcul C1\n"
+
+    chemin = ecrire_factures(tmp_path / "factures.csv")
+    assert round(chemin.stat().st_size / 1e6, 1) == 2.8
+    assert repr(totaux_par_contrat(chemin)) == ("{'Biannuel': (19512, 1413713.44), 'Mensuel': (54010, 3914899.63), "
+                                                "'Annuel': (24509, 1772371.59)}")
+
+    clients, appels, deja = exemple_rappels()
+    assert (len(clients), len(appels)) == (2_000, 20_000)
+    assert clients_a_rappeler(clients, appels, deja) == clients_a_rappeler_lent(clients, appels, deja)
