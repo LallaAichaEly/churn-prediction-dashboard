@@ -7,6 +7,9 @@ de partir (*churn*).
 > 🎯 **Objectif : apprendre en construisant.** Le fichier [`PARCOURS.md`](PARCOURS.md) est
 > un parcours de compétences en 6 modules, avec des exercices progressifs et une checklist
 > pour suivre votre progression.
+>
+> 🏋️ Le dossier [`defis/`](defis/README.md) propose des **défis auto-corrigés** : vous complétez
+> `exercice.py`, `pytest` vous dit si c'est juste, un corrigé commenté est fourni.
 
 ## Ce que vous allez pratiquer
 
@@ -29,6 +32,7 @@ pip install -r requirements.txt
 python scripts/train.py          # entraîne et compare les modèles
 streamlit run app.py             # ouvre le tableau de bord sur http://localhost:8501
 pytest -q                        # lance les tests
+pytest defis/defi_01_explorer -q # vérifie votre solution du défi 01
 ```
 
 Les données sont **synthétiques** et générées au premier lancement dans `data/customers.csv`
@@ -67,5 +71,6 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   └── model.py            # Entraînement, évaluation, seuil, importance
 ├── tests/test_churn.py     # Tests
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
+├── defis/                  # 🏋️ Défis auto-corrigés (énoncé, exercice, tests, corrigé)
 └── requirements.txt
 ```

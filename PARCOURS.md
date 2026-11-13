@@ -9,6 +9,8 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
 3. Notez vos résultats (avant / après) dans un fichier `JOURNAL.md` : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
+5. Commencez par les **défis auto-corrigés** du dossier [`defis/`](defis/README.md) : ils couvrent
+   ces modules pas à pas, avec des tests qui valident votre code.
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
