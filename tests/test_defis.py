@@ -4155,3 +4155,692 @@ def test_serie_14_autres_ecritures_justes_acceptees():
                        ("ecrire_atomique", atomique_named_temporary), ("Disjoncteur", DisjoncteurAEtatStocke)]:
         resultat = _evaluer(nom, juste)
         assert resultat.statut == REUSSI, (nom, juste.__name__, resultat.message)
+
+
+# --------------------------------------------------------------------------- Série 15 : enregistrer sans rien perdre
+
+from defis.persistance import BAIL, STATUTS, ConflitDeVersion  # noqa: E402
+
+
+def _echec_15(nom, fonction, *mots):
+    resultat = _evaluer(nom, fonction)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+# Défi 92 : transaction
+
+
+def _offre(budget_dabord=False, commit_entre=False, sans_rollback=False, sans_commit=False, avale=False,
+           strict=False, sans_montant=False, sans_campagne=False, fstring=False, ferme=False, mauvais_retour=False,
+           sans_where=False):
+    def accorder_offre(conn, client_id, campagne, montant):
+        try:
+            if not sans_montant and not montant > 0:
+                raise ValueError("montant invalide")
+            if fstring:
+                ligne = conn.execute(f"SELECT reste FROM budget WHERE campagne = '{campagne}'").fetchone()
+            else:
+                ligne = conn.execute("SELECT reste FROM budget WHERE campagne = ?", (campagne,)).fetchone()
+            if ligne is None:
+                if not sans_campagne:
+                    raise ValueError("campagne inconnue")
+            elif (ligne[0] <= montant) if strict else (ligne[0] < montant):
+                raise ValueError("budget insuffisant")
+
+            def inserer():
+                return conn.execute("INSERT INTO offres (client_id, campagne, montant) VALUES (?, ?, ?)",
+                                    (client_id, campagne, montant))
+
+            def debiter():
+                if sans_where:
+                    conn.execute("UPDATE budget SET reste = reste - ?", (montant,))
+                else:
+                    conn.execute("UPDATE budget SET reste = reste - ? WHERE campagne = ?", (montant, campagne))
+
+            if budget_dabord:
+                debiter()
+                if commit_entre:
+                    conn.commit()
+                curseur = inserer()
+            else:
+                curseur = inserer()
+                if commit_entre:
+                    conn.commit()
+                debiter()
+            if not sans_commit:
+                conn.commit()
+            return True if mauvais_retour else curseur.lastrowid
+        except Exception:
+            if not sans_rollback:
+                conn.rollback()
+            if avale:
+                return None
+            raise
+        finally:
+            if ferme:
+                conn.close()
+
+    return accorder_offre
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_offre(commit_entre=True), ("ENTRE les deux écritures", "printemps")),
+    (_offre(commit_entre=True, budget_dabord=True), ("ENTRE les deux écritures",)),
+    (_offre(sans_rollback=True), ("transaction OUVERTE", "rollback")),
+    (_offre(sans_rollback=True, budget_dabord=True), ("transaction OUVERTE", "la base contiendrait", "budget")),
+    (_offre(sans_commit=True), ("ne sont pas validées", "commit")),
+    (_offre(avale=True), ("aurait dû lever une erreur", "ne cachez pas")),
+    (_offre(strict=True), ("EXACTEMENT", "reste < montant")),
+    (_offre(sans_montant=True), ("montant nul", "montant > 0")),
+    (_offre(sans_campagne=True), ("n'existe pas", "AUCUNE ligne")),
+    (_offre(fstring=True), ("apostrophe", "?")),
+    (_offre(ferme=True), ("FERME la connexion",)),
+    (_offre(mauvais_retour=True), ("lastrowid",)),
+    (_offre(sans_where=True), ("AUTRES campagnes", "WHERE campagne = ?")),
+])
+def test_serie_15_offre_erreurs_classiques(mutant, mots):
+    _echec_15("accorder_offre", mutant, *mots)
+
+
+# Défi 93 : pagination
+
+
+def _pages(ge=False, sans_order=False, tout_lire=False, suivant_plein=False, sans_validation=False,
+           validation_tardive=False, fstring=False, cles=("id", "nom", "score"), suivant_premier=False):
+    def page_clients(conn, apres=None, taille=20):
+        if not sans_validation and not validation_tardive and not 1 <= taille <= 100:
+            raise ValueError("taille")
+        ordre = "" if sans_order else " ORDER BY id"
+        limite = "" if tout_lire else " LIMIT ?"
+        n = taille if suivant_plein else taille + 1
+        params = () if tout_lire else (n,)
+        if apres is None:
+            lignes = conn.execute(f"SELECT id, nom, score FROM clients{ordre}{limite}", params).fetchall()
+        elif fstring:
+            lignes = conn.execute(f"SELECT id, nom, score FROM clients WHERE id > '{apres}'{ordre}{limite}", params).fetchall()
+        else:
+            op = ">=" if ge else ">"
+            lignes = conn.execute(f"SELECT id, nom, score FROM clients WHERE id {op} ?{ordre}{limite}", (apres, *params)).fetchall()
+        if validation_tardive and not 1 <= taille <= 100:
+            raise ValueError("taille")
+        page = [dict(zip(cles, ligne)) for ligne in lignes[:taille]]
+        if suivant_plein:
+            suivant = lignes[-1][0] if len(lignes) == taille else None
+        elif suivant_premier:
+            suivant = lignes[taille][0] if len(lignes) > taille else None
+        else:
+            suivant = lignes[taille - 1][0] if len(lignes) > taille else None
+        return page, suivant
+
+    return page_clients
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_pages(ge=True), ("deux fois", "id > ?")),
+    (_pages(sans_order=True), ("ORDER BY id",)),
+    (_pages(tout_lire=True), ("toute la table", "LIMIT")),
+    (_pages(suivant_plein=True), ("page suivante vide", "LIMIT taille + 1")),
+    (_pages(sans_validation=True), ("ValueError", "de 1 à 100")),
+    (_pages(validation_tardive=True), ("APRÈS avoir interrogé",)),
+    (_pages(fstring=True), ("apostrophe", "?")),
+    (_pages(cles=("identifiant", "nom", "score")), ("exactement les clés",)),
+    (_pages(suivant_premier=True), ("DERNIER client de la page",)),
+])
+def test_serie_15_pages_erreurs_classiques(mutant, mots):
+    _echec_15("page_clients", mutant, *mots)
+
+
+# Défi 94 : N+1
+
+
+def _factures_15(n_plus_1=False, sans_vides=False, deux_lectures=False, doublons=False, sans_tri=False,
+                 fstring=False, cles=("mois", "montant")):
+    def factures_par_client(conn, ids):
+        if deux_lectures:
+            marques = ", ".join("?" for _ in ids)
+            ids = list(ids)
+        else:
+            ids = list(ids) if doublons else list(dict.fromkeys(ids))
+            marques = ", ".join("?" * len(ids))
+        resultat = {} if sans_vides else {i: [] for i in ids}
+        ordre = "" if sans_tri else " ORDER BY client_id, mois"
+        if n_plus_1:
+            lignes = [(i, m, x) for i in ids
+                      for m, x in conn.execute(f"SELECT mois, montant FROM factures WHERE client_id = ?{ordre.replace('client_id, ', '')}", (i,))]
+        elif fstring:
+            liste = ", ".join(f"'{i}'" for i in ids)
+            lignes = conn.execute(f"SELECT client_id, mois, montant FROM factures WHERE client_id IN ({liste}){ordre}").fetchall()
+        else:
+            lignes = conn.execute(f"SELECT client_id, mois, montant FROM factures WHERE client_id IN ({marques}){ordre}", ids).fetchall()
+        par_client = {}
+        for client_id, mois, montant in lignes:
+            par_client.setdefault(client_id, []).append(dict(zip(cles, (mois, montant))))
+        if doublons:  # on range en parcourant les id demandés… doublons compris
+            for i in ids:
+                resultat.setdefault(i, []).extend(par_client.get(i, []))
+        else:
+            for client_id, factures in par_client.items():
+                resultat.setdefault(client_id, []).extend(factures)
+        return resultat
+
+    return factures_par_client
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_factures_15(n_plus_1=True), ("N+1", "IN (?, ?")),
+    (_factures_15(sans_vides=True), ("aucune facture", "{id: [] for id in ids}")),
+    (_factures_15(deux_lectures=True), ("GÉNÉRATEUR", "list(dict.fromkeys(ids))")),
+    (_factures_15(doublons=True), ("deux fois", "dict.fromkeys")),
+    (_factures_15(sans_tri=True), ("triées par mois",)),
+    (_factures_15(fstring=True), ("apostrophe", "?")),
+    (_factures_15(cles=("mois", "total")), ('{"mois": …, "montant": …}',)),
+])
+def test_serie_15_factures_erreurs_classiques(mutant, mots):
+    _echec_15("factures_par_client", mutant, *mots)
+
+
+# Défi 95 : migrations
+
+
+def _migrer_15(executescript=False, sans_begin=False, version_a_la_fin=False, version_apres_commit=False,
+               rejoue=False, avale=False, continue_apres=False, sans_futur=False, une_transaction=False,
+               compte_total=False, sans_rollback=False, toujours_begin_sans_commit=False):
+    def migrer(conn, migrations):
+        version = 0 if rejoue else conn.execute("PRAGMA user_version").fetchone()[0]
+        if not sans_futur and version > len(migrations):
+            raise ValueError("base plus récente que le programme")
+        appliquees, erreur = 0, None
+        if une_transaction:
+            conn.execute("BEGIN")
+        for i in range(version, len(migrations)):
+            try:
+                if executescript:
+                    conn.executescript(";\n".join(migrations[i]) + f";\nPRAGMA user_version = {i + 1};")
+                    appliquees += 1
+                    continue
+                if not sans_begin and not une_transaction:
+                    conn.execute("BEGIN")
+                for instruction in migrations[i]:
+                    conn.execute(instruction)
+                if version_apres_commit:
+                    conn.commit()
+                if not version_a_la_fin:
+                    conn.execute(f"PRAGMA user_version = {i + 1}")
+                if not une_transaction and not toujours_begin_sans_commit:
+                    conn.commit()
+                appliquees += 1
+            except Exception as exc:
+                if not sans_rollback:
+                    conn.rollback()
+                if continue_apres:
+                    erreur = erreur or exc
+                    continue
+                if avale:
+                    return appliquees
+                if version_a_la_fin and appliquees:
+                    conn.execute(f"PRAGMA user_version = {version + appliquees}")
+                raise
+        if une_transaction:
+            conn.commit()
+        if version_a_la_fin and appliquees:
+            conn.execute(f"PRAGMA user_version = {len(migrations)}")
+        if erreur:
+            raise erreur
+        return len(migrations) if compte_total else appliquees
+
+    return migrer
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_migrer_15(executescript=True), ("executescript", "une par une")),
+    (_migrer_15(sans_begin=True), ("À MOITIÉ", "BEGIN")),
+    (_migrer_15(version_a_la_fin=True), ("MÊME commit",)),
+    (_migrer_15(version_apres_commit=True), ("MÊME commit", "PRAGMA")),
+    (_migrer_15(rejoue=True), ("DÉJÀ appliquées", "range(version, len(migrations))")),
+    (_migrer_15(avale=True), ("sans lever d'erreur", "raise")),
+    (_migrer_15(continue_apres=True), ("appliqué m4", "première erreur")),
+    (_migrer_15(sans_futur=True), ("ValueError", "plus récent")),
+    (_migrer_15(une_transaction=True), ("annulées aussi", "SA transaction")),
+    (_migrer_15(compte_total=True), ("NOMBRE",)),
+    (_migrer_15(sans_rollback=True), ("transaction OUVERTE",)),
+    (_migrer_15(toujours_begin_sans_commit=True), ("transaction",)),
+])
+def test_serie_15_migrations_erreurs_classiques(mutant, mots):
+    _echec_15("migrer", mutant, *mots)
+
+
+# Défi 96 : verrou optimiste
+
+
+def _statut_15(lire_puis_ecrire=False, sans_increment=False, conflit_pour_inconnu=False, sans_commit=False,
+               fstring=False, sans_validation=False, sans_rowcount=False, keyerror_pour_conflit=False, retour=None):
+    def changer_statut(conn, client_id, statut, version_lue):
+        if not sans_validation and statut not in STATUTS:
+            raise ValueError("statut inconnu")
+        increment = "" if sans_increment else ", version = version + 1"
+        if lire_puis_ecrire:
+            ligne = conn.execute("SELECT version FROM clients WHERE id = ?", (client_id,)).fetchone()
+            if ligne is None:
+                raise KeyError(client_id)
+            if ligne[0] != version_lue:
+                raise ConflitDeVersion("fiche périmée")
+            conn.execute(f"UPDATE clients SET statut = ?{increment} WHERE id = ?", (statut, client_id))
+            conn.commit()
+            return version_lue + 1
+        if fstring:
+            curseur = conn.execute(f"UPDATE clients SET statut = '{statut}'{increment} "
+                                   f"WHERE id = '{client_id}' AND version = {version_lue}")
+        else:
+            curseur = conn.execute(f"UPDATE clients SET statut = ?{increment} WHERE id = ? AND version = ?",
+                                   (statut, client_id, version_lue))
+        if not sans_commit:
+            conn.commit()
+        if curseur.rowcount >= 1 or sans_rowcount:
+            return retour if retour is not None else version_lue + 1
+        if conflit_pour_inconnu:
+            raise ConflitDeVersion("conflit")
+        if keyerror_pour_conflit:
+            raise KeyError(client_id)
+        if conn.execute("SELECT 1 FROM clients WHERE id = ?", (client_id,)).fetchone() is None:
+            raise KeyError(client_id)
+        raise ConflitDeVersion("conflit")
+
+    return changer_statut
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_statut_15(lire_puis_ecrire=True), ("une milliseconde trop tôt", "DANS l'UPDATE")),
+    (_statut_15(sans_increment=True), ("version = version + 1",)),
+    (_statut_15(conflit_pour_inconnu=True), ("KeyError", "n'existe pas")),
+    (_statut_15(keyerror_pour_conflit=True), ("ConflitDeVersion",)),
+    (_statut_15(sans_commit=True), ("ne sont pas validées",)),
+    (_statut_15(fstring=True), ("TOUTES les fiches", "?")),
+    (_statut_15(sans_validation=True), ("perdu", "STATUTS")),
+    (_statut_15(sans_rowcount=True), ("rowcount",)),
+    (_statut_15(retour="2"), ("NOUVELLE version",)),
+])
+def test_serie_15_statut_erreurs_classiques(mutant, mots):
+    _echec_15("changer_statut", mutant, *mots)
+
+
+# Défi 97 : file de tâches
+
+
+def _tache_15(sans_recheck=False, abandonne=False, sans_bail=False, bail_strict=False, ordre="priorite DESC, id",
+              sans_essais=False, prend_faites=False, en_cours_toujours=False, update_tout=False, sans_commit=False,
+              fstring=False, horloge=False, recheck_a_faire=False):
+    import time as _time
+
+    def prendre_tache(conn, travailleur, maintenant, bail=BAIL):
+        comparaison = "<" if bail_strict else "<="
+        if sans_bail:
+            dispo = "(statut = 'a_faire' AND (? + ? IS NOT NULL))"
+        elif prend_faites:
+            dispo = f"(statut IN ('a_faire', 'faite') OR (statut = 'en_cours' AND pris_a + ? {comparaison} ?))"
+        elif en_cours_toujours:
+            dispo = "(statut IN ('a_faire', 'en_cours') AND (? + ? IS NOT NULL))"
+        else:
+            dispo = f"(statut = 'a_faire' OR (statut = 'en_cours' AND pris_a + ? {comparaison} ?))"
+        recheck = "statut = 'a_faire' AND (? + ? IS NOT NULL)" if recheck_a_faire else dispo
+        pris_a = _time.time() if horloge else maintenant
+        essais = "essais" if sans_essais else "essais + 1"
+        while True:
+            ligne = conn.execute(f"SELECT id FROM taches WHERE {dispo} ORDER BY {ordre} LIMIT 1", (bail, maintenant)).fetchone()
+            if ligne is None:
+                return None
+            if update_tout:
+                curseur = conn.execute(f"UPDATE taches SET statut = 'en_cours', travailleur = ?, pris_a = ?, essais = {essais} "
+                                       "WHERE statut = 'a_faire'", (travailleur, pris_a))
+            elif fstring:
+                curseur = conn.execute(f"UPDATE taches SET statut = 'en_cours', travailleur = '{travailleur}', pris_a = {pris_a}, "
+                                       f"essais = {essais} WHERE id = {ligne[0]}")
+            elif sans_recheck:
+                curseur = conn.execute(f"UPDATE taches SET statut = 'en_cours', travailleur = ?, pris_a = ?, essais = {essais} "
+                                       "WHERE id = ?", (travailleur, pris_a, ligne[0]))
+            else:
+                curseur = conn.execute(f"UPDATE taches SET statut = 'en_cours', travailleur = ?, pris_a = ?, essais = {essais} "
+                                       f"WHERE id = ? AND {recheck}", (travailleur, pris_a, ligne[0], bail, maintenant))
+            if not sans_commit:
+                conn.commit()
+            if curseur.rowcount >= 1:
+                client_id, n = conn.execute("SELECT client_id, essais FROM taches WHERE id = ?", (ligne[0],)).fetchone()
+                return {"id": ligne[0], "client_id": client_id, "essais": n}
+            if abandonne:
+                return None
+
+    return prendre_tache
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_tache_15(sans_recheck=True), ("deux SMS", "RÉPÉTER")),
+    (_tache_15(abandonne=True), ("il reste", "recommencez")),
+    (_tache_15(sans_bail=True), ("tombé en panne",)),
+    (_tache_15(bail_strict=True), ("PILE", "<=")),
+    (_tache_15(ordre="id"), ("priorite DESC, id",)),
+    (_tache_15(ordre="priorite DESC, id DESC"), ("priorite DESC, id",)),
+    (_tache_15(ordre="priorite, id"), ("priorite DESC, id",)),
+    (_tache_15(sans_essais=True), ("essais = essais + 1",)),
+    (_tache_15(prend_faites=True), ("jamais reprise",)),
+    (_tache_15(en_cours_toujours=True), ("bail court encore",)),
+    (_tache_15(update_tout=True), ("AUTRES tâches", "WHERE id = ?")),
+    (_tache_15(sans_commit=True), ("ne sont pas validées",)),
+    (_tache_15(fstring=True), ("apostrophe", "?")),
+    (_tache_15(horloge=True), ("time.time()",)),
+    (_tache_15(recheck_a_faire=True), ("boucle", "exactement la même")),
+])
+def test_serie_15_taches_erreurs_classiques(mutant, mots):
+    _echec_15("prendre_tache", mutant, *mots)
+
+
+@pytest.mark.parametrize("nom,fabrique", [("accorder_offre", _offre), ("page_clients", _pages),
+                                          ("factures_par_client", _factures_15), ("migrer", _migrer_15),
+                                          ("changer_statut", _statut_15), ("prendre_tache", _tache_15)])
+def test_serie_15_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_15_les_tests_du_corrige_passent():
+    import defis.corrige_serie_15 as corrige
+
+    tests = [f for nom, f in vars(corrige).items() if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_15_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.persistance as persistance
+    import defis.serie_15 as eleve
+
+    for nom in ("BAIL", "STATUTS", "ConflitDeVersion", "MIGRATIONS_EXEMPLE", "MIGRATION_CASSEE", "afficher",
+                "base_exemple", "deux_connexions"):
+        assert getattr(eleve, nom) is getattr(persistance, nom), nom
+
+
+def test_serie_15_les_exemples_des_docstrings_sont_justes(capsys):
+    """Les exemples de defis/serie_15.py et de defis/persistance.py, rejoués avec le corrigé."""
+    from defis.corrige_serie_15 import (MIGRATION_CASSEE, MIGRATIONS_EXEMPLE, accorder_offre, afficher, base_exemple,
+                                        changer_statut, factures_par_client, migrer, page_clients, prendre_tache)
+
+    conn = base_exemple()
+    afficher(conn, "SELECT * FROM budget")
+    assert capsys.readouterr().out.splitlines() == [
+        "campagne     | reste", "-------------+------", "automne      | 500.0", "fidelite     | 120.0",
+        "noël d'hiver | 200.0", "(3 lignes)"]
+    assert accorder_offre(conn, "C001", "automne", 50) == 2
+    with pytest.raises(ValueError, match="120.0 € restants, 500 € demandés"):
+        accorder_offre(conn, "C004", "fidelite", 500)
+    with pytest.raises(sqlite3.IntegrityError, match="UNIQUE constraint failed: offres.client_id"):
+        accorder_offre(conn, "C002", "automne", 20)
+    page, suivant = page_clients(conn, taille=3)
+    assert page[0] == {"id": "C001", "nom": "Léa Martin", "score": 0.82} and suivant == "C003"
+    assert [c["id"] for c in page_clients(conn, apres="C006", taille=3)[0]] == ["C007", "C008"]
+    assert page_clients(conn, apres="C006", taille=3)[1] is None
+    assert factures_par_client(conn, ["C001", "C004"]) == {
+        "C001": [{"mois": "2026-07", "montant": 79.9}, {"mois": "2026-08", "montant": 89.9},
+                 {"mois": "2026-09", "montant": 89.9}],
+        "C004": []}
+    assert changer_statut(conn, "C001", "contacte", version_lue=1) == 2
+    with pytest.raises(ConflitDeVersion, match="rechargez la fiche"):
+        changer_statut(conn, "C001", "parti", version_lue=1)
+    pris = [prendre_tache(conn, "poste-4", maintenant=1000.0) for _ in range(5)]
+    assert pris == [{"id": 2, "client_id": "C004", "essais": 1}, {"id": 3, "client_id": "C006", "essais": 1},
+                    {"id": 6, "client_id": "C007", "essais": 2}, {"id": 1, "client_id": "C001", "essais": 1}, None]
+
+    conn.close()
+
+    vide = sqlite3.connect(":memory:")
+    assert migrer(vide, MIGRATIONS_EXEMPLE) == 3 and migrer(vide, MIGRATIONS_EXEMPLE) == 0
+    with pytest.raises(sqlite3.OperationalError, match="no such table: table_qui_n_existe_pas"):
+        migrer(vide, MIGRATIONS_EXEMPLE + [MIGRATION_CASSEE])
+    assert vide.execute("PRAGMA user_version").fetchone() == (3,)
+    vide.close()
+
+
+def test_serie_15_le_correcteur_ne_laisse_aucun_fichier():
+    import defis.corrige_serie_15 as corrige
+    from defis.checks_serie_15 import SERIE
+
+    dossier = Path(tempfile.gettempdir())
+    avant = set(dossier.glob("correcteur-serie15-*"))
+    for defi in SERIE.defis:
+        assert evaluer_defi(corrige, defi).statut == REUSSI
+    assert set(dossier.glob("correcteur-serie15-*")) == avant
+
+
+def test_serie_15_autres_ecritures_justes_acceptees():
+    """Le correcteur juge le comportement : des solutions justes écrites autrement doivent passer."""
+
+    def offre_debit_atomique(conn, client_id, campagne, montant):
+        # try/except explicite, et la base vérifie elle-même le budget dans l'UPDATE.
+        if montant <= 0 or math.isnan(montant):
+            raise ValueError("montant")
+        try:
+            debit = conn.execute("UPDATE budget SET reste = reste - ? WHERE campagne = ? AND reste >= ?",
+                                 (montant, campagne, montant))
+            if debit.rowcount == 0:
+                existe = conn.execute("SELECT 1 FROM budget WHERE campagne = ?", (campagne,)).fetchone()
+                raise ValueError("budget insuffisant" if existe else "campagne inconnue")
+            identifiant = conn.execute("INSERT INTO offres (client_id, campagne, montant) VALUES (?, ?, ?)",
+                                       (client_id, campagne, montant)).lastrowid
+            conn.commit()
+            return identifiant
+        except BaseException:
+            conn.rollback()
+            raise
+
+    def offre_begin_immediate(conn, client_id, campagne, montant):
+        if not montant > 0:
+            raise ValueError("montant")
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            reste = conn.execute("SELECT reste FROM budget WHERE campagne = :c", {"c": campagne}).fetchone()
+            if reste is None or reste[0] < montant:
+                raise ValueError("refusé")
+            conn.execute("UPDATE budget SET reste = reste - :m WHERE campagne = :c", {"m": montant, "c": campagne})
+            curseur = conn.cursor()
+            curseur.execute("INSERT INTO offres (client_id, campagne, montant) VALUES (?, ?, ?)", (client_id, campagne, montant))
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+        conn.execute("COMMIT")
+        return curseur.lastrowid
+
+    def pages_requete_unique(conn, apres=None, taille=20):
+        if not isinstance(taille, int) or not 0 < taille <= 100:
+            raise ValueError("taille")
+        curseur = conn.cursor()
+        curseur.row_factory = sqlite3.Row
+        curseur.execute("SELECT id, nom, score FROM clients WHERE :apres IS NULL OR id > :apres ORDER BY id LIMIT :n",
+                        {"apres": apres, "n": taille + 1})
+        lignes = curseur.fetchmany(taille + 1)
+        page = [dict(ligne) for ligne in lignes[:taille]]
+        return page, (page[-1]["id"] if len(lignes) > taille else None)
+
+    def pages_avec_count(conn, apres=None, taille=20):
+        if taille < 1 or taille > 100:
+            raise ValueError("taille")
+        borne = apres if apres is not None else ""
+        page = [{"id": i, "nom": n, "score": s} for i, n, s in conn.execute(
+            "SELECT id, nom, score FROM clients WHERE id > ? ORDER BY id LIMIT ?", (borne, taille))]
+        if not page:
+            return [], None
+        (reste,) = conn.execute("SELECT COUNT(*) FROM clients WHERE id > ?", (page[-1]["id"],)).fetchone()
+        return page, page[-1]["id"] if reste else None
+
+    def factures_json_each(conn, ids):
+        import json
+
+        ids = list(dict.fromkeys(ids))
+        resultat = {i: [] for i in ids}
+        for client_id, mois, montant in conn.execute(
+                "SELECT client_id, mois, montant FROM factures WHERE client_id IN (SELECT value FROM json_each(?))",
+                (json.dumps(ids),)):
+            resultat[client_id].append({"mois": mois, "montant": montant})
+        for factures in resultat.values():
+            factures.sort(key=lambda f: f["mois"])  # trier en Python plutôt qu'en SQL
+        return resultat
+
+    def factures_par_paquets(conn, ids):
+        ids, resultat = list(ids), {}
+        for i in ids:
+            resultat.setdefault(i, [])
+        uniques = list(resultat)
+        for debut in range(0, len(uniques), 300):  # paquets de 300 : 2 requêtes pour 500 clients
+            paquet = uniques[debut:debut + 300]
+            requete = f"SELECT client_id, mois, montant FROM factures WHERE client_id IN ({','.join('?' for _ in paquet)}) ORDER BY mois"
+            for client_id, mois, montant in conn.execute(requete, paquet).fetchall():
+                resultat[client_id].append({"mois": mois, "montant": montant})
+        return resultat
+
+    def factures_pandas(conn, ids):
+        ids = list(dict.fromkeys(ids))
+        if not ids:
+            return {}
+        table = pd.read_sql_query(
+            f"SELECT client_id, mois, montant FROM factures WHERE client_id IN ({', '.join(['?'] * len(ids))})",
+            conn, params=ids).sort_values(["client_id", "mois"])
+        groupes = {cle: g[["mois", "montant"]].to_dict("records") for cle, g in table.groupby("client_id")}
+        return {i: [{"mois": f["mois"], "montant": float(f["montant"])} for f in groupes.get(i, [])] for i in ids}
+
+    def migrer_autocommit(conn, migrations):
+        # Le mode « autocommit » de sqlite3 : Python n'ouvre plus aucune transaction, on écrit BEGIN / COMMIT.
+        ancien, conn.isolation_level = conn.isolation_level, None
+        try:
+            (version,) = conn.execute("PRAGMA user_version").fetchone()
+            if version > len(migrations):
+                raise ValueError("base plus récente")
+            for numero, instructions in enumerate(migrations[version:], start=version + 1):
+                conn.execute("BEGIN")
+                try:
+                    conn.execute("PRAGMA user_version = %d" % numero)  # au début : c'est la même transaction
+                    for instruction in instructions:
+                        conn.execute(instruction)
+                    conn.execute("COMMIT")
+                except BaseException:
+                    conn.execute("ROLLBACK")
+                    raise
+            return len(migrations) - version
+        finally:
+            conn.isolation_level = ancien
+
+    def migrer_with_begin(conn, migrations):
+        version = conn.execute("pragma user_version").fetchone()[0]
+        if version > len(migrations):
+            raise ValueError("trop récente")
+        faites = 0
+        for i in range(version, len(migrations)):
+            with conn:
+                conn.execute("BEGIN")
+                for instruction in migrations[i]:
+                    conn.execute(instruction)
+                conn.execute(f"pragma user_version={i + 1}")
+            faites += 1
+        return faites
+
+    def migrer_script_encadre(conn, migrations):
+        # executescript est correct SI le script ouvre et ferme lui-même sa transaction.
+        (version,) = conn.execute("PRAGMA user_version").fetchone()
+        if version > len(migrations):
+            raise ValueError("trop récente")
+        for i in range(version, len(migrations)):
+            script = "BEGIN;\n" + ";\n".join(migrations[i]) + f";\nPRAGMA user_version = {i + 1};\nCOMMIT;"
+            try:
+                conn.executescript(script)
+            except BaseException:
+                conn.rollback()
+                raise
+        return len(migrations) - version
+
+    def statut_verrou_pessimiste(conn, client_id, statut, version_lue):
+        if statut not in STATUTS:
+            raise ValueError(statut)
+        conn.execute("BEGIN IMMEDIATE")  # personne ne peut écrire avant notre COMMIT
+        try:
+            ligne = conn.execute("SELECT version FROM clients WHERE id = ?", (client_id,)).fetchone()
+            if ligne is None:
+                raise KeyError(client_id)
+            if ligne[0] != version_lue:
+                raise ConflitDeVersion("rechargez")
+            conn.execute("UPDATE clients SET statut = ?, version = ? WHERE id = ?", (statut, version_lue + 1, client_id))
+        except BaseException:
+            conn.rollback()
+            raise
+        conn.commit()
+        return version_lue + 1
+
+    def statut_existence_puis_update(conn, client_id, statut, version_lue):
+        if statut not in STATUTS:
+            raise ValueError(statut)
+        if conn.execute("SELECT COUNT(*) FROM clients WHERE id = ?", (client_id,)).fetchone()[0] == 0:
+            raise KeyError(client_id)
+        with conn:
+            modifiees = conn.execute("UPDATE clients SET version = version + 1, statut = ? WHERE version = ? AND id = ?",
+                                     (statut, version_lue, client_id)).rowcount
+        if not modifiees:
+            raise ConflitDeVersion("conflit")
+        return version_lue + 1
+
+    def tache_verrou_pessimiste(conn, travailleur, maintenant, bail=BAIL):
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            ligne = conn.execute("SELECT id, client_id, essais FROM taches WHERE statut = 'a_faire' "
+                                 "OR (statut = 'en_cours' AND pris_a <= ? - ?) ORDER BY priorite DESC, id LIMIT 1",
+                                 (maintenant, bail)).fetchone()
+            if ligne is not None:
+                conn.execute("UPDATE taches SET statut = 'en_cours', travailleur = ?, pris_a = ?, essais = ? WHERE id = ?",
+                             (travailleur, maintenant, ligne[2] + 1, ligne[0]))
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        return None if ligne is None else {"id": ligne[0], "client_id": ligne[1], "essais": ligne[2] + 1}
+
+    def tache_returning(conn, travailleur, maintenant, bail=BAIL):
+        with conn:
+            ligne = conn.execute(
+                "UPDATE taches SET statut = 'en_cours', travailleur = ?, pris_a = ?, essais = essais + 1 "
+                "WHERE id = (SELECT id FROM taches WHERE statut = 'a_faire' OR (statut = 'en_cours' AND pris_a + ? <= ?) "
+                "ORDER BY priorite DESC, id LIMIT 1) RETURNING id, client_id, essais",
+                (travailleur, maintenant, bail, maintenant)).fetchone()
+        return None if ligne is None else dict(zip(("id", "client_id", "essais"), ligne))
+
+    justes = [("accorder_offre", offre_debit_atomique), ("accorder_offre", offre_begin_immediate),
+              ("page_clients", pages_requete_unique), ("page_clients", pages_avec_count),
+              ("factures_par_client", factures_json_each), ("factures_par_client", factures_par_paquets),
+              ("factures_par_client", factures_pandas),
+              ("migrer", migrer_autocommit), ("migrer", migrer_with_begin), ("migrer", migrer_script_encadre),
+              ("changer_statut", statut_verrou_pessimiste), ("changer_statut", statut_existence_puis_update),
+              ("prendre_tache", tache_verrou_pessimiste)]
+    if sqlite3.sqlite_version_info >= (3, 35):  # RETURNING
+        justes.append(("prendre_tache", tache_returning))
+    for nom, juste in justes:
+        resultat = _evaluer(nom, juste)
+        assert resultat.statut == REUSSI, (nom, juste.__name__, resultat.message)
+
+
+def test_serie_15_une_panne_ne_valide_pas_une_migration_qu_un_redemarrage_aurait_annulee():
+    """Une migration qui n'attrape que sqlite3.Error laisse passer la panne sans rollback : au redémarrage,
+    SQLite annule la transaction ouverte. Le correcteur ne doit pas la valider à sa place."""
+
+    def migrer_except_etroit(conn, migrations):
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if version > len(migrations):
+            raise ValueError("trop récente")
+        for i in range(version, len(migrations)):
+            conn.execute("BEGIN")
+            try:
+                for instruction in migrations[i]:
+                    conn.execute(instruction)
+                conn.execute(f"PRAGMA user_version = {i + 1}")
+                conn.commit()
+            except sqlite3.Error:
+                conn.rollback()
+                raise
+        return len(migrations) - version
+
+    assert _evaluer("migrer", migrer_except_etroit).statut == REUSSI

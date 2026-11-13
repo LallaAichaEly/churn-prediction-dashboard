@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 91 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_14.py`, corrigés par
+> [défis](defis/README.md) : 97 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_15.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -60,10 +60,15 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > détourner : requêtes SQL paramétrées, secrets masqués dans les journaux, chemins d'export contrôlés, export CSV
 > sans formules, modèle chargé seulement s'il est intact (le défi 84 prolonge l'exercice 6.2) et lien signé avec HMAC.
 > Le correcteur joue l'attaquant contre votre code : ce sont les questions qu'on vous posera en revue de code.
-> Pour finir, la série 14 (`defis/serie_14.py`, défis 86 à 91) prépare le module 6 et la question « et si ça casse
+> Puis la série 14 (`defis/serie_14.py`, défis 86 à 91) prépare le module 6 et la question « et si ça casse
 > cette nuit ? » : configuration lue dans l'environnement, journal plutôt que `print`, reprises avec attente
 > exponentielle, envoi à 10 h heure de Paris sur un serveur en UTC, fichier de scores jamais laissé à moitié écrit,
 > disjoncteur. Faites-la avant l'exercice 6.4 : une API en production a besoin de tout cela dès le premier jour.
+> Pour finir, la série 15 (`defis/serie_15.py`, défis 92 à 97) vous fait ÉCRIRE dans une base partagée, là où la
+> série 10 la lisait : transaction tout ou rien, pages de clients par curseur, factures de 500 clients en une
+> requête, migrations du schéma, deux conseillers sur la même fiche (verrou optimiste) et plusieurs travailleurs sur
+> la même file de SMS. Faites-la avant de donner une vraie base à l'API de l'exercice 6.4 : c'est là que vivent les
+> bogues qui n'apparaissent qu'à plusieurs.
 
 ---
 

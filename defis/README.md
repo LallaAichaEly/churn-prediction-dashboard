@@ -45,11 +45,16 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > les journaux, noms de fichiers qui remontent les dossiers, formules cachées dans un export CSV, modèle pickle
 > piégé, lien de désinscription falsifié : le correcteur joue l'attaquant contre votre code. Elle ne demande que la
 > série 00 et le défi 40.
-> Pour finir, la **série 14** (défis 86 à 91) : écrire du code qui tient en production, la nuit, quand personne ne
+> Puis la **série 14** (défis 86 à 91) : écrire du code qui tient en production, la nuit, quand personne ne
 > regarde. Configuration lue dans les variables d'environnement, journal plutôt que `print`, reprises avec attente
 > exponentielle, envoi à 10 h heure de Paris sur un serveur en UTC (changement d'heure compris), fichier jamais laissé
 > à moitié écrit, disjoncteur qui coupe un service en panne. Elle ne demande que la série 00 et le défi 40 (et le défi
 > 48 pour le dernier).
+> Pour finir, la **série 15** (défis 92 à 97) : écrire dans une base de données partagée sans rien perdre. Une offre
+> accordée en deux écritures (tout ou rien), la liste des clients page par page, 500 clients chargés en une requête au
+> lieu de 501, un schéma qui évolue par migrations, deux conseillers sur la même fiche, plusieurs travailleurs sur la
+> même file de SMS. Elle ne demande que la série 00, un peu de SQL (série 05 ou 10) et les requêtes paramétrées du
+> défi 80.
 >
 > 🧠 **Vous préparez un entretien technique ?** La **série 09** (défis 56 à 61) reprend les classiques
 > de l'algorithmique sur des données de churn. Elle ne demande que les séries 00 et 07.
@@ -75,6 +80,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | **12 — Construire une API web** 🌐 | `defis/serie_12.py` | une route `GET` et son paramètre de chemin, répondre **404** plutôt que planter (500) ou renvoyer `null`, **paramètres de requête** typés et bornés (`Query(ge=…, le=…)` → 422), corps JSON validé par un **modèle Pydantic** (`pattern` ancré, `gt`/`le`, `Literal`, `extra="forbid"`), **201** et en-tête `Location`, **409** pour un doublon, **PATCH** partiel (`exclude_unset`, refuser `null`, tout ou rien), clé d'API dans un en-tête avec **`Depends`** (**401 contre 403**, contrôler l'accès avant l'existence, révocation), **idempotence** d'un `POST` avec l'en-tête `Idempotency-Key` (rejeu, panne → **503**, ne mémoriser qu'après succès) | 6, n° 74 à 79 (🟢×2 🟡×3 🔴×1) |
 | **13 — Écrire du code sûr** 🔐 | `defis/serie_13.py` | **injection SQL** : requête paramétrée (`?`, `(nom,)` avec la virgule, filtre facultatif sans `= NULL`), **secrets** masqués dans les journaux (noms normalisés, récursion dans les dictionnaires et les listes, copie sans toucher l'original), **traversée de répertoire** (`resolve()`, `is_relative_to` plutôt que `startswith`, chemin absolu, lien symbolique), **injection de formules** dans un export CSV pour Excel (texte seulement, nombres et valeurs manquantes intacts), **désérialisation** : empreinte SHA-256 vérifiée AVANT `pickle.loads`, une seule lecture (TOCTOU), **lien signé** avec HMAC (expiration signée, séparateur, `compare_digest`, toute entrée mal formée → ValueError) | 6, n° 80 à 85 (🟢×2 🟡×3 🔴×1) |
 | **14 — Tenir en production** 🚦 | `defis/serie_14.py` | **configuration** lue dans les variables d'environnement (`bool("false")` vaut True, NaN qui passe `seuil < 0 or seuil > 1`, toutes les erreurs d'un coup, ne lire que ce qu'on reçoit), **journalisation** avec `logging` (niveaux, `journal.exception` et sa traceback, un seul résumé INFO, pas de `print` ni de `basicConfig` dans une fonction, pas de données personnelles, `except Exception` pour laisser passer Ctrl+C), **reprises** avec attente exponentielle plafonnée (erreurs passagères seulement, `Retry-After`, relancer la dernière erreur, `dormir` injecté), **fuseaux horaires** avec `zoneinfo` (10 h à Paris en UTC, changement d'heure, `astimezone` contre `replace`, dates naïves refusées), **écriture atomique** (temporaire unique dans le même dossier, fermé puis `os.replace`, nettoyage et `raise` en cas de panne), **disjoncteur** (machine à états fermé/ouvert/semi-ouvert, horloge injectée, `@property`) | 6, n° 86 à 91 (🟢×2 🟡×3 🔴×1) |
+| **15 — Enregistrer sans rien perdre** 💾 | `defis/serie_15.py` | **transaction** « tout ou rien » (deux écritures, `with conn:`, `rollback` après N'IMPORTE QUELLE erreur, jamais de transaction laissée ouverte), **pagination par curseur** (`WHERE id > ? ORDER BY id LIMIT taille + 1`, pourquoi pas `OFFSET`), le problème des **requêtes N+1** (`IN (?, ?, …)` fabriqué sans coller de valeur, générateur lu une fois), **migrations** versionnées (`PRAGMA user_version`, `BEGIN` explicite car sqlite3 n'en ouvre pas avant un `CREATE TABLE`, le piège d'`executescript`, version écrite dans la même transaction), **verrou optimiste** (`WHERE id = ? AND version = ?`, `rowcount`, conflit contre client inconnu), **file de tâches** à plusieurs travailleurs (réclamer une tâche sans course, bail expiré, `RETURNING`) | 6, n° 92 à 97 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -132,6 +138,13 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > au milieu de l'écriture d'un fichier (il vérifie à chaque ligne que l'ancien fichier est encore intact), passage à
 > l'heure d'hiver. C'est la même technique que dans vos propres tests : on n'attend pas 30 vraies secondes pour tester
 > un délai de 30 secondes.
+
+> 💾 Dans la série 15, le correcteur ne vous passe pas tout à fait la connexion : il vous passe une connexion « espion »
+> (une vraie `sqlite3.Connection`) qui note chaque requête et compte les lignes que votre code lit. Il s'en sert pour
+> compter vos requêtes (défi 94), faire tomber en panne la 2e écriture d'une offre (défi 92) ou le serveur au milieu
+> d'une migration (défi 95), et surtout pour faire écrire un collègue ou un autre travailleur PILE entre votre SELECT et
+> votre UPDATE (défis 96 et 97). Après chaque appel, il regarde la base depuis une AUTRE connexion : c'est ce que verront
+> vos collègues. Une écriture sans `commit()` y est invisible, et une transaction laissée ouverte vous sera signalée.
 
 > 💡 Les défis 🔴 réutilisent le code du projet (`churn.model.build_pipeline`) : vous
 > apprenez aussi à lire et réutiliser un code existant, compétence clé en entreprise.

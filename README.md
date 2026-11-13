@@ -26,13 +26,13 @@ Ensuite, faites **un défi par séance**, dans l'ordre qui correspond à votre o
 | Votre objectif | Commencez par | Puis |
 |---|---|---|
 | Je débute, ou je ne me sens pas encore « à niveau » | série 00 (défis 30 à 37) | série 01, puis le module 1 de [`PARCOURS.md`](PARCOURS.md) |
-| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 11 (tests) → 07 → 08 → 12 (API web) → 13 (sécurité) → 14 (production), puis le [projet guidé](projets/README.md) |
+| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 11 (tests) → 07 → 08 → 12 (API web) → 13 (sécurité) → 14 (production) → 15 (base de données), puis le [projet guidé](projets/README.md) |
 | Je prépare un entretien technique | séries 00 et 07 | série 09 (algorithmique), puis séries 05 et 10 (SQL) |
 | Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05 |
 
 Pour aller plus loin :
 
-- [`defis/README.md`](defis/README.md) détaille les 15 séries de défis.
+- [`defis/README.md`](defis/README.md) détaille les 16 séries de défis.
 - [`PARCOURS.md`](PARCOURS.md) propose des exercices en 7 modules sur le vrai projet.
   `python scripts/progression.py` suit votre avancement.
 - [`CORRIGES.md`](CORRIGES.md) donne un indice puis la solution de chaque exercice. Ouvrez-le
@@ -68,7 +68,8 @@ Pour aller plus loin :
 | Construire une API web : routes et codes HTTP (200, 201, 204, 401, 403, 404, 409, 422, 503), paramètres de requête, modèles Pydantic, PATCH partiel, clé d'API avec `Depends`, idempotence (`Idempotency-Key`) | `defis/serie_12.py` (FastAPI, appelée par `TestClient`) |
 | Écrire du code sûr : requêtes SQL paramétrées (injection SQL), secrets masqués dans les journaux, chemins d'export sans traversée de répertoire, export CSV sans injection de formules, modèle pickle chargé seulement si son empreinte SHA-256 est bonne, lien signé avec HMAC (`compare_digest`, expiration) | `defis/serie_13.py` (le correcteur joue l'attaquant) |
 | Tenir en production : configuration par variables d'environnement, journalisation avec `logging` (niveaux, traceback, pas de `print`), reprises avec attente exponentielle, fuseaux horaires et changement d'heure (`zoneinfo`), écriture atomique d'un fichier (`os.replace`), disjoncteur (machine à états, horloge injectée) | `defis/serie_14.py` (le correcteur simule une nuit de pannes) |
-| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_14.py` + `scripts/defis.py` |
+| Enregistrer sans rien perdre : transactions (tout ou rien, `rollback`), pagination par curseur, requêtes N+1, migrations versionnées (`PRAGMA user_version`), verrou optimiste (`version`, `rowcount`), file de tâches à plusieurs travailleurs (bail, `RETURNING`) | `defis/serie_15.py` (SQLite ; le correcteur fait écrire un collègue entre votre SELECT et votre UPDATE) |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_15.py` + `scripts/defis.py` |
 | Construire un programme complet : modules, CSV imparfaits, règles métier, budget, CLI, tests | `projets/retention/` (projet 2, 7 étapes) + `scripts/projet.py` |
 | Git en équipe : commit propre et `.gitignore`, branches, `stash`, conflits, `revert`, `bisect`, `reflog`, `rebase` et `push --force-with-lease` | `atelier_git/` (8 scénarios dans un bac à sable) + `scripts/atelier_git.py` |
 
@@ -163,6 +164,8 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── serie_13.py         # 🔐 Série 13 — écrire du code sûr : SQL, secrets, chemins, formules, pickle, liens signés (6 défis)
 │   ├── serie_14.py         # 🚦 Série 14 — tenir en production : configuration, journaux, reprises, fuseaux, écriture atomique, disjoncteur (6 défis)
 │   ├── production.py       # Outils communs de la série 14 (Config, ErreurTemporaire, HorlogeFactice…)
+│   ├── serie_15.py         # 💾 Série 15 — enregistrer sans rien perdre : transaction, pages, N+1, migrations, verrou optimiste, file de tâches (6 défis)
+│   ├── persistance.py      # Outils communs de la série 15 (base_exemple, deux_connexions, afficher, ConflitDeVersion…)
 │   ├── donnees_sql.py      # La base SQLite de la série 10 (clients, factures, appels) + essayer()
 │   ├── corrige_serie_XX.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_XX.py  # Vérifications automatiques
