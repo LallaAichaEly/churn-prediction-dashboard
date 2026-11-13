@@ -26,13 +26,13 @@ Ensuite, faites **un défi par séance**, dans l'ordre qui correspond à votre o
 | Votre objectif | Commencez par | Puis |
 |---|---|---|
 | Je débute, ou je ne me sens pas encore « à niveau » | série 00 (défis 30 à 37) | série 01, puis le module 1 de [`PARCOURS.md`](PARCOURS.md) |
-| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 11 (tests) → 07 → 08 → 12 (API web) → 13 (sécurité) → 14 (production) → 15 (base de données) → 16 (asyncio) → 17 (concevoir ses types) → 18 (rendre le code rapide), puis les [projets guidés](projets/README.md) 2, 3 et 4 (le 4 assemble les séries 12 à 15 en un vrai service web) |
+| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 11 (tests) → 07 → 08 → 12 (API web) → 13 (sécurité) → 14 (production) → 15 (base de données) → 16 (asyncio) → 17 (concevoir ses types) → 18 (rendre le code rapide) → 19 (faire évoluer du code existant), puis les [projets guidés](projets/README.md) 2, 3 et 4 (le 4 assemble les séries 12 à 15 en un vrai service web) |
 | Je prépare un entretien technique | séries 00 et 07 | série 09 (algorithmique), puis séries 05 et 10 (SQL) |
 | Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05, puis le [projet 3](projets/README.md#projet-3--mesurer-leffet-de-la-campagne) (test A/B de bout en bout) |
 
 Pour aller plus loin :
 
-- [`defis/README.md`](defis/README.md) détaille les 18 séries de défis.
+- [`defis/README.md`](defis/README.md) détaille les 19 séries de défis.
 - [`PARCOURS.md`](PARCOURS.md) propose des exercices en 7 modules sur le vrai projet.
   `python scripts/progression.py` suit votre avancement.
 - [`CORRIGES.md`](CORRIGES.md) donne un indice puis la solution de chaque exercice. Ouvrez-le
@@ -76,7 +76,8 @@ Pour aller plus loin :
 | Faire plusieurs choses à la fois avec `asyncio` : `gather`, délai maximal et annulation (`wait_for`), limite de concurrence (`Semaphore`), situation de compétition (`Lock`, double vérification), le premier qui répond (`as_completed`), producteur et travailleurs (`Queue` bornée, `TaskGroup`) | `defis/serie_16.py` (horloge virtuelle : le correcteur mesure vos durées et voit les interblocages) |
 | Concevoir ses propres types : `@dataclass(frozen=True)` et `__post_init__` (TypeError ou ValueError), `Enum` avec `@classmethod` et `@property`, objet valeur `Montant` en centimes (`Decimal`, `NotImplemented`, `__radd__` pour `sum`, `@total_ordering`), gestionnaire de contexte (`@contextmanager`, `try / except / else / finally`), protocole des collections (`__len__`, `__contains__`, `__getitem__`, `__iter__`), surcharge d'opérateurs (`&`, `|`, `~`, `__call__`, `__bool__`) | `defis/serie_17.py` (le correcteur reçoit vos classes et s'en sert comme un collègue) |
 | Rendre le code rapide, preuves à l'appui : chronométrer (`perf_counter`, répéter, garder le minimum), profiler (`cProfile`, `pstats`, tottime contre cumtime), recherche dichotomique (`bisect`, liste triée une fois), cache borné et périmé (`OrderedDict`, LRU, durée de vie, décorateur à paramètres), lire un gros fichier en flux (`csv.DictReader`, `chunksize`, `tracemalloc`), optimiser sans rien changer (`Counter`, `set`, calcul sorti de la boucle, comparaison à l'ancienne version) | `defis/serie_18.py` (le correcteur compte vos comparaisons et vos lectures, et arrête une boucle dans une boucle) |
-| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_18.py` + `scripts/defis.py` |
+| Faire évoluer du code existant sans rien casser : test de caractérisation (photo du comportement, `copy.deepcopy`), paramètre déprécié (`warnings.warn`, `DeprecationWarning`, `stacklevel=2`), cœur pur extrait d'un script (ni fichier, ni `print`, ni `date.today()`, ni état global), lecture de deux formats de données (versions explicites, lecteur tolérant), patron adaptateur (traduire les erreurs, `raise … from exc`), nouvelle version testée dans l'ombre de l'ancienne (`functools.wraps`, journal des différences) | `defis/serie_19.py` (le correcteur compare votre code au vieux code sur des centaines de cas, et vérifie que l'utilisateur ne voit jamais la différence) |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_19.py` + `scripts/defis.py` |
 | Construire un programme complet : modules, CSV imparfaits, règles métier, budget, CLI, tests | `projets/retention/` (projet 2, 7 étapes) + `scripts/projet.py` |
 | Mesurer l'effet d'une action (test A/B) : groupe témoin reproductible (`hashlib`), base SQLite (transactions, UPSERT, clés étrangères, `GROUP BY` + `LEFT JOIN`), intervalle de confiance, CLI à sous-commandes | `projets/campagne/` (projet 3, 7 étapes) + `scripts/projet.py --projet 3` |
 | Livrer un service web utilisé par une équipe : configuration par l'environnement sans fuite de secret, répartition équitable sans requêtes N+1, pagination par curseur, verrou optimiste et transaction sur deux tables, FastAPI (`Depends`, une connexion par requête, clés comparées avec `compare_digest`, 401/403/404/409/422), CLI qui démarre le serveur, tests d'API avec `TestClient` | `projets/service/` (projet 4, 7 étapes) + `scripts/projet.py --projet 4` |
@@ -181,6 +182,8 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── conception.py       # Outils communs de la série 17 (fausse passerelle SMS, données d'exemple)
 │   ├── serie_18.py         # ⏱️ Série 18 — rendre le code rapide : chronométrer, profiler, bisect, cache LRU, lecture en flux, optimiser (6 défis)
 │   ├── performance.py      # Outils communs de la série 18 (programme à profiler, factures, version lente à accélérer…)
+│   ├── serie_19.py         # 🏗️ Série 19 — faire évoluer du code existant : figer, déprécier, extraire, migrer, adapter, comparer (6 défis)
+│   ├── heritage.py         # Le « vieux code » de la série 19 (score de 2022, script de nuit, ancien et nouvel opérateur SMS)
 │   ├── donnees_sql.py      # La base SQLite de la série 10 (clients, factures, appels) + essayer()
 │   ├── corrige_serie_XX.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_XX.py  # Vérifications automatiques

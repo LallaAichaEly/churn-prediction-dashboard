@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 115 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_18.py`, corrigés par
+> [défis](defis/README.md) : 121 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_19.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -75,16 +75,23 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > lecteur de pages avec 4 travailleurs qui ne déborde jamais (`Queue`, `TaskGroup`). Le correcteur mesure vos durées sur
 > une horloge virtuelle et repère les tâches oubliées et les programmes figés. Faites-la avant l'exercice 6.4 : FastAPI
 > est un programme asyncio, et une route `async def` qui appelle un autre service, c'est exactement ça.
-> Pour finir, la série 17 (`defis/serie_17.py`, défis 104 à 109) vous apprend à concevoir vos propres types : un `Client`
+> Puis la série 17 (`defis/serie_17.py`, défis 104 à 109) vous apprend à concevoir vos propres types : un `Client`
 > qui refuse d'exister s'il est invalide, un `Contrat` en `Enum`, un `Montant` en centimes (jamais de float pour de
 > l'argent), un envoi de SMS qui ne part qu'en entier (`with`), un portefeuille qu'on parcourt avec `for` et des règles de
 > ciblage qu'on combine avec `&` `|` `~`. C'est ce que vous lisez déjà sans le savoir : les modèles Pydantic de l'API
 > (exercice 6.4) sont des dataclasses qui valident, et `df[(a) & (b)]` dans pandas, c'est le défi 109.
-> Enfin, la série 18 (`defis/serie_18.py`, défis 110 à 115) vous apprend à rendre un code rapide sans le casser :
+> Puis la série 18 (`defis/serie_18.py`, défis 110 à 115) vous apprend à rendre un code rapide sans le casser :
 > chronométrer juste, trouver la fonction lente avec `cProfile`, chercher un tarif avec `bisect` au lieu de tout
 > parcourir, un cache borné qui périme ses résultats, lire un export de 10 Go avec 1 Mo de mémoire, et accélérer une
 > fonction de 40 minutes en gardant EXACTEMENT son résultat. Faites-la quand le tableau de bord ou l'entraînement
 > (`python scripts/train.py`) vous semble lent : mesurez avant de toucher à quoi que ce soit (exercices 3.4 et 6.4).
+> Enfin, la série 19 (`defis/serie_19.py`, défis 116 à 121) vous apprend à faire évoluer un code qui tourne déjà, sans
+> rien casser : photographier le comportement d'une vieille fonction avant d'y toucher, renommer un paramètre utilisé
+> partout (`DeprecationWarning`), extraire la décision d'un script de nuit pour la rendre testable, lire l'ancien et le
+> nouveau format d'un fichier, brancher un nouvel opérateur SMS derrière l'ancienne interface, et faire tourner une
+> réécriture dans l'ombre de l'ancienne version. C'est le quotidien d'un premier poste. Le défi 116 prépare l'exercice
+> 6.2 (le modèle rechargé doit prédire exactement comme avant), et le défi 121 est la façon prudente de remplacer le
+> modèle servi par l'API de l'exercice 6.4 : le nouveau tourne dans l'ombre de l'ancien avant de prendre sa place.
 
 ---
 

@@ -6747,3 +6747,687 @@ def test_serie_18_les_exemples_des_docstrings_sont_justes(tmp_path, capsys):
     clients, appels, deja = exemple_rappels()
     assert (len(clients), len(appels)) == (2_000, 20_000)
     assert clients_a_rappeler(clients, appels, deja) == clients_a_rappeler_lent(clients, appels, deja)
+
+
+# --------------------------------------------------------------------------- Série 19 : faire évoluer du code existant
+
+import copy  # noqa: E402
+import io  # noqa: E402
+import json  # noqa: E402
+import operator  # noqa: E402
+import warnings  # noqa: E402
+from datetime import date as d19  # noqa: E402
+
+from defis.heritage import CANAUX as CANAUX_19  # noqa: E402
+from defis.heritage import CLIENTS_EXEMPLE as CLIENTS_19  # noqa: E402
+from defis.heritage import JOUR_EXEMPLE as JOUR_19  # noqa: E402
+from defis.heritage import LIGNES_EXEMPLE as LIGNES_19  # noqa: E402
+from defis.heritage import ClientMessagerie, ErreurMessagerie, ancien_score, nouveau_score, remise_ancienne  # noqa: E402
+
+
+def _echec_19(nom, objet, *mots):
+    resultat = _evaluer(nom, objet)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+# Défi 116 : photographier
+
+
+def _photographier_19(defaut=None):
+    def photographier(fonction, cas):
+        if defaut == "deux_parcours":
+            nombre = len(list(cas))  # noqa: F841 — vide le générateur avant la boucle
+        photo = []
+        for arguments in cas:
+            avant = copy.deepcopy(arguments)
+            if defaut == "copie_superficielle":
+                appel = copy.copy(arguments)
+            elif defaut == "sans_copie":
+                appel = arguments
+            else:
+                appel = copy.deepcopy(arguments)
+            if defaut == "photo_apres":
+                avant = appel
+            try:
+                if defaut == "deux_appels":
+                    fonction(*copy.deepcopy(arguments))
+                valeur = fonction(*appel)
+            except (BaseException if defaut == "tout_attraper" else Exception) as exc:
+                if defaut == "laisse_remonter":
+                    raise
+                if defaut == "objet_exception":
+                    note = ("erreur", exc)
+                elif defaut == "classe":
+                    note = ("erreur", type(exc), str(exc))
+                else:
+                    note = ("erreur", type(exc).__name__, str(exc))
+            else:
+                note = ("ok", valeur if defaut == "valeur_sans_copie" else copy.deepcopy(valeur))
+                if defaut == "valeur_seule":
+                    note = valeur
+            photo.append([avant, note] if defaut == "listes" else (avant, note))
+        return photo
+
+    return photographier
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_photographier_19("valeur_seule"), ('("ok", valeur)',)),
+    (_photographier_19("listes"), ("TUPLE",)),
+    (_photographier_19("laisse_remonter"), ("on la NOTE",)),
+    (_photographier_19("objet_exception"), ("OBJET exception", "type(exc).__name__")),
+    (_photographier_19("classe"), ("NOM du type",)),
+    (_photographier_19("copie_superficielle"), ("vos cas ont été modifiés", "copy.deepcopy(arguments)")),
+    (_photographier_19("sans_copie"), ("vos cas ont été modifiés",)),
+    (_photographier_19("photo_apres"), ("APRÈS l'appel",)),
+    (_photographier_19("valeur_sans_copie"), ("copy.deepcopy(valeur)",)),
+    (_photographier_19("deux_appels"), ("une seule fois par cas",)),
+    (_photographier_19("deux_parcours"), ("GÉNÉRATEUR",)),
+    (_photographier_19("tout_attraper"), ("Ctrl+C", "Exception")),
+])
+def test_serie_19_photographier_erreurs_classiques(mutant, mots):
+    _echec_19("photographier", mutant, *mots)
+
+
+def test_serie_19_photographier_qui_garde_les_arguments_d_origine_est_accepte():
+    def photographier(fonction, cas):
+        photo = []
+        for arguments in cas:
+            try:
+                note = ("ok", copy.deepcopy(fonction(*copy.deepcopy(arguments))))
+            except Exception as exc:
+                note = ("erreur", type(exc).__name__, str(exc))
+            photo.append((arguments, note))       # la fonction n'a touché qu'une copie : l'original est intact
+        return photo
+
+    assert _evaluer("photographier", photographier).statut == REUSSI
+
+
+# Défi 117 : remise
+
+
+def _remise_19(defaut=None):
+    def calcul(montant, taux, pourcentage):
+        taux_donne = bool(taux) if defaut == "si_taux" else taux is not None
+        pourcentage_donne = bool(pourcentage) if defaut == "si_pourcentage" else pourcentage is not None
+        if taux_donne and pourcentage_donne:
+            if defaut != "pourcentage_gagne":
+                raise TypeError("remise() : donnez `pourcentage` (ou l'ancien `taux`), pas les deux")
+            taux_donne = False
+        if not taux_donne and not pourcentage_donne and defaut != "typeerror_muet":
+            raise TypeError("remise() : il manque `pourcentage` (ou l'ancien `taux`)")
+        if taux_donne:
+            message = ("remise(montant, taux) est dépréciée" if defaut == "message_vague"
+                       else f"remise(montant, taux) est dépréciée : écrivez remise(montant, pourcentage={taux * 100:g})")
+            if defaut == "print":
+                print(message)
+            elif defaut != "sans_avertissement":
+                categorie = UserWarning if defaut == "user_warning" else DeprecationWarning
+                for _ in range(2 if defaut == "deux_avertissements" else 1):
+                    warnings.warn(message, categorie, stacklevel=1 if defaut == "stacklevel_1" else 3)
+            if defaut == "taux_non_valide":
+                return round(montant * (1 - taux), 2)
+            return remise_ancienne(montant, taux)
+        if not 0 <= pourcentage <= 100 and defaut != "pourcentage_non_valide":
+            raise ValueError(f"pourcentage doit être entre 0 et 100 (reçu : {pourcentage})")
+        if defaut == "formule_fausse":
+            return round(montant * pourcentage / 100, 2)
+        return remise_ancienne(montant, pourcentage / 100)
+
+    if defaut == "sans_etoile":
+        def remise(montant, taux=None, pourcentage=None):
+            return calcul(montant, taux, pourcentage)
+    else:
+        def remise(montant, taux=None, *, pourcentage=None):
+            return calcul(montant, taux, pourcentage)
+    return remise
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_remise_19("sans_etoile"), ("NOMMÉ",)),
+    (_remise_19("sans_avertissement"), ("ne prévient personne",)),
+    (_remise_19("print"), ("print", "warnings.warn")),
+    (_remise_19("user_warning"), ("UserWarning", "DeprecationWarning")),
+    (_remise_19("stacklevel_1"), ("stacklevel=2", "test_defis.py")),
+    (_remise_19("message_vague"), ("nommer `pourcentage`",)),
+    (_remise_19("deux_avertissements"), ("un seul par appel",)),
+    (_remise_19("si_taux"), ("taux is None",)),
+    (_remise_19("si_pourcentage"), ("pourcentage is None",)),
+    (_remise_19("taux_non_valide"), ("2 000 %",)),
+    (_remise_19("pourcentage_non_valide"), ("pourcentage=120", "nommez le paramètre fautif")),
+    (_remise_19("typeerror_muet"), ("nommer `taux` et `pourcentage`",)),
+    (_remise_19("pourcentage_gagne"), ("les deux", "devrait lever TypeError")),
+    (_remise_19("formule_fausse"), ("APRÈS remise",)),
+])
+def test_serie_19_remise_erreurs_classiques(mutant, mots):
+    _echec_19("remise", mutant, *mots)
+
+
+# Défi 118 : decider_relances
+
+
+def _decider_19(defaut=None):
+    deja = [0]
+
+    def decider_relances(lignes, aujourd_hui, budget=50):
+        jour = d19.today() if defaut == "today" else aujourd_hui
+        if defaut == "mute":
+            for ligne in lignes:
+                ligne["score"] = float(str(ligne["score"]).replace(",", "."))
+            candidats = [(-ligne["score"], ligne["client_id"], ligne) for ligne in lignes]
+        else:
+            candidats = [(-float(ligne["score"].replace(",", ".")), ligne["client_id"], ligne) for ligne in lignes]
+        candidats.sort(key=(lambda c: c[0]) if defaut == "sans_tri_id" else (lambda c: (c[0], c[1])))
+        if defaut == "budget_avant":
+            candidats = candidats[:budget]
+        relances = []
+        for moins_score, client_id, ligne in candidats:
+            if (-moins_score <= 0.6) if defaut == "seuil_strict" else (-moins_score < 0.6):
+                continue
+            consentement = ligne["consentement"].strip().lower() if defaut == "consentement_souple" else ligne["consentement"]
+            if consentement != "oui":
+                continue
+            if ligne["dernier_contact"]:
+                jours = (jour - d19.fromisoformat(ligne["dernier_contact"])).days
+                if (jours <= 30) if defaut == "trente_exclus" else (jours < 30):
+                    continue
+            if (deja[0] if defaut == "global" else len(relances)) >= budget:
+                break
+            deja[0] += 1
+            if defaut == "offre_par_contrat":
+                offre = "FIDELITE" if ligne["contrat"] == "Annuel" else "ENGAGEMENT"
+            else:
+                offre = "ENGAGEMENT" if ligne["contrat"] == "Mensuel" else "FIDELITE"
+            if defaut == "print":
+                print(f"relance {client_id} : {offre}")
+            relances.append([client_id, offre] if defaut == "listes" else (client_id, offre))
+        return relances
+
+    return decider_relances
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_decider_19("mute"), ("modifié les lignes",)),
+    (_decider_19("global"), ("garde un état",)),
+    (_decider_19("print"), ("print",)),
+    (_decider_19("today"), ("AUJOURD'HUI", "aujourd_hui")),
+    (_decider_19("seuil_strict"), ("0,6 PILE",)),
+    (_decider_19("trente_exclus"), ("30 jours PILE",)),
+    (_decider_19("consentement_souple"), ("« Oui »", "ticket")),
+    (_decider_19("sans_tri_id"), ("trie par client_id",)),
+    (_decider_19("budget_avant"), ("AVANT les filtres",)),
+    (_decider_19("listes"), ("LISTE de tuples",)),
+    (_decider_19("offre_par_contrat"), ("Première différence",)),
+])
+def test_serie_19_decider_erreurs_classiques(mutant, mots):
+    _echec_19("decider_relances", mutant, *mots)
+
+
+def test_serie_19_la_reference_du_correcteur_est_l_ancien_script(tmp_path, monkeypatch):
+    """Le correcteur recopie la logique de l'ancien script : on le vérifie en faisant tourner le VRAI vieux script."""
+    import defis.heritage as heritage
+    from defis.checks_serie_19 import _fichier_au_hasard, _reference_relances
+
+    class FausseDate(d19):
+        @classmethod
+        def today(cls):
+            return cls(2025, 4, 1)
+
+    monkeypatch.setattr(heritage, "date", FausseDate)
+    rng = random.Random(7)
+    for essai in range(40):
+        lignes = _fichier_au_hasard(rng, d19(2025, 4, 1), rng.randint(1, 30))
+        chemin = heritage.ecrire_lignes(lignes, tmp_path / f"relances_{essai}.csv")
+        operateur = heritage.OperateurFactice()
+        monkeypatch.setattr(heritage, "_ENVOYES_AUJOURDHUI", 0)
+        heritage.ancien_traitement_relances(chemin, operateur)
+        par_telephone = {ligne["telephone"]: ligne["client_id"] for ligne in lignes}
+        envoyes = [(par_telephone[t], offre) for t, offre in operateur.envois]
+        assert envoyes == _reference_relances(lignes, d19(2025, 4, 1))
+
+
+# Défi 119 : lire_preferences
+
+
+def _lire_19(defaut=None):
+    constante = {"version": 2, "canaux": [], "heure": 10, "langue": "fr"}
+
+    def lire_preferences(texte):
+        if defaut != "sans_none" and texte is None or (defaut not in ("sans_none", "vide_plante")
+                                                       and texte is not None and not texte.strip()):
+            return constante if defaut == "defaut_partage" else {"version": 2, "canaux": [], "heure": 10, "langue": "fr"}
+        donnees = json.loads(texte)
+        if not isinstance(donnees, dict) and defaut != "liste_attrapee":
+            raise ValueError("objet JSON attendu")
+        version = donnees["version"] if defaut == "version_obligatoire" else donnees.get("version", 1)
+        if defaut == "true_version":
+            connue = version in (1, 2) and not isinstance(version, str)
+        elif defaut == "devine":
+            connue, version = True, (1 if version == 1 else 2)
+        else:
+            connue = type(version) is int and version in (1, 2)
+        if not connue:
+            raise ValueError(f"version {version!r} inconnue")
+        if version == 1:
+            canaux = [c for c in ("email", "sms") if donnees.get(c)]
+        else:
+            canaux = donnees.get("canaux", [])
+            if not isinstance(canaux, list):
+                raise ValueError("canaux doit être une liste")
+            if defaut == "canal_inconnu_ignore":
+                canaux = [c for c in canaux if c in CANAUX_19]
+            for canal in canaux:
+                if canal not in CANAUX_19:
+                    raise ValueError("canal inconnu" if defaut == "message_canal" else f"canal {canal!r} inconnu")
+        heure = (donnees.get("heure") or 10) if defaut == "heure_ou" else donnees.get("heure", 10)
+        valide = isinstance(heure, int) if defaut == "true_heure" else type(heure) is int
+        if not valide or not 0 <= heure <= 23:
+            raise ValueError(f"heure {heure!r} invalide")
+        resultat = {"version": 2, "canaux": list(canaux) if defaut == "pas_trie" else sorted(set(canaux)),
+                    "heure": heure, "langue": donnees.get("langue", "fr")}
+        if defaut == "garde_inconnues":
+            resultat = {**donnees, **resultat}
+        return resultat
+
+    return lire_preferences
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_lire_19("sans_none"), ("texte is None",)),
+    (_lire_19("vide_plante"), ("not texte.strip()",)),
+    (_lire_19("version_obligatoire"), ("KeyError", 'donnees.get("version", 1)')),
+    (_lire_19("defaut_partage"), ("NOUVEAU dictionnaire",)),
+    (_lire_19("heure_ou"), ("0 (minuit)",)),
+    (_lire_19("garde_inconnues"), ("clés inconnues",)),
+    (_lire_19("devine"), ("version 3", "Ne devinez pas")),
+    (_lire_19("true_version"), ("True == 1",)),
+    (_lire_19("true_heure"), ("True est un entier",)),
+    (_lire_19("canal_inconnu_ignore"), ("pigeon", "devrait lever ValueError")),
+    (_lire_19("message_canal"), ("nommez « pigeon »",)),
+    (_lire_19("pas_trie"), ("sorted(set(canaux))",)),
+    (_lire_19("liste_attrapee"), ("AttributeError", "isinstance(donnees, dict)")),
+])
+def test_serie_19_preferences_erreurs_classiques(mutant, mots):
+    _echec_19("lire_preferences", mutant, *mots)
+
+
+# Défi 120 : AdaptateurSMS
+
+
+def _adaptateur_19(defaut=None):
+    import re as re_19
+
+    def international(numero):
+        brut = re_19.sub(r"[ .\-]", "", numero)
+        formes = [(r"0([1-9]\d{8})", "+33"), (r"\+33([1-9]\d{8})", "+33")]
+        if defaut != "sans_0033":
+            formes.append((r"0033([1-9]\d{8})", "+33"))
+        for motif, prefixe in formes:
+            trouve = re_19.fullmatch(motif, brut)
+            if trouve:
+                return prefixe + trouve.group(1)
+        return None
+
+    class AdaptateurSMS:
+        client_partage = None
+
+        def __init__(self, client, expediteur="RETENTION"):
+            if defaut == "attribut_classe":
+                if AdaptateurSMS.client_partage is None:
+                    AdaptateurSMS.client_partage = client
+            else:
+                self.client = client
+            self.expediteur = "RETENTION" if defaut == "sans_expediteur" else expediteur
+
+        def envoyer_sms(self, numero, texte):
+            client = AdaptateurSMS.client_partage if defaut == "attribut_classe" else self.client
+            if defaut != "sans_controle_texte" and defaut != "controle_apres" and (not texte or len(texte) > 160):
+                raise ValueError("texte de 1 à 160 caractères")
+            destinataire = numero if defaut == "numero_brut" else international(numero)
+            if destinataire is None:
+                return False
+            essais = 3 if defaut == "retry" else 1
+            for essai in range(essais):
+                try:
+                    reponse = client.messages.create(destinataire=destinataire, contenu=texte,
+                                                      expediteur=self.expediteur)
+                    break
+                except (Exception if defaut in ("tout_false", "exception_large") else ErreurMessagerie) as exc:
+                    code = getattr(exc, "code", None)
+                    if defaut == "tout_false":
+                        return False
+                    if code == "INDISPONIBLE" and essai < essais - 1:
+                        continue
+                    if code in ("NUMERO_INVALIDE", "INDISPONIBLE"):
+                        return False
+                    if code == "CLE_INVALIDE":
+                        if defaut == "sans_from":
+                            raise PermissionError("clé refusée") from None
+                        raise PermissionError("clé refusée") from exc
+                    if defaut == "quota_false" or (defaut == "exception_large" and not isinstance(exc, ErreurMessagerie)):
+                        return False
+                    raise
+            if defaut == "controle_apres" and (not texte or len(texte) > 160):
+                raise ValueError("texte de 1 à 160 caractères")
+            if defaut == "reponse":
+                return reponse
+            if defaut == "stop_true":
+                return True
+            return reponse.statut == "accepte"
+
+    return AdaptateurSMS
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_adaptateur_19("reponse"), ("BOOLÉEN",)),
+    (_adaptateur_19("numero_brut"), ("format international",)),
+    (_adaptateur_19("sans_0033"), ("0033 6 12 34 56 78", "+33612345678")),
+    (_adaptateur_19("sans_expediteur"), ("expediteur=self.expediteur",)),
+    (_adaptateur_19("attribut_classe"), ("attribut de classe",)),
+    (_adaptateur_19("stop_true"), ("STOP", "reponse.statut")),
+    (_adaptateur_19("retry"), ("nouvel essai",)),
+    (_adaptateur_19("tout_false"), ("CLE_INVALIDE", "devrait lever PermissionError")),
+    (_adaptateur_19("sans_from"), ("from exc",)),
+    (_adaptateur_19("quota_false"), ("QUOTA_DEPASSE", "TELLE QUELLE")),
+    (_adaptateur_19("exception_large"), ("bogue", "except Exception")),
+    (_adaptateur_19("sans_controle_texte"), ("161 caractères", "facture 2 SMS")),
+    (_adaptateur_19("controle_apres"), ("AVANT d'appeler create",)),
+])
+def test_serie_19_adaptateur_erreurs_classiques(mutant, mots):
+    _echec_19("AdaptateurSMS", mutant, *mots)
+
+
+# Défi 121 : en_ombre
+
+
+def _ombre_19(defaut=None):
+    stats_partagees = {"appels": 0, "comparaisons": 0, "differences": 0}
+
+    def noter(fonction, args, kwargs, attraper=Exception):
+        try:
+            return ("ok", fonction(*args, **kwargs)), None
+        except attraper as exc:
+            return ("erreur", type(exc).__name__, str(exc)), exc
+
+    def en_ombre(ancienne, nouvelle, journal, *, proportion=1.0, tirage=random.random, egal=operator.eq):
+        if defaut != "proportion_tardive" and not 0 <= proportion <= 1:
+            raise ValueError("proportion entre 0 et 1")
+        stats = stats_partagees if defaut == "stats_globales" else {"appels": 0, "comparaisons": 0, "differences": 0}
+        comparer_egal = operator.eq if defaut == "egal_ignore" else egal
+
+        def fonction(*args, **kwargs):
+            if defaut == "proportion_tardive" and not 0 <= proportion <= 1:
+                raise ValueError("proportion entre 0 et 1")
+            stats["appels"] += 1
+            comparer = True if defaut == "tirage_ignore" else tirage() < proportion
+            if comparer and defaut != "copie_apres":
+                avant = copy.deepcopy((args, kwargs))
+            if defaut == "ancienne_sur_copie":
+                ancien, exc_ancienne = noter(ancienne, *copy.deepcopy((args, kwargs)))
+            elif defaut == "pas_compare_si_ancienne_plante":
+                ancien, exc_ancienne = ("ok", ancienne(*args, **kwargs)), None
+            else:
+                ancien, exc_ancienne = noter(ancienne, args, kwargs)
+            if comparer:
+                if defaut == "copie_apres":
+                    avant = copy.deepcopy((args, kwargs))
+                if defaut == "nouvelle_sur_originaux":
+                    pour_nouvelle = (args, kwargs)
+                elif defaut == "nouvelle_sur_memes":
+                    pour_nouvelle = avant
+                else:
+                    pour_nouvelle = copy.deepcopy(avant)
+                if defaut == "nouvelle_remonte":
+                    nouveau = ("ok", nouvelle(*pour_nouvelle[0], **pour_nouvelle[1]))
+                else:
+                    attraper = BaseException if defaut == "tout_attraper" else Exception
+                    nouveau, _ = noter(nouvelle, *pour_nouvelle, attraper=attraper)
+                stats["comparaisons"] += 1
+                if ancien[0] == nouveau[0] == "ok":
+                    different = not comparer_egal(ancien[1], nouveau[1])
+                elif ancien[0] == nouveau[0] == "erreur":
+                    different = ancien[1] != nouveau[1]
+                else:
+                    different = True
+                if different:
+                    stats["differences"] += 1
+                    journal({"arguments": avant, "ancienne": ancien, "nouvelle": nouveau})
+            if exc_ancienne is not None:
+                if defaut == "nouvelle_exception":
+                    raise type(exc_ancienne)(*exc_ancienne.args)
+                raise exc_ancienne
+            return nouveau[1] if defaut == "renvoie_nouvelle" and comparer and nouveau[0] == "ok" else ancien[1]
+
+        if defaut != "sans_wraps":
+            fonction = functools.wraps(ancienne)(fonction)
+        if defaut != "sans_stats":
+            fonction.stats = stats
+        return fonction
+
+    return en_ombre
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_ombre_19("sans_wraps"), ("functools.wraps",)),
+    (_ombre_19("sans_stats"), ("fonction.stats",)),
+    (_ombre_19("stats_globales"), ("partagent leurs stats",)),
+    (_ombre_19("renvoie_nouvelle"), ("ANCIENNE version",)),
+    (_ombre_19("ancienne_sur_copie"), ("VRAIS arguments",)),
+    (_ombre_19("copie_apres"), ("AVANT de l'appeler",)),
+    (_ombre_19("pas_compare_si_ancienne_plante"), ("MÊME quand l'ancienne plante",)),
+    (_ombre_19("nouvelle_exception"), ("CETTE exception-là",)),
+    (_ombre_19("nouvelle_remonte"), ("JAMAIS gêner",)),
+    (_ombre_19("tout_attraper"), ("Ctrl+C",)),
+    (_ombre_19("nouvelle_sur_originaux"), ("copie à elle",)),
+    (_ombre_19("nouvelle_sur_memes"), ("AUTRE copie",)),
+    (_ombre_19("egal_ignore"), ("egal(a, b)",)),
+    (_ombre_19("proportion_tardive"), ("dès en_ombre",)),
+    (_ombre_19("tirage_ignore"), ("tirage() < proportion",)),
+])
+def test_serie_19_ombre_erreurs_classiques(mutant, mots):
+    _echec_19("en_ombre", mutant, *mots)
+
+
+@pytest.mark.parametrize("nom,fabrique", [("photographier", _photographier_19), ("remise", _remise_19),
+                                          ("decider_relances", _decider_19), ("lire_preferences", _lire_19),
+                                          ("AdaptateurSMS", _adaptateur_19), ("en_ombre", _ombre_19)])
+def test_serie_19_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_19_les_tests_du_corrige_passent():
+    import defis.corrige_serie_19 as corrige
+
+    tests = [f for nom, f in list(vars(corrige).items()) if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_19_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.heritage as heritage
+    import defis.serie_19 as eleve
+
+    for nom in ("CANAUX", "CLIENTS_EXEMPLE", "JOUR_EXEMPLE", "LIGNES_EXEMPLE", "PREFERENCES_V1_EXEMPLE",
+                "PREFERENCES_V2_EXEMPLE", "ClientMessagerie", "ErreurMessagerie", "OperateurFactice",
+                "PasserelleAncienne", "Reponse", "ancien_score", "ancien_traitement_relances", "ecrire_lignes",
+                "nouveau_score", "remise_ancienne"):
+        assert getattr(eleve, nom) is getattr(heritage, nom), nom
+
+
+def test_serie_19_le_fichier_eleve_s_importe_et_tout_est_a_faire():
+    from defis.checks_serie_19 import SERIE
+
+    assert [r.statut for r in evaluer(SERIE)] == [A_FAIRE] * 6
+
+
+def test_serie_19_le_correcteur_ne_touche_pas_aux_donnees_d_exemple():
+    from defis.checks_serie_19 import SERIE
+
+    clients, lignes = copy.deepcopy(CLIENTS_19), copy.deepcopy(LIGNES_19)
+    import defis.corrige_serie_19 as corrige
+
+    for defi in SERIE.defis:
+        assert evaluer_defi(corrige, defi).statut == REUSSI
+    assert CLIENTS_19 == clients and LIGNES_19 == lignes
+
+
+def test_serie_19_les_exemples_des_docstrings_sont_justes():
+    """Les exemples de defis/serie_19.py et defis/heritage.py, rejoués avec le corrigé."""
+    from defis.corrige_serie_19 import (AdaptateurSMS, PasserelleAncienne, decider_relances, en_ombre, lire_preferences,
+                                        photographier, remise)
+    from defis.heritage import PREFERENCES_V1_EXEMPLE, PREFERENCES_V2_EXEMPLE
+
+    assert ancien_score({"client_id": "C002", "charges": 45.0, "contrat": "Annuel", "appels": 0}) == 0.35
+    assert remise_ancienne(100, 0.2) == 80.0
+    assert PasserelleAncienne().envoyer_sms("06 12 34 56 78", "Votre offre vous attend") is True
+
+    photo = photographier(ancien_score, [(c,) for c in CLIENTS_19])
+    lignes = [f"{a[0]['client_id']} {a[0].get('charges')} {r}" for a, r in photo]
+    assert lignes == ["C001 89,90 ('ok', 0.95)", "C002 45.0 ('ok', 0.35)", "C003 130 ('ok', 0.85)",
+                      "C004 None ('erreur', 'KeyError', \"'charges'\")",
+                      "C005 -10 ('erreur', 'ValueError', 'charges négatives : -10.0')"]
+    assert CLIENTS_19[0]["charges"] == "89,90"
+    assert (photographier(nouveau_score, [(c,) for c in CLIENTS_19]) == photo) is False
+
+    with warnings.catch_warnings(record=True) as notes:
+        warnings.simplefilter("always")
+        assert remise(100, pourcentage=20) == 80.0
+        assert remise(100, 0.2) == 80.0
+    assert [str(n.message) for n in notes] == [
+        "remise(montant, taux) est dépréciée : écrivez remise(montant, pourcentage=20)"]
+
+    assert decider_relances(LIGNES_19, JOUR_19) == [("C02", "FIDELITE"), ("C01", "ENGAGEMENT"), ("C08", "FIDELITE"),
+                                                    ("C03", "ENGAGEMENT")]
+    assert decider_relances(LIGNES_19, JOUR_19, budget=2) == [("C02", "FIDELITE"), ("C01", "ENGAGEMENT")]
+
+    assert lire_preferences(PREFERENCES_V1_EXEMPLE) == {"version": 2, "canaux": ["sms"], "heure": 18, "langue": "fr"}
+    assert lire_preferences(PREFERENCES_V2_EXEMPLE) == {"version": 2, "canaux": ["courrier", "sms"], "heure": 9,
+                                                        "langue": "en"}
+    assert lire_preferences(None) == {"version": 2, "canaux": [], "heure": 10, "langue": "fr"}
+
+    client = ClientMessagerie("cle_test_123")
+    sms = AdaptateurSMS(client)
+    assert sms.envoyer_sms("06 12 34 56 78", "Votre offre vous attend") is True
+    assert client.envoyes == [("+33612345678", "Votre offre vous attend", "RETENTION", 1)]
+    assert sms.envoyer_sms("06 12 34", "Votre offre vous attend") is False
+
+    differences = []
+    score = en_ombre(ancien_score, nouveau_score, differences.append)
+    assert score({"client_id": "C006", "charges": 50}) == 0.62
+    assert repr(differences) == ("[{'arguments': (({'client_id': 'C006', 'charges': 50},), {}), "
+                                 "'ancienne': ('ok', 0.62), 'nouvelle': ('ok', 0.37)}]")
+    assert score.stats == {"appels": 1, "comparaisons": 1, "differences": 1}
+
+
+def test_serie_19_le_vieux_script_de_relance_tourne_avec_un_faux_operateur(tmp_path, capsys, monkeypatch):
+    """Le vieux code de heritage.py fonctionne vraiment (et garde son défaut : le budget global)."""
+    import defis.heritage as heritage
+
+    class FausseDate(d19):
+        @classmethod
+        def today(cls):
+            return cls(2025, 3, 10)
+
+    monkeypatch.setattr(heritage, "date", FausseDate)
+    monkeypatch.setattr(heritage, "_ENVOYES_AUJOURDHUI", 48)
+    chemin = heritage.ecrire_lignes(LIGNES_19, tmp_path / "relances.csv")
+    operateur = heritage.OperateurFactice()
+    heritage.ancien_traitement_relances(chemin, operateur)
+    assert operateur.envois == [("0622222222", "FIDELITE"), ("0611111111", "ENGAGEMENT")]   # 48 + 2 = 50 : budget
+    assert capsys.readouterr().out.splitlines()[-1] == "budget du jour atteint"
+
+
+def test_serie_19_autres_ecritures_justes_acceptees():
+    """Des solutions justes qui ne ressemblent pas au corrigé : le correcteur ne doit pas les refuser."""
+    import re as re_19
+
+    class AdaptateurSMS:                       # chiffres extraits, et un dictionnaire de traduction des codes
+        TRADUCTION = {"NUMERO_INVALIDE": False, "INDISPONIBLE": False}
+
+        def __init__(self, client, expediteur="RETENTION"):
+            self.client, self.expediteur = client, expediteur
+
+        def envoyer_sms(self, numero, texte):
+            if not 1 <= len(texte) <= 160:
+                raise ValueError("texte de 1 à 160 caractères")
+            brut = re_19.sub(r"[ .\-]", "", numero)
+            if brut.startswith("0033"):
+                brut = "+" + brut[2:]
+            elif brut.startswith("0") and not brut.startswith("00"):
+                brut = "+33" + brut[1:]
+            if not re_19.fullmatch(r"\+33[1-9]\d{8}", brut):
+                return False
+            try:
+                return self.client.messages.create(destinataire=brut, contenu=texte,
+                                                   expediteur=self.expediteur).statut == "accepte"
+            except ErreurMessagerie as exc:
+                if exc.code == "CLE_INVALIDE":
+                    raise PermissionError(str(exc)) from exc
+                if exc.code in self.TRADUCTION:
+                    return self.TRADUCTION[exc.code]
+                raise
+
+    assert _evaluer("AdaptateurSMS", AdaptateurSMS).statut == REUSSI
+
+    class _Ombre:                              # une classe avec __call__ au lieu d'une fonction intérieure
+        def __init__(self, ancienne, nouvelle, journal, proportion, tirage, egal):
+            functools.update_wrapper(self, ancienne)
+            self.ancienne, self.nouvelle, self.journal = ancienne, nouvelle, journal
+            self.proportion, self.tirage, self.egal = proportion, tirage, egal
+            self.stats = {"appels": 0, "comparaisons": 0, "differences": 0}
+
+        @staticmethod
+        def _noter(f, args, kwargs):
+            try:
+                return ("ok", f(*args, **kwargs)), None
+            except Exception as exc:
+                return ("erreur", type(exc).__name__, str(exc)), exc
+
+        def __call__(self, *args, **kwargs):
+            self.stats["appels"] += 1
+            if self.tirage() >= self.proportion:
+                return self.ancienne(*args, **kwargs)
+            avant = copy.deepcopy((args, kwargs))
+            ancien, erreur = self._noter(self.ancienne, args, kwargs)
+            nouveau, _ = self._noter(self.nouvelle, *copy.deepcopy(avant))
+            self.stats["comparaisons"] += 1
+            if ancien[0] != nouveau[0] or (ancien[0] == "ok" and not self.egal(ancien[1], nouveau[1])) or \
+                    (ancien[0] == "erreur" and ancien[1] != nouveau[1]):
+                self.stats["differences"] += 1
+                self.journal({"arguments": avant, "ancienne": ancien, "nouvelle": nouveau})
+            if erreur is not None:
+                raise erreur
+            return ancien[1]
+
+    def en_ombre(ancienne, nouvelle, journal, *, proportion=1.0, tirage=random.random, egal=operator.eq):
+        if not 0 <= proportion <= 1:
+            raise ValueError("proportion entre 0 et 1")
+        return _Ombre(ancienne, nouvelle, journal, proportion, tirage, egal)
+
+    assert _evaluer("en_ombre", en_ombre).statut == REUSSI
+
+    def lire_preferences(texte):               # une table de lecteurs par version
+        if texte is None or texte.strip() == "":
+            donnees = {}
+        else:
+            donnees = json.loads(texte)
+        if type(donnees) is not dict:
+            raise ValueError("objet JSON attendu")
+        lecteurs = {1: lambda d: [c for c in ("email", "sms") if d.get(c) is True], 2: lambda d: d.get("canaux", [])}
+        version = donnees.get("version", 1)
+        if isinstance(version, bool) or version not in lecteurs:
+            raise ValueError(f"version {version!r} inconnue")
+        canaux = lecteurs[version](donnees)
+        if not isinstance(canaux, list) or any(c not in CANAUX_19 for c in canaux):
+            raise ValueError(f"canaux invalides : {canaux!r}")
+        heure = donnees.get("heure", 10)
+        if type(heure) is not int or heure not in range(24):
+            raise ValueError(f"heure invalide : {heure!r}")
+        return {"version": 2, "canaux": sorted(set(canaux)), "heure": heure, "langue": donnees.get("langue", "fr")}
+
+    assert _evaluer("lire_preferences", lire_preferences).statut == REUSSI
