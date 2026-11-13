@@ -105,6 +105,7 @@ def evaluer(projet: Projet, corrige: bool = False) -> list[Resultat]:
 
 def projets() -> list[Projet]:
     """Tous les projets guidés, dans l'ordre. Les nouveaux projets s'ajoutent ici."""
+    from .checks_campagne import PROJET as campagne
     from .checks_retention import PROJET as retention
 
-    return [retention]
+    return [retention, campagne]

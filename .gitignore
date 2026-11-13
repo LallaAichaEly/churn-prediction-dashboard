@@ -9,3 +9,8 @@ venv/
 data/*.csv
 models/*.joblib
 models/*.json
+
+# Écrits par les projets guidés lancés depuis la racine du dépôt (projets 2 et 3)
+/plan_retention.csv
+/a_contacter.csv
+*.db

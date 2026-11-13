@@ -202,7 +202,7 @@ ou un entretien.
 ajoutez la courbe de survie (« 75 % des clients sont encore là après un an ») et proposez le **plan d'un test A/B**
 pour prouver que vos actions de rétention marchent : taille des groupes, durée, critère de succès décidés à l'avance.
 
-## 🏗️ Et après : construire un programme de A à Z (projet 2)
+## 🏗️ Et après : construire des programmes de A à Z (projets 2 et 3)
 
 Les modules ci-dessus font modifier un projet qui existe déjà. Le [projet guidé](projets/README.md) fait
 l'inverse : partir d'un dossier presque vide et livrer un outil qui répond à la question du marketing,
@@ -214,6 +214,18 @@ l'inverse : partir d'un dossier presque vide et livrer un outil qui répond à l
 
 `python scripts/projet.py` corrige chaque étape. Dans votre rapport final, ajoutez le plan obtenu sur
 vos propres clients à risque : combien de départs évités pour quel budget ?
+
+Puis le **projet 3** boucle la boucle : le plan a-t-il *vraiment* évité des départs ? Un groupe témoin
+tiré au hasard, une base SQLite qui survit d'une commande à l'autre, et un intervalle de confiance
+pour ne pas prendre le hasard pour un succès.
+
+- [ ] 🟢 Étape 1 — tirer le groupe témoin de façon reproductible (`hashlib`)
+- [ ] 🟡 Étapes 2 à 6 — la base (transactions, UPSERT), les comptages en SQL, l'effet et son incertitude,
+  le programme à trois commandes
+- [ ] 🔴 Étape 7 — le test qui attrape 7 versions boguées du calcul de l'effet
+
+`python scripts/projet.py --projet 3` corrige chaque étape. Dans votre rapport final, remplacez « gain
+attendu » par « gain mesuré » : c'est la différence entre une promesse et un résultat.
 
 ## 📚 Ressources
 

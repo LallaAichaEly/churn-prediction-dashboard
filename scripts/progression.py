@@ -483,6 +483,7 @@ class ProjetScore:
     reussis: int
     total: int
     erreur: str = ""
+    commande: str = "python scripts/projet.py"
 
 
 def projets_scores(root: Path = ROOT) -> list[ProjetScore]:
@@ -498,7 +499,8 @@ def projets_scores(root: Path = ROOT) -> list[ProjetScore]:
         for projet in projets():
             resultats = evaluer(projet)
             scores.append(ProjetScore(f"Projet {projet.numero} — {projet.titre}",
-                                      sum(r.statut == REUSSI for r in resultats), len(resultats)))
+                                      sum(r.statut == REUSSI for r in resultats), len(resultats),
+                                      commande=f"python scripts/projet.py --projet {projet.numero}"))
         return scores
     except Exception as exc:  # ex. erreur de syntaxe dans projets/retention/clients.py
         return [ProjetScore("Projets guidés", 0, 0, f"{type(exc).__name__} : {exc}")]
@@ -599,7 +601,7 @@ def render(root: Path = ROOT) -> str:
             out.append(f"🏗️  {projet.titre} : 💥 impossible de le corriger ({projet.erreur}) — python scripts/projet.py")
         else:
             out.append(f"🏗️  {projet.titre} : {projet.reussis}/{projet.total} étapes "
-                       f"{_bar(projet.reussis, projet.total)}  — détail : python scripts/projet.py")
+                       f"{_bar(projet.reussis, projet.total)}  — détail : {projet.commande}")
     atelier = atelier_git_score(root)
     if atelier and atelier.erreur:
         out.append(f"🌿 Atelier Git : 💥 impossible de le corriger ({atelier.erreur}) — python scripts/atelier_git.py")

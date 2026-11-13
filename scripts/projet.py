@@ -1,9 +1,10 @@
-"""Corrige votre projet guidé (projets/retention/) et affiche ✅ / ❌ / ⬜ pour chaque étape.
+"""Corrige vos projets guidés (projets/retention/, projets/campagne/) : ✅ / ❌ / ⬜ pour chaque étape.
 
 Usage :
-    python scripts/projet.py              # votre progression
-    python scripts/projet.py --etape 3    # une seule étape
-    python scripts/projet.py --corrige    # vérifie le projet terminé (tout doit être ✅)
+    python scripts/projet.py                         # votre progression dans tous les projets
+    python scripts/projet.py --projet 3              # un seul projet
+    python scripts/projet.py --projet 3 --etape 2    # une seule étape
+    python scripts/projet.py --corrige               # vérifie les projets terminés (tout doit être ✅)
 """
 
 from __future__ import annotations
@@ -27,11 +28,16 @@ def _modeles_modifie(projet) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--projet", type=int, help="n'afficher qu'un projet (2 ou 3)")
     parser.add_argument("--etape", type=int, help="n'afficher qu'une étape")
     parser.add_argument("--corrige", action="store_true", help="évaluer le corrigé au lieu de votre code")
     args = parser.parse_args(argv)
 
-    for projet in projets():
+    choisis = [p for p in projets() if args.projet in (None, p.numero)]
+    if not choisis:
+        sys.exit(f"Aucun projet n°{args.projet} (projets guidés : {', '.join(str(p.numero) for p in projets())}).")
+
+    for projet in choisis:
         if args.etape is not None and all(e.numero != args.etape for e in projet.etapes):
             sys.exit(f"Aucune étape n°{args.etape} (1 à {len(projet.etapes)}).")
         resultats = evaluer(projet, corrige=args.corrige)
@@ -59,13 +65,13 @@ def main(argv: list[str] | None = None) -> int:
             e = premier_echec
             print(f"👉 Prochaine étape : {e.numero} — {e.titre}, dans {projet.dossier(args.corrige)}{e.module}.py")
             print(f"   Lisez la docstring de {', '.join(f'`{f}`' for f in e.fonctions)}, codez, puis : "
-                  f"python scripts/projet.py --etape {e.numero}\n")
+                  f"python scripts/projet.py --projet {projet.numero} --etape {e.numero}\n")
         else:
             commande = projet.commande.replace(projet.paquet_eleve, projet.paquet_corrige) if args.corrige \
                 else projet.commande
             print("🏁 Projet terminé ! Votre programme fonctionne pour de vrai :")
             print(f"   {commande}")
-            print("   Comparez ensuite votre code au corrigé (projets/retention_corrige/) et notez dans JOURNAL.md\n"
+            print(f"   Comparez ensuite votre code au corrigé ({projet.dossier(corrige=True)}) et notez dans JOURNAL.md\n"
                   "   ce que vous feriez autrement. Idées pour aller plus loin : projets/README.md\n")
     return 0
 
