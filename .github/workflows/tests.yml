@@ -1,0 +1,29 @@
+# Module 6.3 — Intégration continue : à chaque push, GitHub lance les tests sur une machine neuve.
+# Si un test casse, vous le savez tout de suite (croix rouge sur le commit) au lieu de le découvrir en démo.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+      - name: Lancer les tests
+        run: pytest -q
+      - name: Vérifier que l'entraînement et le rapport tournent de bout en bout
+        run: |
+          python scripts/train.py
+          python scripts/report.py --out /tmp/RAPPORT.md

@@ -9,6 +9,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
 3. Notez vos résultats (avant / après) dans un fichier `JOURNAL.md` : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
+5. 📘 = **exemple résolu** : la solution est déjà dans le code. Étudiez-la, puis faites l'extension proposée.
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
@@ -89,11 +90,16 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
 
-- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
-- [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
-- [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
-- [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
+- [ ] 🟢 6.1 — Lancez `pytest -q` (33 tests). Ouvrez chaque fichier de `tests/` et dites, pour chaque test, quelle erreur il empêche.
+- [ ] 🟡 6.2 — 📘 `test_saved_model_gives_same_predictions` vérifie qu'un modèle rechargé prédit à l'identique.
+  **Extension** : modifiez `save()` pour ne sauvegarder que `pipeline.named_steps["clf"]`. Quel test casse, et pourquoi faut-il sauvegarder le pipeline entier ? (Annulez ensuite la modification.)
+- [ ] 🟡 6.3 — 📘 `.github/workflows/tests.yml` lance les tests à chaque push.
+  **Extension** : poussez un commit qui casse un test, observez la croix rouge dans l'onglet *Actions*, puis réparez. Ajoutez une étape `ruff check .` (linter).
+- [ ] 🔴 6.4 — 📘 `src/churn/api.py` expose `POST /predict` et `POST /predict/batch`. Lancez-la et testez-la depuis `http://localhost:8000/docs`.
+  **Extension** : ajoutez une route `GET /model` qui renvoie le contenu de `models/churn_model_metrics.json`, avec son test dans `tests/test_api.py`.
+- [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud (voir README) et ajoutez le lien au README.
+- [ ] 🔴 6.6 — Écrivez un `Dockerfile` pour l'API (`python:3.12-slim`, `pip install -r requirements.txt`, `CMD uvicorn ...`). Vérifiez avec `docker run -p 8000:8000`.
+- [ ] 🔴 6.7 — Détection de dérive : écrivez `detect_drift(reference, current)` qui compare chaque variable numérique avec un test de Kolmogorov-Smirnov (`scipy.stats.ks_2samp`). Testez-la avec des données dont vous augmentez artificiellement `monthly_charges` de 20 %.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
 
@@ -104,6 +110,26 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 Rédigez un mini-rapport (1 page) : problème, données, modèle retenu, seuil choisi et pourquoi,
 impact financier estimé, limites. Ajoutez-le au dépôt — c'est une pièce maîtresse pour un portfolio
 ou un entretien.
+
+📘 Un exemple complet est généré par `python scripts/report.py` → [`RAPPORT.md`](RAPPORT.md).
+**Écrivez le vôtre d'abord, sans le regarder**, puis comparez : qu'avez-vous oublié ? qu'avez-vous vu
+que le rapport automatique ne dit pas ?
+
+- [ ] 🟡 F.1 — Votre rapport, puis la comparaison avec `RAPPORT.md`.
+- [ ] 🟡 F.2 — Le rapport montre qu'avec une action à 50 €, « contacter tout le monde » est presque aussi bon que le modèle. Expliquez pourquoi à un manager, en 3 phrases.
+- [ ] 🔴 F.3 — Améliorez le modèle de coût : une action coûte 50 € **à chaque client contacté** et ne réussit que 30 % du temps. Modifiez `best_threshold_by_cost`, ajoutez un test, régénérez le rapport. Le seuil optimal monte-t-il ou baisse-t-il ?
+
+## 🚀 Et après ? Vos prochains projets
+
+Ce projet terminé, enchaînez avec un sujet qui travaille de **nouvelles** compétences, en réutilisant
+la même structure (`src/`, `tests/`, tableau de bord, API, rapport) :
+
+| Projet | Nouvelles compétences |
+|---|---|
+| Prévision des ventes d'un magasin | Séries temporelles, validation temporelle, saisonnalité |
+| Analyse des avis clients | NLP : nettoyage de texte, TF-IDF, classification de sentiments |
+| Détection de fraude bancaire | Déséquilibre extrême (< 1 %), courbe précision-rappel, rééchantillonnage |
+| Recommandation de produits | Filtrage collaboratif, métriques de classement (précision@k) |
 
 ## 📚 Ressources
 

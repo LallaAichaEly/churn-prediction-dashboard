@@ -1,22 +1,16 @@
 """Module 6 — Les tests. Un code de data science non testé est un code qui casse en silence."""
 
-import sys
-from pathlib import Path
+import json
 
 import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from churn.data import FEATURES, TARGET, generate_customers, validate
+from churn.features import add_engineered_features
+from churn.model import best_threshold_by_cost, build_pipeline, evaluate, load, save, train
 
-from churn.data import FEATURES, TARGET, generate_customers, validate  # noqa: E402
-from churn.features import add_engineered_features  # noqa: E402
-from churn.model import best_threshold_by_cost, build_pipeline, evaluate, train  # noqa: E402
-
-
-@pytest.fixture(scope="module")
-def df() -> pd.DataFrame:
-    return generate_customers(n=1500, seed=0)
+# La fixture `df` (1 500 clients, seed=0) est définie dans `conftest.py`.
 
 
 def test_generation_is_reproducible():
@@ -86,3 +80,16 @@ def test_unknown_category_is_ignored(df):
     row = X_test.iloc[[0]].copy()
     row["payment_method"] = "Crypto"
     assert 0 <= pipeline.predict_proba(row[FEATURES])[0, 1] <= 1
+
+
+@pytest.mark.parametrize("engineered", [False, True])
+def test_saved_model_gives_same_predictions(df, tmp_path, engineered):
+    """Ce qui est sauvegardé doit prédire EXACTEMENT comme ce qui a été entraîné."""
+    pipeline, X_test, _, proba, metrics = train(df, "logistic", engineered)
+    path = save(pipeline, metrics, model_dir=tmp_path, model_name="logistic")
+
+    np.testing.assert_allclose(load(path).predict_proba(X_test)[:, 1], proba)
+    card = json.loads((tmp_path / "churn_model_metrics.json").read_text())
+    assert card["model"] == "logistic"
+    assert card["features"] == FEATURES
+    assert card["roc_auc"] == pytest.approx(metrics.roc_auc)

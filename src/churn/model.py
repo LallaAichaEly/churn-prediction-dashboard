@@ -145,12 +145,24 @@ def train(df: pd.DataFrame, model_name: str = "logistic", use_engineered: bool =
     return pipeline, X_test, y_test, proba, evaluate(y_test, proba)
 
 
-def save(pipeline: Pipeline, metrics: Metrics, model_dir: str | Path = "models", name: str = "churn_model") -> Path:
+def save(
+    pipeline: Pipeline,
+    metrics: Metrics,
+    model_dir: str | Path = "models",
+    name: str = "churn_model",
+    model_name: str | None = None,
+) -> Path:
+    """Sauvegarde le pipeline (préparation + modèle) et ses métriques.
+
+    On sauvegarde le PIPELINE entier, pas seulement le modèle : ainsi la normalisation et
+    l'encodage appris à l'entraînement sont réappliqués à l'identique en production.
+    """
     model_dir = Path(model_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
     path = model_dir / f"{name}.joblib"
     joblib.dump(pipeline, path)
-    (model_dir / f"{name}_metrics.json").write_text(json.dumps(asdict(metrics), indent=2))
+    card = {"model": model_name, "features": list(FEATURES), **asdict(metrics)}
+    (model_dir / f"{name}_metrics.json").write_text(json.dumps(card, indent=2, ensure_ascii=False))
     return path
 
 

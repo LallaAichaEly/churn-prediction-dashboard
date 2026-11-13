@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+# Rend le paquet `churn` (dans src/) importable par les tests sans bricoler sys.path.
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = [
+    # Bruit interne à Streamlit quand l'application tourne en mode test.
+    "ignore::DeprecationWarning:streamlit.*",
+]

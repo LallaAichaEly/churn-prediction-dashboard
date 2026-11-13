@@ -44,7 +44,7 @@ def main() -> None:
     print(table[["roc_auc", "accuracy", "precision", "recall", "f1"]].round(3).to_string())
 
     best = max(results, key=lambda n: results[n][1].roc_auc)
-    path = save(*results[best], model_dir=ROOT / "models")
+    path = save(*results[best], model_dir=ROOT / "models", model_name=best)
     print(f"\nMeilleur modèle (ROC-AUC) : {best} → {path.relative_to(ROOT)}")
 
 
