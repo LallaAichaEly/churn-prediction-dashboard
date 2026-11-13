@@ -5478,3 +5478,681 @@ def test_serie_16_l_horloge_virtuelle_ne_touche_pas_a_la_boucle_courante():
         asyncio.get_running_loop()
     resultat, duree = executer(asyncio.sleep(3600, result="ok"))
     assert (resultat, duree) == ("ok", 3600.0)
+
+
+# --------------------------------------------------------------------------- Série 17 : concevoir ses propres types
+
+import re  # noqa: E402
+from contextlib import contextmanager  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
+from decimal import Decimal, InvalidOperation  # noqa: E402
+from enum import Enum  # noqa: E402
+from functools import total_ordering  # noqa: E402
+
+from defis.conception import CLIENTS_EXEMPLE as CLIENTS_17, CONTRATS as CONTRATS_17, SCORES_EXEMPLE as SCORES_17  # noqa: E402
+from defis.conception import Passerelle, PasserelleIndisponible  # noqa: E402
+
+
+def _echec_17(nom, objet, *mots):
+    resultat = _evaluer(nom, objet)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+# Défi 104 : dataclass
+
+
+def _client_17(defaut=None):
+    @dataclass(frozen=defaut != "non_gele")
+    class Client:
+        client_id: str
+        anciennete_mois: int
+        facture_mensuelle: float
+        contrat: str = "Mensuel"
+        options: tuple = ()
+
+        def __post_init__(self):
+            def refuser(erreur, champ, texte):
+                erreur = ValueError if defaut == "valueerror" else erreur
+                raise erreur(texte if defaut == "sans_champ" else f"{champ} : {texte}")
+
+            cherche = re.match if defaut == "match" else re.fullmatch
+            if not isinstance(self.client_id, str):
+                refuser(TypeError, "client_id", "texte attendu")
+            if not cherche(r"C\d+", self.client_id):
+                refuser(ValueError, "client_id", "format C001")
+            entier = isinstance(self.anciennete_mois, int)
+            if defaut != "bool":
+                entier = entier and not isinstance(self.anciennete_mois, bool)
+            if not entier:
+                refuser(TypeError, "anciennete_mois", "entier attendu")
+            if self.anciennete_mois < 0:
+                refuser(ValueError, "anciennete_mois", "négative")
+            if isinstance(self.facture_mensuelle, bool) or not isinstance(self.facture_mensuelle, (int, float)):
+                refuser(TypeError, "facture_mensuelle", "nombre attendu")
+            if defaut == "nan":
+                if self.facture_mensuelle < 0:
+                    refuser(ValueError, "facture_mensuelle", "négative")
+            elif not math.isfinite(self.facture_mensuelle) or self.facture_mensuelle < 0:
+                refuser(ValueError, "facture_mensuelle", "nombre fini positif attendu")
+            if self.contrat not in CONTRATS_17:
+                refuser(ValueError, "contrat", "inconnu")
+            if isinstance(self.options, str) and defaut != "texte_decoupe":
+                refuser(TypeError, "options", "collection attendue")
+            if not all(isinstance(o, str) for o in self.options):
+                refuser(TypeError, "options", "textes attendus")
+            if defaut != "liste":
+                object.__setattr__(self, "options", tuple(self.options))
+
+    return Client
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_client_17("non_gele"), ("frozen=True",)),
+    (_client_17("bool"), ("anciennete_mois=True", "bool hérite de int")),
+    (_client_17("nan"), ("nan", "math.isfinite")),
+    (_client_17("liste"), ("gardez un TUPLE", "object.__setattr__")),
+    (_client_17("texte_decoupe"), ("découpé en lettres",)),
+    (_client_17("match"), ("C001 '", "re.fullmatch")),
+    (_client_17("sans_champ"), ("NOMMER le champ",)),
+    (_client_17("valueerror"), ("au lieu de TypeError", "le TYPE ne va pas")),
+])
+def test_serie_17_client_erreurs_classiques(mutant, mots):
+    _echec_17("Client", mutant, *mots)
+
+
+def test_serie_17_client_doit_etre_une_dataclass():
+    class Client:
+        def __init__(self, client_id, anciennete_mois, facture_mensuelle, contrat="Mensuel", options=()):
+            self.client_id, self.anciennete_mois = client_id, anciennete_mois
+
+    _echec_17("Client", Client, "@dataclass(frozen=True)")
+
+
+# Défi 105 : Enum
+
+
+def _contrat_17(defaut=None, base=Enum):
+    class Contrat(base):
+        MENSUEL = "Mensuel"
+        ANNUEL = "Annuel"
+        BIANNUEL = "Biannuel"
+        if defaut == "membre_dict":
+            _ENGAGEMENTS = {"Mensuel": 1, "Annuel": 12, "Biannuel": 24}
+
+        @classmethod
+        def depuis_texte(cls, texte):
+            if isinstance(texte, cls):
+                return texte
+            if not isinstance(texte, str) and defaut != "none":
+                raise TypeError("texte attendu")
+            if defaut == "sans_casse":
+                try:
+                    return cls(texte)
+                except ValueError:
+                    raise ValueError("contrat inconnu (Mensuel, Annuel, Biannuel)") from None
+            cle = texte.strip().casefold()
+            for membre in cls:
+                valeur = membre.value.casefold()
+                trouve = valeur.startswith(cle) if defaut == "startswith" and cle else valeur == cle
+                if trouve:
+                    return membre.value if defaut == "texte" else membre
+            raise ValueError("contrat inconnu" if defaut == "message" else
+                             f"contrat inconnu : {texte!r} (attendu : Mensuel, Annuel, Biannuel)")
+
+        if defaut == "methode":
+            def engagement_mois(self):
+                return {"Mensuel": 1, "Annuel": 12, "Biannuel": 24}[self.value]
+        else:
+            @property
+            def engagement_mois(self):
+                return {"Mensuel": 1, "Annuel": 12, "Biannuel": 24}[self.value]
+
+        if defaut != "sans_str":
+            def __str__(self):
+                return self.value
+
+    return Contrat
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_contrat_17("membre_dict"), ("4 : MENSUEL, ANNUEL, BIANNUEL, _ENGAGEMENTS", "devient un membre")),
+    (_contrat_17("texte"), ("renvoyez le MEMBRE",)),
+    (_contrat_17("startswith"), ("'Mens'", "pas de startswith")),
+    (_contrat_17("sans_casse"), ("'mensuel'", "casefold")),
+    (_contrat_17("methode"), ("@property",)),
+    (_contrat_17("sans_str"), ("Contrat.MENSUEL", "__str__")),
+    (_contrat_17("message"), ("valeurs acceptées",)),
+    (_contrat_17("none"), ("depuis_texte(None)", "isinstance(texte, str)")),
+])
+def test_serie_17_contrat_erreurs_classiques(mutant, mots):
+    _echec_17("Contrat", mutant, *mots)
+
+
+def test_serie_17_contrat_strenum_accepte():
+    from enum import StrEnum
+
+    assert _evaluer("Contrat", _contrat_17(base=StrEnum)).statut == REUSSI
+
+
+# Défi 106 : objet valeur
+
+
+def _montant_17(defaut=None):
+    from defis.corrige_serie_17 import Montant as Juste
+
+    @total_ordering
+    @dataclass(frozen=True, order=defaut == "order")
+    class Montant:
+        centimes: int
+        devise: str = "EUR"
+
+        __post_init__ = Juste.__post_init__
+        _meme_devise = Juste._meme_devise
+
+        @classmethod
+        def depuis_euros(cls, euros, devise="EUR"):
+            if defaut == "float":
+                texte = str(euros).replace(" ", "").replace(" ", "").replace(" ", "").replace(",", ".")
+                return cls(int(float(texte) * 100), devise)
+            if defaut == "accepte_float" and isinstance(euros, float):
+                euros = Decimal(str(euros))
+            if isinstance(euros, bool) or not isinstance(euros, (str, int, Decimal)):
+                raise TypeError("type refusé")
+            if isinstance(euros, str):
+                texte = euros.strip()
+                espaces = (" ",) if defaut == "insecable" else (" ", " ", " ")
+                for espace in espaces:
+                    texte = texte.replace(espace, "")
+                if defaut == "invalid_op":
+                    valeur = Decimal(texte.replace(",", "."))
+                else:
+                    try:
+                        valeur = Decimal(texte.replace(",", "."))
+                    except InvalidOperation:
+                        raise ValueError("illisible") from None
+            else:
+                valeur = Decimal(euros)
+            if defaut != "nan" and not valeur.is_finite():
+                raise ValueError("illisible")
+            centimes = valeur * 100
+            if centimes != centimes.to_integral_value():
+                raise ValueError("2 décimales")
+            return cls(int(centimes), devise)
+
+        def __add__(self, autre):
+            if not isinstance(autre, Montant):
+                if defaut == "add_valueerror":
+                    raise ValueError("pas un montant")
+                return NotImplemented
+            if defaut == "devises_typeerror" and self.devise != autre.devise:
+                raise TypeError(f"{self.devise} et {autre.devise}")
+            self._meme_devise(autre, "additionner")
+            return Montant(self.centimes + autre.centimes, self.devise)
+
+        if defaut == "radd_tout":
+            def __radd__(self, autre):
+                return self if isinstance(autre, (int, float)) else NotImplemented
+        elif defaut != "sans_radd":
+            __radd__ = Juste.__radd__
+
+        def __mul__(self, n):
+            if defaut == "mul_float" and isinstance(n, float):
+                return Montant(int(self.centimes * n), self.devise)
+            if isinstance(n, bool) or not isinstance(n, int):
+                return NotImplemented
+            return Montant(self.centimes * n, self.devise)
+
+        if defaut != "sans_rmul":
+            __rmul__ = __mul__
+
+        if defaut != "order":
+            def __lt__(self, autre):
+                if not isinstance(autre, Montant):
+                    return NotImplemented
+                self._meme_devise(autre, "comparer")
+                return self.centimes < autre.centimes
+
+        def __str__(self):
+            if defaut == "floor":
+                euros, cts = divmod(self.centimes, 100)
+                return f"{euros:,},{cts:02d} €".replace(",", " ", euros.bit_length() > 9).replace(" ,", ",")
+            if defaut == "point":
+                euros, cts = divmod(abs(self.centimes), 100)
+                return f"{'-' if self.centimes < 0 else ''}{euros:,}.{cts:02d} €".replace(",", " ")
+            return Juste.__str__(self)
+
+    return Montant
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_montant_17("order"), ("Montant(100, 'USD') < Montant(200)", "order=True")),
+    (_montant_17("float"), ("1998", "Decimal")),
+    (_montant_17("accepte_float"), ("depuis_euros(19.99)", "Un float n'est pas exact", "1998")),
+    (_montant_17("invalid_op"), ("InvalidOperation", "PAS une ValueError")),
+    (_montant_17("nan"), ("'Infinity'", "is_finite")),
+    (_montant_17("insecable"), ("INSÉCABLES",)),
+    (_montant_17("floor"), ("-5 // 100",)),
+    (_montant_17("point"), ("19.99 €", "la virgule")),
+    (_montant_17("sans_radd"), ("sum(", "__radd__(0)")),
+    (_montant_17("radd_tout"), ("1 + Montant(100)", "__radd__ n'accepte que le 0")),
+    (_montant_17("sans_rmul"), ("3 * Montant(1999)", "__rmul__")),
+    (_montant_17("mul_float"), ("Montant(100) * 1.5", "un ENTIER")),
+    (_montant_17("devises_typeerror"), ("au lieu de ValueError",)),
+    (_montant_17("add_valueerror"), ("Montant(100) + 1", "NotImplemented")),
+])
+def test_serie_17_montant_erreurs_classiques(mutant, mots):
+    _echec_17("Montant", mutant, *mots)
+
+
+# Défi 107 : gestionnaire de contexte
+
+
+def _campagne_17(defaut=None):
+    if defaut in ("classe", "exit_true", "ouvre_tot"):
+        class Campagne:
+            def __init__(self, passerelle, nom):
+                self.passerelle, self.nom = passerelle, nom
+                if defaut == "ouvre_tot":
+                    self.lot = passerelle.ouvrir(nom)
+
+            def __enter__(self):
+                if defaut != "ouvre_tot":
+                    self.lot = self.passerelle.ouvrir(self.nom)
+                return self.lot
+
+            def __exit__(self, type_erreur, erreur, trace):
+                try:
+                    if type_erreur is None:
+                        self.passerelle.valider(self.lot)
+                    else:
+                        self.passerelle.annuler(self.lot)
+                finally:
+                    self.passerelle.fermer(self.lot)
+                return defaut == "exit_true"
+
+        return Campagne
+
+    @contextmanager
+    def campagne(passerelle, nom):
+        if defaut == "sans_try":
+            lot = passerelle.ouvrir(nom)
+            yield lot
+            passerelle.valider(lot)
+            passerelle.fermer(lot)
+            return
+        if defaut == "try_avant_ouvrir":
+            lot = None
+            try:
+                lot = passerelle.ouvrir(nom)
+                yield lot
+            except BaseException:
+                passerelle.annuler(lot)
+                raise
+            else:
+                passerelle.valider(lot)
+            finally:
+                passerelle.fermer(lot)
+            return
+        lot = passerelle.ouvrir(nom)
+        attrape = Exception if defaut == "exception" else BaseException
+        try:
+            yield lot
+            if defaut == "valider_dans_try":
+                passerelle.valider(lot)
+        except attrape as exc:
+            passerelle.annuler(lot)
+            if defaut == "remplace":
+                raise RuntimeError("campagne annulée") from exc
+            if defaut != "avale":
+                raise
+        else:
+            if defaut not in ("valider_dans_try", "valider_finally"):
+                passerelle.valider(lot)
+        finally:
+            if defaut == "valider_finally":
+                passerelle.valider(lot)
+            passerelle.fermer(lot)
+
+    return campagne
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_campagne_17("sans_try"), ("ni annulé ni fermé", "AU NIVEAU DU `yield`")),
+    (_campagne_17("exception"), ("Ctrl+C", "except BaseException")),
+    (_campagne_17("avale"), ("AVALÉE", "`raise`")),
+    (_campagne_17("exit_true"), ("AVALÉE", "__exit__ doit renvoyer False")),
+    (_campagne_17("valider_finally"), ("VALIDÉ", "`else:`")),
+    (_campagne_17("try_avant_ouvrir"), ("ouvrir() lève PasserelleIndisponible", "AVANT le try")),
+    (_campagne_17("valider_dans_try"), ("déjà refusé", "`else:` du try")),
+    (_campagne_17("remplace"), ("RuntimeError", "la MÊME")),
+    (_campagne_17("ouvre_tot"), ("AVANT d'entrer",)),
+])
+def test_serie_17_campagne_erreurs_classiques(mutant, mots):
+    _echec_17("campagne", mutant, *mots)
+
+
+def test_serie_17_campagne_en_classe_acceptee():
+    assert _evaluer("campagne", _campagne_17("classe")).statut == REUSSI
+
+
+def test_serie_17_campagne_le_correcteur_attrape_le_ctrl_c():
+    """Un KeyboardInterrupt lancé par le correcteur ne doit jamais s'échapper, même si le code de l'élève le laisse passer."""
+    for defaut in ("sans_try", "exception", "remplace"):
+        assert _evaluer("campagne", _campagne_17(defaut)).statut == ECHEC
+
+
+# Défi 108 : collection
+
+
+def _portefeuille_17(defaut=None):
+    class Portefeuille:
+        def __init__(self, paires=()):
+            self._scores = [] if defaut == "liste_lente" else {}
+            self._position = 0
+            for client_id, score in paires:
+                self.ajouter(client_id, score)
+
+        def ajouter(self, client_id, score):
+            if defaut == "liste_lente":
+                if any(c == client_id for c, _ in self._scores):
+                    raise ValueError("doublon")
+                self._scores.append((client_id, score))
+                return
+            if client_id in self._scores and defaut != "doublon_remplace":
+                raise ValueError("doublon")
+            self._scores[client_id] = score
+            if defaut == "iter_vue":
+                tries = sorted(self._scores.items(), key=lambda p: (-p[1], p[0]))
+                self._scores.clear()
+                self._scores.update(tries)
+
+        def _tries(self):
+            paires = self._scores if defaut == "liste_lente" else self._scores.items()
+            return sorted(paires, key=lambda p: (p[1], p[0]) if defaut == "croissant" else (-p[1], p[0]))
+
+        def __len__(self):
+            return len(self._scores)
+
+        if defaut != "sans_contains":
+            def __contains__(self, client_id):
+                if defaut == "liste_lente":
+                    return any(c == client_id for c, _ in self._scores)
+                return client_id in self._scores
+
+        def __getitem__(self, client_id):
+            if defaut == "liste_lente":
+                for c, s in self._scores:
+                    if c == client_id:
+                        return s
+                raise KeyError(client_id)
+            return self._scores.get(client_id) if defaut == "getitem_none" else self._scores[client_id]
+
+        if defaut in ("iter_self", "iter_self_reset"):
+            def __iter__(self):
+                if defaut == "iter_self_reset" or not hasattr(self, "_liste"):
+                    self._liste, self._position = self._tries(), 0
+                return self
+
+            def __next__(self):
+                if self._position >= len(self._liste):
+                    raise StopIteration
+                self._position += 1
+                return self._liste[self._position - 1]
+        elif defaut == "iter_vue":
+            def __iter__(self):
+                return iter(self._scores.items())
+        elif defaut == "listes":
+            def __iter__(self):
+                return iter([list(p) for p in self._tries()])
+        else:
+            def __iter__(self):
+                yield from self._tries()
+
+        def au_dessus(self, seuil):
+            if defaut == "au_dessus_liste":
+                return [(c, s) for c, s in self._tries() if s >= seuil]
+            if defaut == "au_dessus_partage":
+                nouveau = type(self)()
+                nouveau._scores = self._scores
+                for client_id in [c for c, s in self._scores.items() if s < seuil]:
+                    del self._scores[client_id]
+                return nouveau
+            garde = (lambda s: s > seuil) if defaut == "seuil_strict" else (lambda s: s >= seuil)
+            return type(self)((c, s) for c, s in self._tries() if garde(s))
+
+        def __repr__(self):
+            n = len(self)
+            if defaut == "repr_pluriel" and n:
+                return f"Portefeuille({n} clients)"
+            return f"Portefeuille({'vide' if n == 0 else f'{n} client' + ('s' if n > 1 else '')})"
+
+    return Portefeuille
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_portefeuille_17("sans_contains"), ("Écrivez __contains__",)),
+    (_portefeuille_17("getitem_none"), ("portefeuille[\"C999\"]", "KeyError")),
+    (_portefeuille_17("croissant"), ("du plus risqué au moins risqué",)),
+    (_portefeuille_17("listes"), ("couple (tuple)",)),
+    (_portefeuille_17("iter_self"), ("DEUXIÈME parcours", "NOUVEL itérateur")),
+    (_portefeuille_17("iter_self_reset"), ("partagent le même itérateur", "un neuf")),
+    (_portefeuille_17("iter_vue"), ("pendant un parcours", "Parcourez une copie")),
+    (_portefeuille_17("doublon_remplace"), ("on ne remplace pas",)),
+    (_portefeuille_17("au_dessus_liste"), ("renvoyez un Portefeuille",)),
+    (_portefeuille_17("au_dessus_partage"), ("indépendants",)),
+    (_portefeuille_17("seuil_strict"), ("le seuil est inclus",)),
+    (_portefeuille_17("repr_pluriel"), ("Portefeuille(1 client)",)),
+    (_portefeuille_17("liste_lente"), ("O(n)", "dictionnaire")),
+])
+def test_serie_17_portefeuille_erreurs_classiques(mutant, mots):
+    _echec_17("Portefeuille", mutant, *mots)
+
+
+# Défi 109 : opérateurs
+
+
+def _regle_17(defaut=None):
+    class Regle:
+        def __init__(self, nom, condition):
+            if (not isinstance(nom, str) or not nom.strip()) and defaut != "nom_vide":
+                raise ValueError("nom")
+            if not callable(condition):
+                raise TypeError("condition")
+            self.nom, self._condition, self._et = nom, condition, []
+
+        def __call__(self, client):
+            resultat = self._condition(client)
+            if defaut == "modifie":
+                resultat = resultat and all(r(client) for r in self._et)
+            return resultat if defaut == "brut" else bool(resultat)
+
+        def __and__(self, autre):
+            if not isinstance(autre, Regle) and not (defaut == "accepte_tout" and callable(autre)):
+                return NotImplemented
+            if defaut == "modifie":
+                self._et.append(autre)
+                self.nom = f"({self.nom} & {autre})"
+                return self
+            if defaut == "sans_court_circuit":
+                return Regle(f"({self} & {autre})", lambda c: self(c) & autre(c))
+            if defaut == "double":
+                return Regle(f"({self} & {autre})", lambda c: bool(self(c)) and autre(c) if self(c) else False)
+            texte = f"{self} & {autre}" if defaut == "parentheses" else f"({self} & {autre})"
+            return Regle(texte, lambda c: self(c) and autre(c))
+
+        def __or__(self, autre):
+            if not isinstance(autre, Regle) and not (defaut == "accepte_tout" and callable(autre)):
+                return NotImplemented
+            texte = f"{self} | {autre}" if defaut == "parentheses" else f"({self} | {autre})"
+            return Regle(texte, lambda c: self(c) or autre(c))
+
+        def __invert__(self):
+            return Regle(f"~{self}", lambda c: not self(c))
+
+        def __str__(self):
+            return self.nom
+
+        if defaut != "sans_bool":
+            def __bool__(self):
+                raise TypeError("valeur de vérité ambiguë" if defaut == "bool_message" else "utilisez & | ~")
+
+    return Regle
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_regle_17("modifie"), ("NOUVELLE Regle",)),
+    (_regle_17("sans_court_circuit"), ("`a(c) & b(c)` évalue toujours les deux",)),
+    (_regle_17("double"), ("évalué une règle 2 fois",)),
+    (_regle_17("brut"), ("VRAI booléen",)),
+    (_regle_17("sans_bool"), ("bool(mensuel)", "Écrivez __bool__")),
+    (_regle_17("bool_message"), ("doit dire d'utiliser & | ~",)),
+    (_regle_17("parentheses"), ("'mensuel & récent'", "une paire de parenthèses")),
+    (_regle_17("accepte_tout"), ("mensuel | (lambda c: True)", "NotImplemented")),
+    (_regle_17("nom_vide"), ("Regle('', ...)",)),
+])
+def test_serie_17_regle_erreurs_classiques(mutant, mots):
+    _echec_17("Regle", mutant, *mots)
+
+
+def test_serie_17_regle_en_sous_classes_acceptee():
+    """Une autre écriture juste : une sous-classe par opérateur, au lieu d'une lambda."""
+    from defis.corrige_serie_17 import Regle as Base
+
+    class Regle(Base):
+        def __and__(self, autre):
+            return Et(self, autre) if isinstance(autre, Regle) else NotImplemented
+
+        def __or__(self, autre):
+            return Ou(self, autre) if isinstance(autre, Regle) else NotImplemented
+
+        def __invert__(self):
+            return Non(self)
+
+    class Et(Regle):
+        def __init__(self, a, b):
+            super().__init__(f"({a} & {b})", lambda c: a(c) and b(c))
+
+    class Ou(Regle):
+        def __init__(self, a, b):
+            super().__init__(f"({a} | {b})", lambda c: a(c) or b(c))
+
+    class Non(Regle):
+        def __init__(self, a):
+            super().__init__(f"~{a}", lambda c: not a(c))
+
+    resultat = _evaluer("Regle", Regle)
+    assert resultat.statut == REUSSI, resultat.message
+
+
+@pytest.mark.parametrize("nom,fabrique", [("Client", _client_17), ("Contrat", _contrat_17), ("Montant", _montant_17),
+                                          ("campagne", _campagne_17), ("Portefeuille", _portefeuille_17), ("Regle", _regle_17)])
+def test_serie_17_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_17_les_tests_du_corrige_passent():
+    import defis.corrige_serie_17 as corrige
+
+    tests = [f for nom, f in vars(corrige).items() if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_17_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.conception as conception
+    import defis.serie_17 as eleve
+
+    for nom in ("CLIENTS_EXEMPLE", "CONTRATS", "SCORES_EXEMPLE", "Lot", "Passerelle", "PasserelleIndisponible"):
+        assert getattr(eleve, nom) is getattr(conception, nom), nom
+
+
+def test_serie_17_le_fichier_eleve_s_importe_et_tout_est_a_faire():
+    import defis.serie_17 as eleve
+    from defis.checks_serie_17 import SERIE
+
+    assert [r.statut for r in evaluer(SERIE)] == [A_FAIRE] * 6
+    assert list(eleve.Contrat) == []   # les membres sont à écrire
+
+
+def test_serie_17_les_exemples_des_docstrings_sont_justes():
+    """Les exemples de defis/serie_17.py, rejoués avec le corrigé."""
+    from dataclasses import FrozenInstanceError
+
+    from defis.corrige_serie_17 import Client, Contrat, Montant, Portefeuille, Regle, campagne
+
+    client = Client("C001", 3, 49.9, options=["tv"])
+    assert repr(Client("C001", 3, 49.9)) == ("Client(client_id='C001', anciennete_mois=3, facture_mensuelle=49.9, "
+                                             "contrat='Mensuel', options=())")
+    with pytest.raises(ValueError, match="^anciennete_mois ne peut pas être négative : -3$"):
+        Client("C001", -3, 49.9)
+    assert client.options == ("tv",)
+    with pytest.raises(FrozenInstanceError, match="cannot assign to field 'anciennete_mois'"):
+        client.anciennete_mois = 4
+    assert client == Client("C001", 3, 49.9, "Mensuel", ("tv",))
+
+    assert repr(Contrat.depuis_texte(" mensuel ")) == "<Contrat.MENSUEL: 'Mensuel'>"
+    with pytest.raises(ValueError, match=re.escape("contrat inconnu : 'Bi-annuel' (attendu : Mensuel, Annuel, Biannuel)")):
+        Contrat.depuis_texte("Bi-annuel")
+    assert (Contrat.ANNUEL.engagement_mois, f"Contrat {Contrat.ANNUEL}") == (12, "Contrat Annuel")
+    assert [c.value for c in Contrat] == ["Mensuel", "Annuel", "Biannuel"]
+
+    assert repr(Montant.depuis_euros("1 234,5")) == "Montant(centimes=123450, devise='EUR')"
+    assert " ".join(map(str, (sum([Montant(1999), Montant(1)]), Montant(-5), 3 * Montant(1999, "USD")))) == \
+        "20,00 € -0,05 € 59,97 USD"
+    with pytest.raises(ValueError, match="^impossible de comparer USD et EUR sans taux de change$"):
+        Montant(100, "USD") < Montant(200)
+
+    passerelle = Passerelle()
+    with campagne(passerelle, "Fidélité") as lot:
+        lot.ajouter("C001")
+        lot.ajouter("C002")
+    assert passerelle.journal == ["ouvrir Fidélité", "ajouter C001", "ajouter C002", "valider", "fermer"]
+    assert passerelle.envoyes == ["C001", "C002"]
+
+    p = Portefeuille(SCORES_17.items())
+    assert (repr(p), len(p), "C002" in p, p["C002"]) == ("Portefeuille(5 clients)", 5, True, 0.15)
+    assert list(p)[:3] == [("C004", 0.91), ("C001", 0.82), ("C003", 0.47)]
+    assert repr(p.au_dessus(0.8)) == "Portefeuille(2 clients)"
+
+    mensuel = Regle("mensuel", lambda c: c["contrat"] == "Mensuel")
+    recent = Regle("récent", lambda c: c["anciennete_mois"] < 6)
+    mecontent = Regle("mécontent", lambda c: c["appels_support"] >= 3)
+    cible = mensuel & (recent | mecontent)
+    assert (str(cible), str(~cible)) == ("(mensuel & (récent | mécontent))", "~(mensuel & (récent | mécontent))")
+    assert [c["client_id"] for c in CLIENTS_17 if cible(c)] == ["C001", "C002"]
+    with pytest.raises(TypeError, match=re.escape("la règle 'mensuel' n'est ni vraie ni fausse : combinez avec & | ~ "
+                                                  "(pas and, or, not)")):
+        mensuel and recent  # noqa: B018
+
+
+def test_serie_17_la_passerelle_refuse_une_panne_inconnue():
+    with pytest.raises(ValueError):
+        Passerelle(panne="fermer")
+    with pytest.raises(PasserelleIndisponible):
+        Passerelle(panne="ouvrir").ouvrir("X")
+
+
+def test_un_fichier_qui_ne_se_charge_pas_n_empeche_pas_les_autres_series(tmp_path, monkeypatch):
+    """Une erreur au chargement (syntaxe, ou `options: list = []` dans une dataclass) ne doit pas tout faire planter :
+    la série concernée s'affiche en 💥 avec la ligne fautive, et les autres séries restent corrigées."""
+    import dataclasses
+
+    from defis.checks_serie_17 import SERIE
+
+    (tmp_path / "eleve_casse.py").write_text(
+        "from dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass Client:\n    options: list = []\n",
+        encoding="utf-8")
+    (tmp_path / "eleve_syntaxe.py").write_text("def f(:\n    pass\n", encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    for module, mots in (("eleve_casse", ("ValueError", "default_factory", "(ligne ")),
+                         ("eleve_syntaxe", ("SyntaxError", "(ligne 1)"))):
+        resultats = evaluer(dataclasses.replace(SERIE, module_eleve=module))
+        assert [r.statut for r in resultats] == [ERREUR] * len(SERIE.defis)
+        for mot in (f"{module}.py ne se charge pas", *mots):
+            assert mot in resultats[0].message, resultats[0].message
+    assert all(r.statut == A_FAIRE for r in evaluer(SERIE))  # le vrai fichier élève, lui, se charge toujours

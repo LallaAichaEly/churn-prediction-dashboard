@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 103 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_16.py`, corrigés par
+> [défis](defis/README.md) : 109 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_17.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -69,12 +69,17 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > requête, migrations du schéma, deux conseillers sur la même fiche (verrou optimiste) et plusieurs travailleurs sur
 > la même file de SMS. Faites-la avant de donner une vraie base à l'API de l'exercice 6.4 : c'est là que vivent les
 > bogues qui n'apparaissent qu'à plusieurs.
-> Pour finir, la série 16 (`defis/serie_16.py`, défis 98 à 103) vous apprend à faire plusieurs choses à la fois avec `asyncio` :
+> Puis la série 16 (`defis/serie_16.py`, défis 98 à 103) vous apprend à faire plusieurs choses à la fois avec `asyncio` :
 > 8 scores demandés ensemble (`gather`), une réponse jamais attendue plus d'une seconde (et l'appel lent annulé), 500 SMS
 > envoyés 10 par 10 (`Semaphore`), un seul jeton d'accès pour 50 tâches (`Lock`), le plus rapide de 3 serveurs, et un
 > lecteur de pages avec 4 travailleurs qui ne déborde jamais (`Queue`, `TaskGroup`). Le correcteur mesure vos durées sur
 > une horloge virtuelle et repère les tâches oubliées et les programmes figés. Faites-la avant l'exercice 6.4 : FastAPI
 > est un programme asyncio, et une route `async def` qui appelle un autre service, c'est exactement ça.
+> Pour finir, la série 17 (`defis/serie_17.py`, défis 104 à 109) vous apprend à concevoir vos propres types : un `Client`
+> qui refuse d'exister s'il est invalide, un `Contrat` en `Enum`, un `Montant` en centimes (jamais de float pour de
+> l'argent), un envoi de SMS qui ne part qu'en entier (`with`), un portefeuille qu'on parcourt avec `for` et des règles de
+> ciblage qu'on combine avec `&` `|` `~`. C'est ce que vous lisez déjà sans le savoir : les modèles Pydantic de l'API
+> (exercice 6.4) sont des dataclasses qui valident, et `df[(a) & (b)]` dans pandas, c'est le défi 109.
 
 ---
 

@@ -58,8 +58,28 @@ def evaluer_defi(module: ModuleType, defi: Defi) -> Resultat:
 
 
 def evaluer(serie: Serie, corrige: bool = False) -> list[Resultat]:
-    module = importlib.import_module(serie.module_corrige if corrige else serie.module_eleve)
+    nom = serie.module_corrige if corrige else serie.module_eleve
+    try:
+        module = importlib.import_module(nom)
+    except Exception as exc:  # le fichier ne se charge pas : on le dit pour CETTE série, les autres restent corrigées
+        message = f"{nom.replace('.', '/')}.py ne se charge pas : {_erreur_au_chargement(exc, nom)}"
+        return [Resultat(d, ERREUR, message) for d in serie.defis]
     return [evaluer_defi(module, d) for d in serie.defis]
+
+
+def _erreur_au_chargement(exc: Exception, nom: str) -> str:
+    """L'erreur levée en chargeant le fichier, avec la ligne fautive DANS ce fichier.
+
+    Une faute de syntaxe, mais aussi une erreur levée en DÉFINISSANT une classe (par exemple une liste
+    comme valeur par défaut d'une dataclass : `options: list = []`) empêche tout le fichier de se charger.
+    """
+    if isinstance(exc, SyntaxError):
+        return f"{type(exc).__name__}: {exc.msg} (ligne {exc.lineno})"
+    fichier = nom.replace(".", "/") + ".py"
+    lignes = [cadre.lineno for cadre in traceback.extract_tb(exc.__traceback__)
+              if cadre.filename.replace("\\", "/").endswith(fichier)]
+    ou = f" (ligne {lignes[-1]})" if lignes else ""
+    return f"{type(exc).__name__}: {exc}{ou}"
 
 
 def series() -> list[Serie]:
@@ -85,6 +105,7 @@ def series() -> list[Serie]:
     from .checks_serie_14 import SERIE as serie_14
     from .checks_serie_15 import SERIE as serie_15
     from .checks_serie_16 import SERIE as serie_16
+    from .checks_serie_17 import SERIE as serie_17
 
     return [serie_00, serie_01, serie_02, serie_03, serie_04, serie_05, serie_06, serie_07, serie_08, serie_09,
-            serie_10, serie_11, serie_12, serie_13, serie_14, serie_15, serie_16]
+            serie_10, serie_11, serie_12, serie_13, serie_14, serie_15, serie_16, serie_17]
