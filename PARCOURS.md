@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 85 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_13.py`, corrigés par
+> [défis](defis/README.md) : 91 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_14.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -56,10 +56,14 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > Enfin, la série 12 (`defis/serie_12.py`, défis 74 à 79) vous fait écrire les routes d'une API web avec
 > FastAPI, une notion à la fois : codes HTTP, paramètres, modèles Pydantic, PATCH, clé d'API, idempotence.
 > Faites-la avant l'exercice 6.4 : vous saurez alors lire `api.py` ligne à ligne et y ajouter une route.
-> Pour finir, la série 13 (`defis/serie_13.py`, défis 80 à 85) vous apprend à écrire du code qu'on ne peut pas
+> Puis la série 13 (`defis/serie_13.py`, défis 80 à 85) vous apprend à écrire du code qu'on ne peut pas
 > détourner : requêtes SQL paramétrées, secrets masqués dans les journaux, chemins d'export contrôlés, export CSV
 > sans formules, modèle chargé seulement s'il est intact (le défi 84 prolonge l'exercice 6.2) et lien signé avec HMAC.
 > Le correcteur joue l'attaquant contre votre code : ce sont les questions qu'on vous posera en revue de code.
+> Pour finir, la série 14 (`defis/serie_14.py`, défis 86 à 91) prépare le module 6 et la question « et si ça casse
+> cette nuit ? » : configuration lue dans l'environnement, journal plutôt que `print`, reprises avec attente
+> exponentielle, envoi à 10 h heure de Paris sur un serveur en UTC, fichier de scores jamais laissé à moitié écrit,
+> disjoncteur. Faites-la avant l'exercice 6.4 : une API en production a besoin de tout cela dès le premier jour.
 
 ---
 

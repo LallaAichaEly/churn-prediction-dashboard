@@ -3533,3 +3533,625 @@ def test_serie_13_autres_ecritures_justes_acceptees():
                        ("charger_modele_verifie", modele_avec_joblib), ("Signataire", SignataireJson)]:
         resultat = _evaluer(nom, juste)
         assert resultat.statut == REUSSI, (nom, juste.__name__, resultat.message)
+
+
+# --------------------------------------------------------------------------- Série 14 : tenir en production
+
+import contextlib  # noqa: E402
+import logging  # noqa: E402
+import math  # noqa: E402
+import shutil  # noqa: E402
+import time  # noqa: E402
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+from defis.production import (  # noqa: E402
+    FAUX,
+    PARIS,
+    TRANSITOIRES,
+    VRAIS,
+    CircuitOuvert,
+    Config,
+    ErreurTemporaire,
+)
+
+
+def _echec_14(nom, fonction, *mots):
+    resultat = _evaluer(nom, fonction)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+# Défi 86 : configuration
+
+
+def _config(environ=False, bool_naif=False, premiere=False, nan_ok=False, int_float=False, vide_absent=True,
+            modifie=False, fuite=False, minuscules=True, strip=True, min_lot=1, crochets=False):
+    def lire_config(env):
+        source = dict(os.environ) | dict(env) if environ else env
+        if modifie:
+            env.setdefault("CHURN_SEUIL", "0.5")
+        erreurs = []
+
+        def valeur(nom):
+            texte = source[nom] if crochets else source.get(nom)
+            if texte is None:
+                return None
+            texte = texte.strip() if strip else texte
+            return texte if (texte.strip() or not vide_absent) else None
+
+        def erreur(message):
+            erreurs.append(message)
+            if premiere:
+                raise ValueError(message)
+
+        cle = valeur("CHURN_CLE_API")
+        if cle is None:
+            erreur("CHURN_CLE_API : obligatoire")
+        seuil, texte = 0.5, valeur("CHURN_SEUIL")
+        if texte is not None:
+            try:
+                seuil = float(texte)
+            except ValueError:
+                seuil = -1.0
+            if (seuil < 0 or seuil > 1) if nan_ok else not 0 <= seuil <= 1:
+                erreur(f"CHURN_SEUIL invalide : {texte!r}")
+        taille, texte = 500, valeur("CHURN_TAILLE_LOT")
+        if texte is not None:
+            try:
+                taille = int(float(texte)) if int_float else int(texte)
+            except ValueError:
+                taille = -1
+            if taille < min_lot:
+                erreur(f"CHURN_TAILLE_LOT invalide : {texte!r}")
+        mode, texte = False, valeur("CHURN_MODE_TEST")
+        if texte is not None:
+            texte = texte.lower() if minuscules else texte
+            if bool_naif:
+                mode = bool(texte)
+            elif texte in VRAIS:
+                mode = True
+            elif texte not in FAUX:
+                erreur(f"CHURN_MODE_TEST invalide : {texte!r}")
+        if erreurs:
+            raise ValueError(" ; ".join(erreurs) + (f" (env = {dict(env)})" if fuite else ""))
+        return Config(cle_api=cle, seuil=seuil, taille_lot=taille, mode_test=mode)
+
+    return lire_config
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_config(environ=True), ("os.environ",)),
+    (_config(bool_naif=True), ("bool(",)),
+    (_config(premiere=True), ("TOUTES",)),
+    (_config(nan_ok=True), ("NaN",)),
+    (_config(int_float=True), ("int(float",)),
+    (_config(vide_absent=False), ("ABSENTE",)),
+    (_config(modifie=True), ("MODIFIE",)),
+    (_config(fuite=True), ("clé d'API en clair",)),
+    (_config(minuscules=False), (".lower()",)),
+    (_config(strip=False), (".strip()",)),
+    (_config(min_lot=0), ("REFUSÉE", "au moins 1")),
+    (_config(crochets=True), ("env.get",)),
+])
+def test_serie_14_config_erreurs_classiques(mutant, mots):
+    _echec_14("lire_config", mutant, *mots)
+
+
+def test_serie_14_config_os_environ_est_restaure():
+    import defis.checks_serie_14 as checks
+
+    avant = dict(os.environ)
+    _evaluer("lire_config", _config(environ=True))
+    _evaluer("lire_config", _config(crochets=True))
+    assert dict(os.environ) == avant
+    assert not set(checks._PIEGES_ENVIRON) & (set(os.environ) - set(avant))
+
+
+# Défi 87 : journalisation
+
+
+def _lot(imprimer=False, basic=False, gestionnaire=False, niveau=False, racine=False, try_except=True, zero=False,
+         score_avant=False, niveau_ignore="warning", traceback=True, info_par_client=False, resume=True, ligne=False,
+         except_nu=False, retour=True):
+    def scorer_lot(clients, score, journal):
+        if basic:
+            logging.basicConfig(level=logging.INFO)
+        if gestionnaire:
+            journal.addHandler(logging.NullHandler())
+        if niveau:
+            journal.setLevel(logging.INFO)
+        cible = logging if racine else journal
+        scores, ignores, erreurs = {}, 0, 0
+        for client in clients:
+            identifiant, facture = client["id"], client.get("facture_mensuelle")
+            if score_avant:
+                with contextlib.suppress(Exception):
+                    score(client)
+            invalide = (not facture and facture != 0) if not zero else not facture
+            if invalide or (facture is not None and facture < 0):
+                if imprimer:
+                    print("ignoré", identifiant)
+                quoi = client if ligne else identifiant
+                getattr(cible, niveau_ignore)("client %s ignoré", quoi)
+                ignores += 1
+                continue
+            if not try_except:
+                scores[identifiant] = score(client)
+            else:
+                try:
+                    scores[identifiant] = score(client)
+                except (BaseException if except_nu else Exception):
+                    if traceback:
+                        cible.exception("client %s : échec", identifiant)
+                    else:
+                        cible.error("client %s : échec", identifiant)
+                    erreurs += 1
+                    continue
+            if info_par_client:
+                cible.info("client %s noté", identifiant)
+        if resume:
+            cible.info("lot terminé : %d notés, %d ignorés, %d en erreur", len(scores), ignores, erreurs)
+        return scores if retour else None
+
+    return scorer_lot
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_lot(imprimer=True), ("print",)),
+    (_lot(basic=True), ("basicConfig",)),
+    (_lot(gestionnaire=True), ("addHandler",)),
+    (_lot(niveau=True), ("setLevel",)),
+    (_lot(racine=True), ("journal racine",)),
+    (_lot(try_except=False), ("try:",)),
+    (_lot(zero=True), ("A103", "if not facture")),
+    (_lot(score_avant=True), ("AVANT",)),
+    (_lot(niveau_ignore="error"), ("WARNING",)),
+    (_lot(niveau_ignore="info"), ("WARNING",)),
+    (_lot(traceback=False), ("traceback",)),
+    (_lot(info_par_client=True), ("journal.debug",)),
+    (_lot(resume=False), ("résumé",)),
+    (_lot(ligne=True), ("e-mail",)),
+    (_lot(except_nu=True), ("Ctrl+C",)),
+    (_lot(retour=False), ("return",)),
+])
+def test_serie_14_journal_erreurs_classiques(mutant, mots):
+    _echec_14("scorer_lot", mutant, *mots)
+
+
+def test_serie_14_le_journal_est_remis_en_etat():
+    racine = logging.getLogger()
+    avant = (list(racine.handlers), racine.level, logging.basicConfig)
+    for mutant in (_lot(basic=True), _lot(gestionnaire=True), _lot(niveau=True), _lot(racine=True)):
+        _evaluer("scorer_lot", mutant)
+    assert (list(racine.handlers), racine.level, logging.basicConfig) == avant
+
+
+# Défi 88 : reprises
+
+
+def _reprises(reessayer=True, premier_exposant=0, doubler=True, total=True, relancer="derniere", attendre_fin=False,
+              plafonner=True, attraper=TRANSITOIRES, attente_si="none", getattr_=True, vrai_sleep=False,
+              resultat_faux=False, verifier_tentatives=True):
+    def appeler_avec_reprises(appel, *, tentatives=4, base=0.5, plafond=8.0, dormir=time.sleep):
+        if verifier_tentatives and tentatives < 1:
+            raise ValueError("tentatives")
+        premiere = None
+        nombre = tentatives if total else tentatives + 1
+        for numero in range(nombre):
+            try:
+                resultat = appel()
+                if resultat_faux and not resultat:
+                    raise ErreurTemporaire("réponse vide")
+                return resultat
+            except attraper as erreur:
+                premiere = premiere or erreur
+                derniere = numero == nombre - 1
+                if not reessayer or (derniere and not attendre_fin):
+                    if relancer == "derniere":
+                        raise
+                    if relancer == "premiere":
+                        raise premiere from None
+                    if relancer == "nouvelle":
+                        raise RuntimeError("échec après plusieurs tentatives") from erreur
+                    return None
+                attente = erreur.attente if not getattr_ else getattr(erreur, "attente", None)
+                connu = attente if attente_si == "none" else (attente or None)
+                exposant = numero + premier_exposant if doubler else 0
+                delai = connu if connu is not None else base * 2 ** exposant
+                (time.sleep if vrai_sleep else dormir)(min(plafond, delai) if plafonner else delai)
+                if derniere:
+                    if relancer == "derniere":
+                        raise
+                    return None
+
+    return appeler_avec_reprises
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_reprises(reessayer=False), ("abandonne",)),
+    (_reprises(premier_exposant=1), ("base * 2**0",)),
+    (_reprises(doubler=False), ("DOUBLER",)),
+    (_reprises(total=False), ("TOTAL",)),
+    (_reprises(relancer=None), ("croira",)),
+    (_reprises(relancer="nouvelle"), ("nouvelle erreur", "raise")),
+    (_reprises(relancer="premiere"), ("PREMIÈRE",)),
+    (_reprises(attendre_fin=True), ("DERNIER échec",)),
+    (_reprises(plafonner=False), ("plafond",)),
+    (_reprises(attraper=Exception), ("TRANSITOIRES",)),
+    (_reprises(attraper=ErreurTemporaire), ("TRANSITOIRES",)),
+    (_reprises(attente_si="vrai"), ("is not None",)),
+    (_reprises(getattr_=False), ("getattr",)),
+    (_reprises(vrai_sleep=True), ("dormir",)),
+    (_reprises(resultat_faux=True), ("EXCEPTION",)),
+    (_reprises(verifier_tentatives=False), ("tentatives=0",)),
+])
+def test_serie_14_reprises_erreurs_classiques(mutant, mots):
+    _echec_14("appeler_avec_reprises", mutant, *mots)
+
+
+def test_serie_14_le_vrai_sleep_est_restaure():
+    sleep = time.sleep
+    _evaluer("appeler_avec_reprises", _reprises(vrai_sleep=True))
+    assert time.sleep is sleep
+
+
+# Défi 89 : fuseaux horaires
+
+
+def _envoi(naive_ok=False, convertir="astimezone", decalage_fixe=False, strict=True, sortie="utc",
+           garder_minutes=False, week_end=True):
+    """Le raisonnement « à l'horloge murale » : l'heure qu'il est, puis aujourd'hui ou demain."""
+    def prochain_envoi(maintenant):
+        if not naive_ok and maintenant.tzinfo is None:
+            raise ValueError("naïve")
+        if convertir == "astimezone":
+            local = maintenant.astimezone(PARIS)
+        elif convertir == "replace":
+            local = maintenant.replace(tzinfo=PARIS)
+        else:
+            local = maintenant
+        heure = (local.hour, local.minute, local.second, local.microsecond)
+        jour = local.date()
+        if heure >= (10, 0, 0, 0) if strict else heure > (10, 0, 0, 0):
+            jour += timedelta(days=1)
+        while week_end and jour.weekday() >= 5:
+            jour += timedelta(days=1)
+        if decalage_fixe:  # calcule en UTC, avec le décalage d'AUJOURD'HUI
+            candidat = (datetime(jour.year, jour.month, jour.day, 10) - local.utcoffset()).replace(tzinfo=timezone.utc)
+        elif garder_minutes:
+            candidat = local.replace(year=jour.year, month=jour.month, day=jour.day, hour=10)
+        else:
+            candidat = datetime(jour.year, jour.month, jour.day, 10, tzinfo=PARIS)
+        if sortie == "paris":
+            return candidat.astimezone(PARIS)
+        if sortie == "naive":
+            return candidat.astimezone(timezone.utc).replace(tzinfo=None)
+        return candidat.astimezone(timezone.utc)
+
+    return prochain_envoi
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_envoi(naive_ok=True), ("NAÏVE",)),
+    (_envoi(convertir="replace"), ("astimezone(PARIS)",)),
+    (_envoi(convertir="aucune"), ("astimezone(PARIS)",)),
+    (_envoi(decalage_fixe=True), ("CHANGEMENT D'HEURE",)),
+    (_envoi(strict=False), ("10 h pile",)),
+    (_envoi(sortie="paris"), ("UTC",)),
+    (_envoi(sortie="naive"), ("NAÏVE",)),
+    (_envoi(garder_minutes=True), ("pile",)),
+    (_envoi(week_end=False), ("week-end",)),
+])
+def test_serie_14_fuseaux_erreurs_classiques(mutant, mots):
+    _echec_14("prochain_envoi", mutant, *mots)
+
+
+# Défi 90 : écriture atomique
+
+
+def _atomique(direct=False, ailleurs=False, nom_fixe=False, nettoyer=True, relancer="meme", fermer_avant=True,
+              tout_en_memoire=False, fin_de_ligne=True, copier=False):
+    def ecrire_atomique(chemin, lignes):
+        chemin = Path(chemin)
+        if tout_en_memoire:
+            texte = "".join(f"{ligne}\n" for ligne in lignes)
+            chemin.write_text(texte, encoding="utf-8")
+            return
+        if direct:
+            with open(chemin, "w", encoding="utf-8") as fichier:
+                for ligne in lignes:
+                    fichier.write(f"{ligne}\n")
+            return
+        if nom_fixe:
+            temporaire = chemin.with_name(chemin.name + ".tmp")
+            descripteur = os.open(temporaire, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+        else:
+            descripteur, nom = tempfile.mkstemp(dir=None if ailleurs else chemin.parent)
+            temporaire = Path(nom)
+        try:
+            fichier = os.fdopen(descripteur, "w", encoding="utf-8")
+            for ligne in lignes:
+                fichier.write(f"{ligne}\n" if fin_de_ligne else ligne)
+            if not fermer_avant:
+                os.replace(temporaire, chemin)
+                fichier.close()
+                return
+            fichier.close()
+            if copier:
+                shutil.copyfile(temporaire, chemin)
+                temporaire.unlink()
+            else:
+                os.replace(temporaire, chemin)
+        except BaseException:
+            with contextlib.suppress(NameError):
+                fichier.close()
+            if nettoyer:
+                temporaire.unlink(missing_ok=True)
+            if relancer == "meme":
+                raise
+            if relancer == "nouvelle":
+                raise OSError("écriture impossible") from None
+
+    return ecrire_atomique
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_atomique(direct=True), ("TEMPORAIRE",)),
+    (_atomique(tout_en_memoire=True), ("TEMPORAIRE",)),
+    (_atomique(copier=True), ("TEMPORAIRE",)),
+    (_atomique(ailleurs=True), ("mkstemp(dir=",)),
+    (_atomique(nom_fixe=True), ("unique",)),
+    (_atomique(nettoyer=False), ("supprimez-le",)),
+    (_atomique(relancer=None), ("relancez",)),
+    (_atomique(relancer="nouvelle"), ("simple `raise`",)),
+    (_atomique(fermer_avant=False), ("APRÈS l'avoir fermé",)),
+    (_atomique(fin_de_ligne=False), ("\\n",)),
+])
+def test_serie_14_ecriture_atomique_erreurs_classiques(mutant, mots):
+    _echec_14("ecrire_atomique", mutant, *mots)
+
+
+def test_serie_14_les_espions_d_ecriture_sont_retires():
+    import builtins
+    import io
+
+    avant = (builtins.open, io.open, os.replace, os.rename)
+    for mutant in (_atomique(), _atomique(direct=True), _atomique(nettoyer=False)):
+        _evaluer("ecrire_atomique", mutant)
+    assert (builtins.open, io.open, os.replace, os.rename) == avant
+
+
+# Défi 91 : disjoncteur
+
+
+def _disjoncteur(propriete=True, remise_a_zero=True, decalage=0, circuit_a_l_ouverture=False, appeler_si_ouvert=False,
+                 strict=False, vraie_horloge=False, calcul_paresseux=True, essai_unique=True, relancer_delai=True,
+                 attraper=TRANSITOIRES, en_dur=False, partage=False, avaler=False, transmettre=True):
+    class Disjoncteur:
+        _commun = {"echecs": 0, "ouverture": None}
+
+        def __init__(self, seuil_echecs=3, delai=30.0, horloge=time.monotonic):
+            self.seuil = 3 if en_dur else seuil_echecs
+            self.delai = 30.0 if en_dur else delai
+            self.horloge = time.monotonic if vraie_horloge else horloge
+            self.s = Disjoncteur._commun if partage else {"echecs": 0, "ouverture": None}
+            self._memo = "ferme"
+
+        def _calculer(self):
+            if self.s["ouverture"] is None:
+                return "ferme"
+            ecoule = self.horloge() - self.s["ouverture"]
+            return "semi_ouvert" if (ecoule > self.delai if strict else ecoule >= self.delai) else "ouvert"
+
+        def _etat(self):
+            if calcul_paresseux:
+                return self._calculer()
+            return self._memo
+
+        def appeler(self, fonction, *args, **kwargs):
+            etat = self._calculer()
+            if etat == "ouvert" and not appeler_si_ouvert:
+                self._memo = "ouvert"
+                raise CircuitOuvert("ouvert")
+            try:
+                resultat = fonction(*args, **kwargs) if transmettre else fonction()
+            except attraper:
+                self.s["echecs"] += 1
+                if (etat == "semi_ouvert" and essai_unique) or self.s["echecs"] >= self.seuil + decalage:
+                    if relancer_delai or self.s["ouverture"] is None:
+                        self.s["ouverture"] = self.horloge()
+                    if not essai_unique:
+                        self.s["echecs"] = 0  # « on repart de zéro »… et il faudra 3 échecs pour rouvrir
+                    self._memo = "ouvert"
+                    if circuit_a_l_ouverture:
+                        raise CircuitOuvert("vient de s'ouvrir") from None
+                if avaler:
+                    return None
+                raise
+            if remise_a_zero or etat == "semi_ouvert":
+                self.s["echecs"] = 0
+            self.s["ouverture"] = None
+            self._memo = "ferme"
+            return resultat
+
+    if propriete:
+        Disjoncteur.etat = property(Disjoncteur._etat)
+    else:
+        Disjoncteur.etat = Disjoncteur._etat
+    return Disjoncteur
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_disjoncteur(propriete=False), ("@property",)),
+    (_disjoncteur(remise_a_zero=False), ("D'AFFILÉE",)),
+    (_disjoncteur(decalage=-1), ("pas avant",)),
+    (_disjoncteur(decalage=1), ("seuil_echecs",)),
+    (_disjoncteur(circuit_a_l_ouverture=True), ("OUVRE",)),
+    (_disjoncteur(appeler_si_ouvert=True), ("appelle quand même",)),
+    (_disjoncteur(strict=True), (">= delai",)),
+    (_disjoncteur(vraie_horloge=True), ("horloge REÇUE",)),
+    (_disjoncteur(calcul_paresseux=False), ("propriété `etat`",)),
+    (_disjoncteur(essai_unique=False), ("Un seul échec suffit",)),
+    (_disjoncteur(relancer_delai=False), ("repart de zéro",)),
+    (_disjoncteur(attraper=Exception), ("TRANSITOIRES",)),
+    (_disjoncteur(attraper=ErreurTemporaire), ("TRANSITOIRES",)),
+    (_disjoncteur(en_dur=True), ("en dur",)),
+    (_disjoncteur(partage=True), ("CLASSE",)),
+    (_disjoncteur(avaler=True), ("raise",)),
+    (_disjoncteur(transmettre=False), ("*args, **kwargs",)),
+])
+def test_serie_14_disjoncteur_erreurs_classiques(mutant, mots):
+    _echec_14("Disjoncteur", mutant, *mots)
+
+
+# Le corrigé, le fichier élève, et d'autres solutions justes
+
+
+@pytest.mark.parametrize("nom,fabrique", [("lire_config", _config), ("scorer_lot", _lot),
+                                          ("appeler_avec_reprises", _reprises), ("prochain_envoi", _envoi),
+                                          ("ecrire_atomique", _atomique), ("Disjoncteur", _disjoncteur)])
+def test_serie_14_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_14_les_tests_du_corrige_passent():
+    import defis.corrige_serie_14 as corrige
+
+    tests = [f for nom, f in vars(corrige).items() if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_14_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.production as production
+    import defis.serie_14 as eleve
+
+    for nom in ("Config", "ErreurTemporaire", "CircuitOuvert", "TRANSITOIRES", "HorlogeFactice", "PARIS", "VRAIS", "FAUX",
+                "exemple_lot", "score_exemple", "journal_console", "service_capricieux"):
+        assert getattr(eleve, nom) is getattr(production, nom), nom
+    assert issubclass(CircuitOuvert, ErreurTemporaire)
+    assert "cle" not in repr(Config(cle_api="cle-secrete"))
+
+
+def test_serie_14_autres_ecritures_justes_acceptees():
+    """Le correcteur juge le comportement : des solutions justes écrites autrement doivent passer."""
+    def config_par_table(env):
+        def booleen(texte):
+            if texte.lower() not in VRAIS + FAUX:
+                raise ValueError(texte)
+            return texte.lower() in VRAIS
+
+        def borne(conversion, minimum, maximum=math.inf):
+            def convertir(texte):
+                valeur = conversion(texte)
+                if not minimum <= valeur <= maximum:
+                    raise ValueError(texte)
+                return valeur
+            return convertir
+
+        regles = {"cle_api": ("CHURN_CLE_API", str, None), "seuil": ("CHURN_SEUIL", borne(float, 0, 1), 0.5),
+                  "taille_lot": ("CHURN_TAILLE_LOT", borne(int, 1), 500), "mode_test": ("CHURN_MODE_TEST", booleen, False)}
+        valeurs, fautes = {}, []
+        for champ, (variable, conversion, defaut) in regles.items():
+            texte = (env.get(variable) or "").strip()
+            if not texte:
+                if defaut is None:
+                    fautes.append(f"{variable} manquante")
+                valeurs[champ] = defaut
+                continue
+            try:
+                valeurs[champ] = conversion(texte)
+            except ValueError:
+                fautes.append(f"{variable} invalide")
+        if fautes:
+            raise ValueError(", ".join(fautes))
+        return Config(**valeurs)
+
+    def lot_avec_error_exc_info(clients, score, journal):
+        notes, comptes = {}, {"ignorés": 0, "en erreur": 0}
+        for client in clients:
+            facture = client.get("facture_mensuelle")
+            if not isinstance(facture, (int, float)) or facture < 0:
+                journal.warning(f"Client {client['id']} : facture invalide, client ignoré")
+                comptes["ignorés"] += 1
+                continue
+            try:
+                notes[client["id"]] = score(client)
+            except Exception:
+                journal.error(f"Client {client['id']} : erreur du modèle", exc_info=True)
+                comptes["en erreur"] += 1
+        journal.info(f"Fin du lot : notés={len(notes)} ignorés={comptes['ignorés']} erreurs={comptes['en erreur']}")
+        return notes
+
+    def reprises_en_while(appel, *, tentatives=4, base=0.5, plafond=8.0, dormir=time.sleep):
+        if tentatives <= 0:
+            raise ValueError("au moins une tentative")
+        essai = 0
+        while True:
+            try:
+                return appel()
+            except TRANSITOIRES as erreur:
+                essai += 1
+                if essai >= tentatives:
+                    raise
+                demande = getattr(erreur, "attente", None)
+                dormir(min(plafond, base * 2 ** (essai - 1) if demande is None else demande))
+
+    def envoi_par_liste(maintenant):
+        if maintenant.utcoffset() is None:
+            raise ValueError("fuseau manquant")
+        aujourd_hui = maintenant.astimezone(PARIS).date()
+        jours = (aujourd_hui + timedelta(days=n) for n in range(8))
+        candidats = (datetime.combine(jour, datetime.min.time().replace(hour=10), tzinfo=PARIS) for jour in jours)
+        return min(c for c in candidats if c.isoweekday() <= 5 and c > maintenant).astimezone(timezone.utc)
+
+    def atomique_named_temporary(chemin, lignes):
+        chemin = Path(chemin)
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=chemin.parent, delete=False,
+                                         suffix=".partiel") as fichier:
+            temporaire = Path(fichier.name)
+        try:
+            with temporaire.open("w", encoding="utf-8") as fichier:
+                fichier.writelines(f"{ligne}\n" for ligne in lignes)
+            temporaire.replace(chemin)
+        except BaseException:
+            temporaire.unlink(missing_ok=True)
+            raise
+
+    class DisjoncteurAEtatStocke:
+        def __init__(self, seuil_echecs=3, delai=30.0, horloge=time.monotonic):
+            self.seuil_echecs, self.delai, self.horloge = seuil_echecs, delai, horloge
+            self._etat, self._echecs, self._depuis = "ferme", 0, 0.0
+
+        @property
+        def etat(self):
+            if self._etat == "ouvert" and self.horloge() - self._depuis >= self.delai:
+                self._etat = "semi_ouvert"
+            return self._etat
+
+        def _ouvrir(self):
+            self._etat, self._depuis = "ouvert", self.horloge()
+
+        def appeler(self, fonction, *args, **kwargs):
+            if self.etat == "ouvert":
+                raise CircuitOuvert("patientez")
+            essai = self.etat == "semi_ouvert"
+            try:
+                resultat = fonction(*args, **kwargs)
+            except TRANSITOIRES:
+                self._echecs += 1
+                if essai or self._echecs >= self.seuil_echecs:
+                    self._ouvrir()
+                raise
+            self._etat, self._echecs = "ferme", 0
+            return resultat
+
+    for nom, juste in [("lire_config", config_par_table), ("scorer_lot", lot_avec_error_exc_info),
+                       ("appeler_avec_reprises", reprises_en_while), ("prochain_envoi", envoi_par_liste),
+                       ("ecrire_atomique", atomique_named_temporary), ("Disjoncteur", DisjoncteurAEtatStocke)]:
+        resultat = _evaluer(nom, juste)
+        assert resultat.statut == REUSSI, (nom, juste.__name__, resultat.message)

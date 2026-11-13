@@ -41,10 +41,15 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > Puis la **série 12** (défis 74 à 79) : écrire vous-même les routes d'une API web avec FastAPI
 > (lire, chercher, créer, modifier, protéger par une clé, rejouer une requête sans envoyer deux SMS).
 > Elle ne demande que la série 00 et le défi 40, et prépare l'exercice 6.4 du parcours.
-> Pour finir, la **série 13** (défis 80 à 85) : écrire du code qu'on ne peut pas détourner. Injection SQL, secrets dans
+> Puis la **série 13** (défis 80 à 85) : écrire du code qu'on ne peut pas détourner. Injection SQL, secrets dans
 > les journaux, noms de fichiers qui remontent les dossiers, formules cachées dans un export CSV, modèle pickle
 > piégé, lien de désinscription falsifié : le correcteur joue l'attaquant contre votre code. Elle ne demande que la
 > série 00 et le défi 40.
+> Pour finir, la **série 14** (défis 86 à 91) : écrire du code qui tient en production, la nuit, quand personne ne
+> regarde. Configuration lue dans les variables d'environnement, journal plutôt que `print`, reprises avec attente
+> exponentielle, envoi à 10 h heure de Paris sur un serveur en UTC (changement d'heure compris), fichier jamais laissé
+> à moitié écrit, disjoncteur qui coupe un service en panne. Elle ne demande que la série 00 et le défi 40 (et le défi
+> 48 pour le dernier).
 >
 > 🧠 **Vous préparez un entretien technique ?** La **série 09** (défis 56 à 61) reprend les classiques
 > de l'algorithmique sur des données de churn. Elle ne demande que les séries 00 et 07.
@@ -69,6 +74,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | **11 — Tester comme un·e pro** 🧪 | `defis/serie_11.py` | choisir ses exemples aux **frontières** (`pytest.mark.parametrize`, le piège de 0 dans un `if`), comparer des flottants avec **`pytest.approx`** (et pourquoi `1 - 2/3 != 1/3`), tester le chemin d'erreur avec **`pytest.raises`** (`match`, ni trop large ni fragile), remplacer un service d'e-mails par un **faux** (injection de dépendance, panne simulée, `unittest.mock`), tester un **fichier** dans un dossier temporaire (`tmp_path`, ne jamais écraser), **tests par propriétés** sur des centaines de cas tirés au hasard (graine fixe, Hypothesis) | 6, n° 68 à 73 (🟢×2 🟡×3 🔴×1) |
 | **12 — Construire une API web** 🌐 | `defis/serie_12.py` | une route `GET` et son paramètre de chemin, répondre **404** plutôt que planter (500) ou renvoyer `null`, **paramètres de requête** typés et bornés (`Query(ge=…, le=…)` → 422), corps JSON validé par un **modèle Pydantic** (`pattern` ancré, `gt`/`le`, `Literal`, `extra="forbid"`), **201** et en-tête `Location`, **409** pour un doublon, **PATCH** partiel (`exclude_unset`, refuser `null`, tout ou rien), clé d'API dans un en-tête avec **`Depends`** (**401 contre 403**, contrôler l'accès avant l'existence, révocation), **idempotence** d'un `POST` avec l'en-tête `Idempotency-Key` (rejeu, panne → **503**, ne mémoriser qu'après succès) | 6, n° 74 à 79 (🟢×2 🟡×3 🔴×1) |
 | **13 — Écrire du code sûr** 🔐 | `defis/serie_13.py` | **injection SQL** : requête paramétrée (`?`, `(nom,)` avec la virgule, filtre facultatif sans `= NULL`), **secrets** masqués dans les journaux (noms normalisés, récursion dans les dictionnaires et les listes, copie sans toucher l'original), **traversée de répertoire** (`resolve()`, `is_relative_to` plutôt que `startswith`, chemin absolu, lien symbolique), **injection de formules** dans un export CSV pour Excel (texte seulement, nombres et valeurs manquantes intacts), **désérialisation** : empreinte SHA-256 vérifiée AVANT `pickle.loads`, une seule lecture (TOCTOU), **lien signé** avec HMAC (expiration signée, séparateur, `compare_digest`, toute entrée mal formée → ValueError) | 6, n° 80 à 85 (🟢×2 🟡×3 🔴×1) |
+| **14 — Tenir en production** 🚦 | `defis/serie_14.py` | **configuration** lue dans les variables d'environnement (`bool("false")` vaut True, NaN qui passe `seuil < 0 or seuil > 1`, toutes les erreurs d'un coup, ne lire que ce qu'on reçoit), **journalisation** avec `logging` (niveaux, `journal.exception` et sa traceback, un seul résumé INFO, pas de `print` ni de `basicConfig` dans une fonction, pas de données personnelles, `except Exception` pour laisser passer Ctrl+C), **reprises** avec attente exponentielle plafonnée (erreurs passagères seulement, `Retry-After`, relancer la dernière erreur, `dormir` injecté), **fuseaux horaires** avec `zoneinfo` (10 h à Paris en UTC, changement d'heure, `astimezone` contre `replace`, dates naïves refusées), **écriture atomique** (temporaire unique dans le même dossier, fermé puis `os.replace`, nettoyage et `raise` en cas de panne), **disjoncteur** (machine à états fermé/ouvert/semi-ouvert, horloge injectée, `@property`) | 6, n° 86 à 91 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -119,6 +125,13 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > mais inhabituels passent (« D'Almeida », « rapport..v2.csv », une facture négative) : une protection qui bloque les
 > vrais utilisateurs n'est pas une bonne protection. Tout reste sur votre ordinateur : n'essayez jamais ces entrées sur
 > un service qui ne vous appartient pas.
+
+> 🚦 Dans la série 14, rien n'attend pour de vrai : le correcteur vous passe une fausse fonction `dormir` qui note les
+> délais, une horloge qu'il avance à la main (`HorlogeFactice`) et un journal qui retient chaque message avec son niveau.
+> Il simule ainsi en une fraction de seconde une nuit de pannes : opérateur SMS surchargé, panne franche, disque plein
+> au milieu de l'écriture d'un fichier (il vérifie à chaque ligne que l'ancien fichier est encore intact), passage à
+> l'heure d'hiver. C'est la même technique que dans vos propres tests : on n'attend pas 30 vraies secondes pour tester
+> un délai de 30 secondes.
 
 > 💡 Les défis 🔴 réutilisent le code du projet (`churn.model.build_pipeline`) : vous
 > apprenez aussi à lire et réutiliser un code existant, compétence clé en entreprise.
