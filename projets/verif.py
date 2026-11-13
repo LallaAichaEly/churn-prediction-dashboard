@@ -107,5 +107,6 @@ def projets() -> list[Projet]:
     """Tous les projets guidés, dans l'ordre. Les nouveaux projets s'ajoutent ici."""
     from .checks_campagne import PROJET as campagne
     from .checks_retention import PROJET as retention
+    from .checks_service import PROJET as service
 
-    return [retention, campagne]
+    return [retention, campagne, service]

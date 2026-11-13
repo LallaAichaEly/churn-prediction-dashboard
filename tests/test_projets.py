@@ -61,8 +61,8 @@ def test_les_fichiers_deja_ecrits_sont_identiques(fichier):
 
 
 def test_les_projets_sont_enregistres():
-    assert [p.code for p in projets()] == ["retention", "campagne"]
-    assert [p.numero for p in projets()] == [2, 3]
+    assert [p.code for p in projets()] == ["retention", "campagne", "service"]
+    assert [p.numero for p in projets()] == [2, 3, 4]
     assert len({e.numero for e in PROJET.etapes}) == len(PROJET.etapes)
 
 
@@ -363,9 +363,11 @@ def test_le_coach_affiche_la_progression_du_projet(tmp_path):
     import progression
 
     assert progression.projets_scores(tmp_path) == []  # un dépôt sans dossier projets/
-    retention, campagne = progression.projets_scores(ROOT)
+    retention, campagne, service = progression.projets_scores(ROOT)
     assert (retention.titre, retention.total, retention.erreur) == ("Projet 2 — Plan de rétention", 7, "")
     assert (campagne.titre, campagne.total, campagne.erreur) == ("Projet 3 — Mesurer l'effet de la campagne", 7, "")
+    assert (service.titre, service.total, service.erreur) == ("Projet 4 — Le service des conseillers", 7, "")
     rendu = progression.render(ROOT)
     assert "Projet 2 — Plan de rétention : 0/7 étapes" in rendu
     assert "Projet 3 — Mesurer l'effet de la campagne : 0/7 étapes" in rendu
+    assert "Projet 4 — Le service des conseillers : 0/7 étapes" in rendu

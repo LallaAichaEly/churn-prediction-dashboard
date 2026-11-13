@@ -10,7 +10,7 @@ data/*.csv
 models/*.joblib
 models/*.json
 
-# Écrits par les projets guidés lancés depuis la racine du dépôt (projets 2 et 3)
+# Écrits par les projets guidés lancés depuis la racine du dépôt (projets 2 à 4 ; *.db couvre service.db)
 /plan_retention.csv
 /a_contacter.csv
 *.db

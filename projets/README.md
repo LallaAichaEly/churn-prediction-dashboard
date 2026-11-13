@@ -17,14 +17,20 @@ python scripts/projet.py --projet 3            # un seul projet, et l'étape sui
 python scripts/projet.py --projet 3 --etape 4  # le détail d'une étape
 ```
 
-Les trois projets forment une boucle complète, celle qu'on retrouve dans toute équipe data :
-**prédire → décider → vérifier que ça a marché**.
+Les quatre projets forment une boucle complète, celle qu'on retrouve dans toute équipe data :
+**prédire → décider → agir → vérifier que ça a marché**.
 
 | | Projet | Ce que vous construisez | Où |
 |---|---|---|---|
 | 1 | Tableau de bord du churn | Le modèle qui prédit qui va partir (déjà construit : à lire, à modifier) | racine du dépôt, `PARCOURS.md` |
 | **2** | **Plan de rétention** | **Le programme qui décide quoi faire de ces prédictions** | `projets/retention/` |
 | **3** | **Mesurer l'effet de la campagne** | **Le programme qui prouve (ou non) que le plan a évité des départs** | `projets/campagne/` |
+| **4** | **Le service des conseillers** | **Le service web avec lequel l'équipe appelle les clients du plan, à plusieurs en même temps** | `projets/service/` |
+
+Dans le temps, le projet 4 se place au milieu du projet 3 : `preparer` tire le groupe témoin et écrit la
+liste des clients à appeler, les conseillers les appellent avec le service du projet 4, puis `bilan`
+mesure l'effet un mois plus tard. Les projets 2 et 3 entraînent surtout la donnée et le calcul ; le
+projet 4 entraîne le métier de développeur·se : un programme qui tourne en continu et que d'autres utilisent.
 
 ---
 
@@ -252,3 +258,131 @@ avoir assez de clients), puis `python -m projets.campagne preparer --plan plan.c
   et `statistiques.py`, avec la base en dépendance FastAPI (voir la série 12 des défis).
 - **Des tests pytest.** `tests/test_ma_campagne.py` : appelez `tester_effet(effet)`, et testez
   `importer_resultats` avec `tmp_path` et une base `":memory:"`.
+
+---
+
+## Projet 4 — Le service des conseillers
+
+### Le besoin
+
+`preparer` (projet 3) a écrit la liste des 1 612 clients à appeler. Quatre conseillers vont les appeler
+pendant deux semaines. Pour l'instant, ils se partagent un fichier Excel : deux conseillers appellent le
+même client, un résultat saisi le matin disparaît l'après-midi parce qu'une collègue a enregistré sa
+copie du fichier par-dessus, et la responsable ne sait jamais où en est l'équipe. Elle demande :
+*« Il nous faut une petite application : chaque conseiller voit SA liste, note le résultat de chaque
+appel, et moi je vois l'avancement en direct. »*
+
+Vous construisez le service web derrière cette application : une API HTTP (FastAPI) sur une base
+SQLite. C'est le premier projet où votre code tourne en continu et répond à d'autres programmes : la
+configuration vient de l'environnement, les clés d'accès sont des secrets, et deux écritures peuvent
+arriver en même temps.
+
+```console
+$ export SERVICE_CLES="alice=cle-alice-0123456789,bruno=cle-bruno-0123456789,chloe=cle-chloe-0123456789,david=cle-david-0123456789"
+$ python -m projets.service importer --contacts projets/exemple_contacts.csv
+Contacts lus : 1612 (1612 nouveaux, répartis entre 4 conseillers)
+
+conseiller      a_appeler      accepte       refuse  injoignable   traités
+alice                 403            0            0            0     0,0 %
+bruno                 403            0            0            0     0,0 %
+chloe                 403            0            0            0     0,0 %
+david                 403            0            0            0     0,0 %
+TOTAL                1612            0            0            0     0,0 %
+
+$ python -m projets.service servir
+Service des conseillers : http://127.0.0.1:8000/docs (4 conseillers : alice, bruno, chloe, david ; base service.db)
+```
+
+Puis, depuis un autre terminal (ou depuis la page `/docs`, qui permet d'essayer chaque route) :
+
+```console
+$ curl -s "http://127.0.0.1:8000/contacts?taille=2" -H "X-Cle-API: cle-alice-0123456789"
+{"contacts":[{"customer_id":"C10001","offre":"REMISE","conseiller":"alice","statut":"a_appeler","tentatives":0,"commentaire":"","version":1},
+             {"customer_id":"C10007", …}],"suivant":"C10007"}
+
+$ curl -s -X PUT http://127.0.0.1:8000/contacts/C10001/appel -H "X-Cle-API: cle-alice-0123456789" \
+       -H "Content-Type: application/json" -d '{"statut": "accepte", "version": 1}'
+{"customer_id":"C10001","offre":"REMISE","conseiller":"alice","statut":"accepte","tentatives":1,"commentaire":"","version":2}
+
+$ # la même fiche, restée ouverte sur un autre onglet en version 1 :
+$ curl -s -X PUT … -d '{"statut": "refuse", "version": 1}'
+{"detail":"C10001 a été modifié entre-temps (version actuelle : 2) : rechargez la fiche avant d'enregistrer","version_actuelle":2}
+
+$ curl -s http://127.0.0.1:8000/contacts/C10002 -H "X-Cle-API: cle-alice-0123456789"
+{"detail":"C10002 est suivi par un autre conseiller"}
+```
+
+Les clés de cet exemple sont faites pour être recopiées. Pour un vrai service, générez-les :
+`python -c "import secrets; print(secrets.token_urlsafe(24))"`, et ne les écrivez jamais dans le dépôt.
+
+### Les routes
+
+| Route | Réponse | Erreurs |
+|---|---|---|
+| `GET /sante` | `{"statut": "ok"}` (sans clé) | |
+| `GET /contacts?statut=&apres=&taille=` | une page des contacts du conseiller, et le curseur `suivant` | 401, 422 |
+| `GET /contacts/{customer_id}` | la fiche | 401, 403 (pas votre client), 404 |
+| `PUT /contacts/{customer_id}/appel` | la fiche à jour (corps : `statut`, `version`, `commentaire`) | 401, 403, 404, 409 (la fiche a changé), 422 |
+| `GET /avancement` | le nombre de contacts de chaque conseiller dans chaque statut | 401 |
+
+Chaque requête (sauf `/sante`) porte la clé du conseiller dans l'en-tête `X-Cle-API`.
+
+### L'architecture
+
+```
+SERVICE_CLES, SERVICE_BASE … ─► config.py (étape 1) ─► Config
+a_contacter.csv ─► fichiers.lire_contacts ─► base.py (étape 2) ─────► service.db (SQLite)
+(projet 3)         (fourni)                  répartition équitable       ▲
+                                                                          │
+application des conseillers ──HTTP──► api.py (étape 5) ──► contacts.py (étape 3) : lire, paginer, compter
+             (en-tête X-Cle-API)                       └─► appels.py (étape 4) : enregistrer (verrou optimiste)
+
+cli.py (étape 6) : les commandes importer, avancement, servir ; mes_tests.py (étape 7) protège l'API.
+modeles.py et fichiers.py sont fournis : à lire, pas à modifier.
+```
+
+### Les étapes
+
+| # | Fichier | Niveau | Vous construisez | Vous apprenez |
+|---|---|---|---|---|
+| 1 | `config.py` | 🟢 | La configuration lue dans les variables d'environnement | Lire un `Mapping` plutôt que `os.environ` (testable), conversions prudentes, `str.partition`, rassembler toutes les erreurs, ne jamais mettre un secret dans un message |
+| 2 | `base.py` | 🟡 | La base et la répartition équitable des contacts | `check_same_thread` (SQLite derrière un serveur web), algorithme glouton (`min` avec une clé tuple), éviter les requêtes N+1, transaction tout ou rien, idempotence |
+| 3 | `contacts.py` | 🟡 | Lire une fiche, la liste page par page, l'avancement | Requête construite morceau par morceau sans injection, pagination par curseur (`LIMIT taille + 1`), `ORDER BY`, `GROUP BY` et les statuts à 0 |
+| 4 | `appels.py` | 🔴 | L'enregistrement d'un appel | Verrou optimiste (`AND version = ?` et `rowcount`), une transaction sur deux tables, choisir la bonne exception (`Introuvable`, `PasVotreClient`, `Conflit`) |
+| 5 | `api.py` | 🟡 | L'API web | FastAPI : `Depends`, une connexion par requête (`yield` et `finally`), `Header`, `secrets.compare_digest` sur des octets, `Query(ge=…, le=…)`, `Literal`, gestionnaires d'exceptions (401, 403, 404, 409, 422), un journal sans secret |
+| 6 | `cli.py` | 🟡 | Le programme à trois commandes | Configuration lue une fois, sous-commandes, injection de dépendance (`lancer`) pour tester un programme qui démarre un serveur, échouer au démarrage plutôt qu'à la première requête |
+| 7 | `mes_tests.py` | 🔴 | Les tests de l'API | `TestClient`, données de test connues, penser comme un attaquant et comme un collègue distrait : 8 versions boguées à attraper |
+
+**Prérequis** : les projets 2 et 3 (au moins leurs étapes 6) ; les séries 12 (API web), 13 (code sûr),
+14 (production) et 15 (base de données) des défis, que ce projet assemble. La série 11 aide pour l'étape 7.
+
+### Comment travailler
+
+Comme pour les projets 2 et 3 : une branche (`git checkout -b projet-service`), la docstring de chaque
+étape comme cahier des charges, `python scripts/projet.py --projet 4 --etape N` après chaque essai, et
+un commit à chaque ✅. Le correcteur fait écrire une collègue entre votre lecture et votre écriture,
+simule un disque plein, compte vos requêtes et vos connexions, essaie des clés presque justes et lit
+votre journal : ses messages disent quoi corriger.
+
+Une fois les 7 étapes réussies, lancez `importer` puis `servir` comme ci-dessus, ouvrez
+http://127.0.0.1:8000/docs, et jouez la scène du besoin : deux onglets sur la même fiche, une clé
+recopiée avec une faute, la fiche d'un collègue. Puis comparez votre code au corrigé,
+`projets/service_corrige/`, et notez dans `JOURNAL.md` ce que vous feriez autrement.
+
+### Pour aller plus loin (sans correcteur : c'est votre projet)
+
+- **Ne plus garder les clés en clair.** Stockez dans la base l'empreinte de chaque clé
+  (`hashlib.scrypt`, avec un sel par conseiller) plutôt que la clé elle-même, et ajoutez une commande
+  `cle --conseiller alice` qui en génère une (`secrets.token_urlsafe`) et ne l'affiche qu'une fois.
+- **Rappeler les injoignables.** Ajoutez une date `rappeler_le` : un client injoignable revient dans la
+  liste le lendemain à 10 h, heure de Paris (série 14, défi 89).
+- **Boucler avec le projet 3.** Une route `GET /export` qui renvoie, en CSV, qui a accepté quelle offre.
+  Attention aux commentaires qui commencent par `=` (série 13, défi 83).
+- **Une vraie page.** Une page HTML minimale (un tableau et `fetch`) servie par FastAPI, pour que les
+  conseillers n'aient pas besoin de curl.
+- **Un conteneur.** Un `Dockerfile` qui lance `servir --hote 0.0.0.0`, la base dans un volume, et
+  `SERVICE_CLES` passée au lancement du conteneur, jamais écrite dans l'image.
+- **Des journaux exploitables.** Configurez `logging` dans `servir` (heure, niveau INFO) et comptez les
+  401 : beaucoup de 401 en une minute, c'est quelqu'un qui essaie des clés. Répondez alors 429.
+- **De vrais tests pytest.** `tests/test_mon_service.py` qui appelle `tester_service(creer_app)` : la CI
+  les lancera à chaque push.

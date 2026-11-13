@@ -207,7 +207,7 @@ ou un entretien.
 ajoutez la courbe de survie (« 75 % des clients sont encore là après un an ») et proposez le **plan d'un test A/B**
 pour prouver que vos actions de rétention marchent : taille des groupes, durée, critère de succès décidés à l'avance.
 
-## 🏗️ Et après : construire des programmes de A à Z (projets 2 et 3)
+## 🏗️ Et après : construire des programmes de A à Z (projets 2, 3 et 4)
 
 Les modules ci-dessus font modifier un projet qui existe déjà. Le [projet guidé](projets/README.md) fait
 l'inverse : partir d'un dossier presque vide et livrer un outil qui répond à la question du marketing,
@@ -231,6 +231,19 @@ pour ne pas prendre le hasard pour un succès.
 
 `python scripts/projet.py --projet 3` corrige chaque étape. Dans votre rapport final, remplacez « gain
 attendu » par « gain mesuré » : c'est la différence entre une promesse et un résultat.
+
+Enfin, le **projet 4** livre l'outil dont l'équipe a besoin pour *exécuter* le plan : un service web où
+chaque conseiller voit sa liste de clients à appeler et enregistre le résultat de ses appels, à plusieurs
+en même temps. C'est le passage de « mon script marche » à « mon service tourne, et d'autres s'en servent ».
+
+- [ ] 🟢 Étape 1 — la configuration lue dans l'environnement, sans jamais afficher un secret
+- [ ] 🟡 Étapes 2, 3, 5 et 6 — la répartition des contacts (sans requêtes N+1), la pagination par curseur,
+  l'API FastAPI protégée par clé, le programme qui démarre le serveur
+- [ ] 🔴 Étapes 4 et 7 — enregistrer un appel quand deux écritures se croisent (verrou optimiste), et les
+  tests qui attrapent 8 versions boguées de l'API
+
+`python scripts/projet.py --projet 4` corrige chaque étape. Dans votre rapport final, ajoutez la capture de
+`/docs` : un recruteur voit tout de suite que vous savez livrer un service, pas seulement un notebook.
 
 ## 📚 Ressources
 
