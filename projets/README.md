@@ -17,8 +17,8 @@ python scripts/projet.py --projet 3            # un seul projet, et l'étape sui
 python scripts/projet.py --projet 3 --etape 4  # le détail d'une étape
 ```
 
-Les quatre projets forment une boucle complète, celle qu'on retrouve dans toute équipe data :
-**prédire → décider → agir → vérifier que ça a marché**.
+Les cinq projets forment une boucle complète, celle qu'on retrouve dans toute équipe data :
+**prédire → décider → agir → vérifier que ça a marché → réapprendre**.
 
 | | Projet | Ce que vous construisez | Où |
 |---|---|---|---|
@@ -26,11 +26,14 @@ Les quatre projets forment une boucle complète, celle qu'on retrouve dans toute
 | **2** | **Plan de rétention** | **Le programme qui décide quoi faire de ces prédictions** | `projets/retention/` |
 | **3** | **Mesurer l'effet de la campagne** | **Le programme qui prouve (ou non) que le plan a évité des départs** | `projets/campagne/` |
 | **4** | **Le service des conseillers** | **Le service web avec lequel l'équipe appelle les clients du plan, à plusieurs en même temps** | `projets/service/` |
+| **5** | **Réentraîner le modèle sans casser la production** | **Le programme qui, chaque mois, remplace le modèle du projet 1 seulement s'il fait mieux, et sait revenir en arrière** | `projets/reentrainement/` |
 
 Dans le temps, le projet 4 se place au milieu du projet 3 : `preparer` tire le groupe témoin et écrit la
 liste des clients à appeler, les conseillers les appellent avec le service du projet 4, puis `bilan`
 mesure l'effet un mois plus tard. Les projets 2 et 3 entraînent surtout la donnée et le calcul ; le
 projet 4 entraîne le métier de développeur·se : un programme qui tourne en continu et que d'autres utilisent.
+Le projet 5 referme la boucle : les clients changent, le modèle du projet 1 vieillit, et il faut le
+remplacer sans jamais mettre en production un modèle pire que l'ancien.
 
 ---
 
@@ -386,3 +389,146 @@ recopiée avec une faute, la fiche d'un collègue. Puis comparez votre code au c
   401 : beaucoup de 401 en une minute, c'est quelqu'un qui essaie des clés. Répondez alors 429.
 - **De vrais tests pytest.** `tests/test_mon_service.py` qui appelle `tester_service(creer_app)` : la CI
   les lancera à chaque push.
+
+---
+
+## Projet 5 — Réentraîner le modèle sans casser la production
+
+### Le besoin
+
+Le modèle du projet 1 a été entraîné une fois, au printemps. En septembre, la responsable remarque que
+les conseillers appellent de plus en plus de clients qui ne partent pas, et que des clients fibre partent
+sans avoir été appelés : un concurrent s'est installé dans la région. Le modèle a vieilli.
+
+Jusqu'ici, la personne qui l'avait construit le réentraînait « à la main » dans un notebook et écrasait
+`models/churn_model.joblib`. Deux incidents plus tard, la responsable ne veut plus de ça :
+
+- en mars, l'export du CRM est arrivé avec la colonne `churn` vide, lue comme 0 partout. Le modèle
+  entraîné dessus a appris que « personne ne part » et a été mis en production : pendant trois
+  semaines, aucune alerte ;
+- impossible de revenir au modèle d'avant : le fichier avait été écrasé.
+
+Elle demande : *« Un programme qu'on lance chaque mois. Il refuse les données abîmées, entraîne un
+nouveau modèle, le compare à celui en production sur les données les plus récentes, et ne le met en
+production que s'il est vraiment meilleur. On garde toutes les versions, et on peut revenir en arrière en
+une commande. »*
+
+C'est ce qu'on appelle le cycle de vie d'un modèle (une partie du « MLOps ») : le modèle en production
+est le **champion**, le modèle tout juste entraîné est le **challenger**, et le **registre** garde
+toutes les versions. Le fichier `exemple_lots.csv` contient 12 « photos » mensuelles de 300 clients
+(octobre 2025 à septembre 2026) ; le concurrent arrive en avril 2026.
+
+```console
+$ python -m projets.reentrainement entrainer --lots projets/exemple_lots.csv --mois 2026-03 --registre registre_modeles
+Entraînement : 1500 clients (2025-10 → 2026-02), test : 300 clients (2026-03)
+
+                    AUC   coût/client   alertes
+challenger v001   0,837       53,83 €    42,0 %
+
+✅ v001 promue championne :
+   - aucun champion en production : le premier modèle utilisable est promu
+
+$ python -m projets.reentrainement entrainer --lots projets/exemple_lots.csv --mois 2026-04 --registre registre_modeles
+Entraînement : 1800 clients (2025-10 → 2026-03), test : 300 clients (2026-04)
+
+                    AUC   coût/client   alertes
+champion v001     0,828       60,83 €    41,7 %
+challenger v002   0,831       62,50 €    41,3 %
+
+❌ v002 enregistrée, mais pas promue (le champion reste v001) :
+   - gain d'AUC 0,003 < 0,010 exigé
+   - coût par client 1,67 € de plus, au-delà de la tolérance (0,00 €)
+
+$ python -m projets.reentrainement entrainer --lots projets/exemple_lots.csv --mois 2026-09 --registre registre_modeles
+Entraînement : 3300 clients (2025-10 → 2026-08), test : 300 clients (2026-09)
+
+                    AUC   coût/client   alertes
+champion v001     0,789       73,83 €    40,3 %
+challenger v003   0,837       59,17 €    44,0 %
+
+✅ v003 promue championne :
+   - gain d'AUC 0,048 >= 0,010
+   - coût par client : −14,67 € (tolérance 0,00 €)
+
+$ python -m projets.reentrainement historique --registre registre_modeles
+v001  testé sur 2026-03  AUC 0,837  coût 53,83 €/client
+v002  testé sur 2026-04  AUC 0,831  coût 62,50 €/client
+v003  testé sur 2026-09  AUC 0,837  coût 59,17 €/client  ← champion
+
+$ python -m projets.reentrainement revenir --registre registre_modeles
+Retour à v001 (testé sur 2026-03, AUC 0,837) : c'est le modèle en production.
+```
+
+Regardez la deuxième commande : le challenger d'avril fait à peine mieux (+0,003 d'AUC, le hasard d'un
+mois de 300 clients) et coûte plus cher, il est refusé. En septembre, le vieux champion est tombé de 0,837
+à 0,789 sur les clients récents : le challenger, qui a vu la dérive, le remplace.
+
+### L'architecture
+
+```
+exemple_lots.csv ─► fichiers.lire_lots ─► lots.py (étape 1) : refuser un lot abîmé
+                     (fourni)              │
+                                           ▼
+                                   decoupage.py (étape 2) : train = les mois d'avant, test = le mois choisi
+                                           │
+                       entrainement.py ◄───┤ (fourni : la recette du projet 1)
+                                           ▼
+                   evaluation.py (étape 3) : AUC, coût en €, taux d'alerte — challenger ET champion, même mois
+                                           ▼
+                   decision.py (étape 4) : promouvoir ou non, et pourquoi
+                                           ▼
+                   registre.py (étape 5) : v001.joblib, v002.joblib… + registre.json (empreintes, champions)
+
+cli.py (étape 6) : les commandes entrainer, historique, revenir ; mes_tests.py (étape 7) protège decider.
+modeles.py, fichiers.py et entrainement.py sont fournis : à lire, pas à modifier.
+```
+
+### Les étapes
+
+| # | Fichier | Niveau | Vous construisez | Vous apprenez |
+|---|---|---|---|---|
+| 1 | `lots.py` | 🟢 | Le garde-fou qui refuse un lot abîmé | Valider avant d'entraîner : `isna`, `str.fullmatch`, `pd.to_numeric(errors="coerce")`, `isin`, `duplicated` sur deux colonnes, taux par mois ; rassembler TOUTES les erreurs |
+| 2 | `decoupage.py` | 🟡 | Le découpage dans le temps | Validation temporelle (pas de `train_test_split`), `pd.Period` et `PeriodIndex`, fenêtre d'historique, fuite temporelle |
+| 3 | `evaluation.py` | 🟡 | Les mesures d'un modèle sur un mois | `predict_proba` et `classes_`, ne jamais donner la cible au modèle, AUC (indépendante du seuil) contre coût en euros (dépendant du seuil) |
+| 4 | `decision.py` | 🔴 | La règle de promotion | Une règle métier en fonction pure, plancher, gain absolu, comparer des flottants (`0.82 - 0.81 < 0.01`), expliquer chaque décision |
+| 5 | `registre.py` | 🔴 | Le registre des modèles | Versionner, empreinte SHA-256, écriture atomique (`os.replace`), vérifier PUIS charger les mêmes octets (un pickle exécute du code), revenir en arrière sans rien effacer |
+| 6 | `cli.py` | 🟡 | Le programme à trois commandes | Assembler les étapes dans le bon ordre, re-mesurer le champion sur le mois du challenger, enregistrer même ce qui est refusé, stderr et codes de sortie |
+| 7 | `mes_tests.py` | 🔴 | Le test de `decider` | Choisir des cas qui séparent la bonne version de 11 versions boguées plausibles |
+
+**Prérequis** : les projets 2 et 3 (au moins leurs étapes 6), le module 7 du parcours (la dérive), et les
+défis des séries 13 (code sûr : défi 84, le pickle), 14 (production : défi 90, l'écriture atomique) et 21
+(le temps dans les données : défi 132, la validation walk-forward), que ce projet assemble.
+
+### Comment travailler
+
+Comme pour les projets précédents : une branche (`git checkout -b projet-reentrainement`), la docstring de
+chaque étape comme cahier des charges, `python scripts/projet.py --projet 5 --etape N` après chaque essai,
+et un commit à chaque ✅. Le correcteur glisse un piège à la fois dans des lots fabriqués, interroge votre
+`mesurer` avec de faux modèles qui refusent de voir la colonne `churn`, simule un disque plein au milieu
+d'un enregistrement, remplace un modèle par un fichier piégé, et rejoue 11 versions boguées de `decider`
+pour vous dire laquelle vous avez écrite.
+
+Une fois les 7 étapes réussies, rejouez la scène du besoin : les trois `entrainer` ci-dessus, puis
+abîmez une copie du fichier (videz la colonne `churn` d'un mois, écrivez « Mensual ») et vérifiez que le
+lot est refusé sans que rien ne change dans le registre. Puis comparez votre code au corrigé,
+`projets/reentrainement_corrige/`, et notez dans `JOURNAL.md` ce que vous feriez autrement.
+
+### Pour aller plus loin (sans correcteur : c'est votre projet)
+
+- **Scorer les clients avec le champion.** Une commande `scorer --clients CSV --sortie scores.csv` qui
+  charge le champion (vérifié) et écrit `customer_id,proba_churn` : c'est l'entrée du plan de rétention du
+  projet 2. La boucle est alors complète, de la donnée brute à l'appel du conseiller.
+- **Surveiller avant d'entraîner.** Ajoutez à `entrainer` un rapport de dérive (le PSI de
+  `src/churn/monitoring.py`, module 7) entre l'historique et le mois de test, et affichez les variables
+  qui ont le plus bougé : c'est souvent là que se trouve l'explication d'une promotion.
+- **Un challenger d'une autre famille.** Entraînez aussi un gradient boosting (`HistGradientBoostingClassifier`)
+  et laissez `decider` choisir le meilleur des deux challengers. Attention : on compare TOUJOURS sur le
+  même mois.
+- **Plusieurs mois de test.** Un seul mois de 300 clients, c'est bruité. Mesurez le challenger sur les
+  trois derniers mois en « walk-forward » (série 21, défi 132) et exigez qu'il gagne sur chacun.
+- **Une fiche par version.** Écrivez à côté de chaque `vNNN.joblib` un `vNNN.md` : données
+  d'entraînement (mois, nombre de clients, taux de départ), mesures, décision et raisons. C'est la « model
+  card » qu'un auditeur vous demandera.
+- **Planifier.** Un `cron` (ou une GitHub Action planifiée) qui lance `entrainer` le 2 de chaque mois, et
+  vous envoie un message quand un challenger est refusé trois mois de suite : c'est le signe que la
+  recette elle-même doit changer.

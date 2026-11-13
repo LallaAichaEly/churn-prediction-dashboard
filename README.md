@@ -28,7 +28,7 @@ Ensuite, faites **un défi par séance**, dans l'ordre qui correspond à votre o
 | Je débute, ou je ne me sens pas encore « à niveau » | série 00 (défis 30 à 37) | série 01, puis le module 1 de [`PARCOURS.md`](PARCOURS.md) |
 | Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 11 (tests) → 07 → 08 → 12 (API web) → 13 (sécurité) → 14 (production) → 15 (base de données) → 16 (asyncio) → 17 (concevoir ses types) → 18 (rendre le code rapide) → 19 (faire évoluer du code existant) → 20 (le texte et l'Unicode) → 23 (recoder `fit` avec NumPy), puis les [projets guidés](projets/README.md) 2, 3 et 4 (le 4 assemble les séries 12 à 15 en un vrai service web) |
 | Je prépare un entretien technique | séries 00 et 07 | série 09 (algorithmique), puis séries 05 et 10 (SQL), et la série 23 (« codez une régression logistique sans scikit-learn ») |
-| Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05, la série 21 (dates, cohortes, validation dans le temps, revenu mensuel) la série 22 (écrire ses propres briques scikit-learn) et la série 23 (recoder la régression logistique et l'arbre de décision), puis le [projet 3](projets/README.md#projet-3--mesurer-leffet-de-la-campagne) (test A/B de bout en bout) |
+| Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05, la série 21 (dates, cohortes, validation dans le temps, revenu mensuel) la série 22 (écrire ses propres briques scikit-learn) et la série 23 (recoder la régression logistique et l'arbre de décision), puis le [projet 3](projets/README.md#projet-3--mesurer-leffet-de-la-campagne) (test A/B de bout en bout) et le [projet 5](projets/README.md#projet-5--réentraîner-le-modèle-sans-casser-la-production) (réentraîner chaque mois : champion, challenger, registre des modèles) |
 
 Pour aller plus loin :
 
@@ -38,11 +38,13 @@ Pour aller plus loin :
 - [`CORRIGES.md`](CORRIGES.md) donne un indice puis la solution de chaque exercice. Ouvrez-le
   **après** avoir cherché.
 - [`projets/README.md`](projets/README.md) décrit les projets guidés, corrigés par `python scripts/projet.py` :
-  trois vrais programmes à construire en 7 étapes chacun. Le projet 2 va du CSV imparfait au plan de
+  quatre vrais programmes à construire en 7 étapes chacun. Le projet 2 va du CSV imparfait au plan de
   rétention ; le projet 3 mesure, avec un groupe témoin et une base SQLite, si ce plan a vraiment évité
   des départs ; le projet 4 est le service web que les conseillers utilisent pour appeler les clients :
   configuration, clés d'accès, pagination, deux écritures simultanées, et des tests jugés sur 8 versions
-  boguées de l'API.
+  boguées de l'API ; le projet 5 réentraîne le modèle chaque mois sans casser la production : lots abîmés
+  refusés, validation dans le temps, champion contre challenger sur le même mois, registre des versions
+  vérifié par SHA-256, et retour en arrière en une commande.
 - [`atelier_git/README.md`](atelier_git/README.md) décrit l'atelier Git, corrigé par
   `python scripts/atelier_git.py` : 8 situations d'équipe à résoudre dans un bac à sable, du premier
   commit propre au conflit de fusion, au `git bisect` et à la branche prête pour la revue.
@@ -85,6 +87,7 @@ Pour aller plus loin :
 | Construire un programme complet : modules, CSV imparfaits, règles métier, budget, CLI, tests | `projets/retention/` (projet 2, 7 étapes) + `scripts/projet.py` |
 | Mesurer l'effet d'une action (test A/B) : groupe témoin reproductible (`hashlib`), base SQLite (transactions, UPSERT, clés étrangères, `GROUP BY` + `LEFT JOIN`), intervalle de confiance, CLI à sous-commandes | `projets/campagne/` (projet 3, 7 étapes) + `scripts/projet.py --projet 3` |
 | Livrer un service web utilisé par une équipe : configuration par l'environnement sans fuite de secret, répartition équitable sans requêtes N+1, pagination par curseur, verrou optimiste et transaction sur deux tables, FastAPI (`Depends`, une connexion par requête, clés comparées avec `compare_digest`, 401/403/404/409/422), CLI qui démarre le serveur, tests d'API avec `TestClient` | `projets/service/` (projet 4, 7 étapes) + `scripts/projet.py --projet 4` |
+| Réentraîner un modèle sans casser la production : valider un lot avant d'entraîner, validation dans le temps (`pd.Period`), AUC et coût en euros sur le même mois pour le champion et le challenger, règle de promotion (comparer des flottants), registre de modèles (écriture atomique, SHA-256 vérifiée avant `joblib.load`, retour en arrière) | `projets/reentrainement/` (projet 5, 7 étapes) + `scripts/projet.py --projet 5` |
 | Git en équipe : commit propre et `.gitignore`, branches, `stash`, conflits, `revert`, `bisect`, `reflog`, `rebase` et `push --force-with-lease` | `atelier_git/` (8 scénarios dans un bac à sable) + `scripts/atelier_git.py` |
 
 ## Démarrage rapide
@@ -99,7 +102,7 @@ uvicorn api:app --reload         # API sur http://localhost:8000/docs
 pytest -q                        # lance les tests (≈ 1 min, dont le tableau de bord)
 python scripts/progression.py    # 🧭 votre progression + le prochain exercice, avec un indice
 python scripts/defis.py          # ⚡ vos défis auto-corrigés : ✅ / ❌ / ⬜
-python scripts/projet.py         # 🏗️ vos projets guidés (projets 2, 3 et 4), étape par étape
+python scripts/projet.py         # 🏗️ vos projets guidés (projets 2 à 5), étape par étape
 python scripts/atelier_git.py    # 🌿 git en équipe : 8 situations à résoudre dans un bac à sable
 ```
 
@@ -159,7 +162,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── scripts/train.py        # Entraînement + comparaison en ligne de commande
 ├── scripts/progression.py  # 🧭 Coach : vérifie vos exercices, propose la suite
 ├── scripts/defis.py        # ⚡ Correction automatique des défis
-├── scripts/projet.py       # 🏗️ Correction automatique des projets guidés (--projet 2, 3 ou 4)
+├── scripts/projet.py       # 🏗️ Correction automatique des projets guidés (--projet 2, 3, 4 ou 5)
 ├── scripts/atelier_git.py  # 🌿 Atelier Git : prépare et corrige les 8 scénarios
 ├── defis/
 │   ├── serie_00.py         # 👋 Série 00 — remise à niveau Python & pandas (8 défis, à faire en premier)
@@ -212,11 +215,15 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── service/            # Projet 4 — VOTRE code : 7 étapes (config.py … cli.py, mes_tests.py)
 │   ├── service_corrige/    # Projet 4 terminé : le corrigé, et la référence du correcteur
 │   ├── checks_service.py   # Vérifications des 7 étapes (écriture concurrente, disque plein, clés presque justes, 8 API boguées)
+│   ├── reentrainement/     # Projet 5 — VOTRE code : 7 étapes (lots.py … cli.py, mes_tests.py)
+│   ├── reentrainement_corrige/ # Projet 5 terminé : le corrigé, et la référence du correcteur
+│   ├── checks_reentrainement.py # Vérifications des 7 étapes (lots piégés, faux modèles, disque plein, fichier piégé, 11 règles boguées)
 │   ├── verif.py            # Moteur de correction des projets
 │   ├── exemple_clients.csv # 200 clients scorés par le modèle (format de l'export du tableau de bord)
 │   ├── exemple_plan.csv    # 2 000 clients ciblés (format du plan du projet 2) : entrée du projet 3
 │   ├── exemple_resultats.csv # Qui est parti un mois plus tard (export du CRM, imparfait)
-│   └── exemple_contacts.csv # Les 1 612 clients à appeler (écrits par `preparer`, projet 3) : entrée du projet 4
+│   ├── exemple_contacts.csv # Les 1 612 clients à appeler (écrits par `preparer`, projet 3) : entrée du projet 4
+│   └── exemple_lots.csv    # 12 photos mensuelles de 300 clients, avec une dérive à partir d'avril 2026 : entrée du projet 5
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
@@ -233,6 +240,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── test_projets.py     # Le projet 2 : corrigé, programme terminé, erreurs classiques détectées
 │   ├── test_projet_campagne.py # Le projet 3 : corrigé, bout en bout, 40 erreurs classiques, autres solutions justes acceptées
 │   ├── test_projet_service.py  # Le projet 4 : corrigé, vrai serveur uvicorn, 56 erreurs classiques reçoivent le bon message
+│   ├── test_projet_reentrainement.py # Le projet 5 : corrigé, bout en bout, 55 erreurs classiques et 11 règles boguées reçoivent le bon message
 │   ├── test_atelier_git.py # L'atelier Git : chaque solution réussit, les erreurs classiques sont expliquées
 │   └── test_solutions.py   # Les affirmations des corrigés restent vraies
 ├── .github/workflows/      # Intégration continue (pytest à chaque push)

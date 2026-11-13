@@ -242,7 +242,7 @@ ou un entretien.
 ajoutez la courbe de survie (« 75 % des clients sont encore là après un an ») et proposez le **plan d'un test A/B**
 pour prouver que vos actions de rétention marchent : taille des groupes, durée, critère de succès décidés à l'avance.
 
-## 🏗️ Et après : construire des programmes de A à Z (projets 2, 3 et 4)
+## 🏗️ Et après : construire des programmes de A à Z (projets 2 à 5)
 
 Les modules ci-dessus font modifier un projet qui existe déjà. Le [projet guidé](projets/README.md) fait
 l'inverse : partir d'un dossier presque vide et livrer un outil qui répond à la question du marketing,
@@ -279,6 +279,20 @@ en même temps. C'est le passage de « mon script marche » à « mon service to
 
 `python scripts/projet.py --projet 4` corrige chaque étape. Dans votre rapport final, ajoutez la capture de
 `/docs` : un recruteur voit tout de suite que vous savez livrer un service, pas seulement un notebook.
+
+Le **projet 5** répond à la question que pose tout modèle six mois après sa mise en production : *« il se
+trompe de plus en plus, on le réentraîne ? »*. Un programme qui, chaque mois, refuse les lots abîmés,
+entraîne un challenger sur le passé, le compare au modèle en production sur le MÊME mois récent, ne le
+promeut que s'il est vraiment meilleur, et garde chaque version pour pouvoir revenir en arrière.
+
+- [ ] 🟢 Étape 1 — refuser un lot abîmé (mois mal écrit, « Mensual », mois sans aucun départ)
+- [ ] 🟡 Étapes 2, 3 et 6 — la validation dans le temps (`Period`), l'AUC et le coût en euros sur un mois,
+  le programme `entrainer` / `historique` / `revenir`
+- [ ] 🔴 Étapes 4, 5 et 7 — la règle de promotion (comparer des flottants), le registre (écriture atomique,
+  empreinte SHA-256 vérifiée avant de charger), et le test qui attrape 11 versions boguées de la règle
+
+`python scripts/projet.py --projet 5` corrige chaque étape. Dans votre rapport final (module 7), remplacez
+« il faudrait réentraîner » par l'historique du registre : quel modèle était en production chaque mois, et pourquoi.
 
 ## 📚 Ressources
 
