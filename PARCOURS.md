@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 139 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_22.py`, corrigés par
+> [défis](defis/README.md) : 145 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_23.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -105,7 +105,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > variation du revenu mensuel (nouveaux, réactivations, hausses, baisses, départs). Le défi 132 est la bonne façon de
 > faire l'exercice 3.4 quand les données sont des photos mensuelles : une validation croisée au hasard y apprend
 > l'avenir. Les défis 130 et 131 donnent les chiffres qu'on attend de tout suivi mensuel du churn.
-> Enfin, la série 22 (`defis/serie_22.py`, défis 134 à 139) vous apprend à écrire vos propres briques
+> Puis la série 22 (`defis/serie_22.py`, défis 134 à 139) vous apprend à écrire vos propres briques
 > scikit-learn, celles qui entrent dans un `Pipeline`, une validation croisée et un `GridSearchCV` : un imputeur qui
 > apprend sur le train (le contrat fit / transform), un regroupeur de villes rares dont le seuil se règle
 > (`get_params`, `set_params`, `clone`), un score en euros pour comparer les modèles, un encodage par la cible lissé
@@ -113,6 +113,13 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > sur des probabilités hors pli. Les défis 134 et 138 sont la forme « industrielle » de l'exercice 2.5 (une fuite
 > qu'un Pipeline empêche… si la brique respecte le contrat), le défi 135 prépare l'exercice 3.5, et les défis 136 et
 > 139 font de l'exercice 4.3 un vrai réglage de modèle.
+> Enfin, la série 23 (`defis/serie_23.py`, défis 140 à 145) ouvre la boîte noire : vous recodez avec NumPy la
+> régression logistique (une sigmoïde qui ne déborde jamais, la perte calculée à partir des scores, le gradient vérifié
+> par différences finies, la descente de gradient) puis l'arbre de décision (la meilleure coupure de Gini en
+> O(n log n), la récursion). Vos coefficients doivent être ceux de `LogisticRegression`, vos arbres ceux de
+> `DecisionTreeClassifier`. Faites-la avant l'exercice 3.3 : quand on a écrit soi-même les deux modèles, on voit
+> pourquoi le modèle linéaire gagne sur des données générées par une formule linéaire. Le défi 141 éclaire aussi
+> l'exercice 4.2 (la log-loss punit un modèle sûr de lui et faux, l'accuracy ne le voit pas).
 
 ---
 
@@ -150,7 +157,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 - [ ] 🟢 3.1 — Lancez `python scripts/train.py`. Quel modèle gagne ?
 - [ ] 🟢 3.2 — Ajoutez un `RandomForestClassifier` dans `build_pipeline` et `MODELS`.
-- [ ] 🟡 3.3 — La régression logistique bat le gradient boosting. Expliquez pourquoi (indice : regardez comment les données sont générées).
+- [ ] 🟡 3.3 ⚡ — La régression logistique bat le gradient boosting. Expliquez pourquoi (indice : regardez comment les données sont générées).
 - [ ] 🟡 3.4 ⚡ — Remplacez le split unique par une validation croisée à 5 plis (`cross_val_score`). Les écarts sont-ils significatifs ?
 - [ ] 🔴 3.5 ⚡ — Optimisez les hyperparamètres du boosting avec `GridSearchCV`. Arrivez-vous à battre la logistique ?
 - [ ] 🔴 3.6 ⚡ — Le churn est déséquilibré (~35 %). Testez `class_weight="balanced"` : quel effet sur précision et rappel ?

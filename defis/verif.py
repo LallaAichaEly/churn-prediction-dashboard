@@ -111,7 +111,8 @@ def series() -> list[Serie]:
     from .checks_serie_20 import SERIE as serie_20
     from .checks_serie_21 import SERIE as serie_21
     from .checks_serie_22 import SERIE as serie_22
+    from .checks_serie_23 import SERIE as serie_23
 
     return [serie_00, serie_01, serie_02, serie_03, serie_04, serie_05, serie_06, serie_07, serie_08, serie_09,
             serie_10, serie_11, serie_12, serie_13, serie_14, serie_15, serie_16, serie_17,
-            serie_18, serie_19, serie_20, serie_21, serie_22]
+            serie_18, serie_19, serie_20, serie_21, serie_22, serie_23]

@@ -9223,3 +9223,805 @@ def test_serie_22_autres_ecritures_justes_acceptees():
                        ("EncodeurCibleHorsPli", EncodeurCibleHorsPli), ("ClassifieurSeuil", ClassifieurSeuil)]:
         resultat = _evaluer(nom, objet)
         assert resultat.statut == REUSSI, (nom, resultat.message)
+
+
+# --------------------------------------------------------------------------- Série 23 : ouvrir la boîte noire
+
+import math as math23  # noqa: E402
+import numbers as numbers23  # noqa: E402
+import warnings as warnings23  # noqa: E402
+
+import numpy as np23  # noqa: E402
+from sklearn.base import BaseEstimator as BaseEstimator23  # noqa: E402
+from sklearn.base import ClassifierMixin as ClassifierMixin23  # noqa: E402
+from sklearn.utils.validation import check_is_fitted as check_is_fitted23  # noqa: E402
+
+from defis.maison import clients_exemple as clients_23  # noqa: E402
+from defis.maison import generer_clients as generer_clients_23  # noqa: E402
+
+
+def _echec_23(nom, objet, *mots):
+    resultat = _evaluer(nom, objet)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+def _sig_23(z):
+    e = np23.exp(-np23.abs(z))
+    return np23.where(z >= 0, 1.0 / (1.0 + e), e / (1.0 + e))
+
+
+def _entier_23(valeur, minimum):
+    return not isinstance(valeur, bool) and isinstance(valeur, numbers23.Integral) and valeur >= minimum
+
+
+# Défi 140 : sigmoide
+
+
+def _sigmoide_23(defaut=None):
+    def sigmoide(z):
+        if defaut == "lent":
+            tableau = np23.asarray(z, dtype=float)
+            valeurs = [1 / (1 + math23.exp(-v)) if v >= 0 else math23.exp(v) / (1 + math23.exp(v)) if v < 0 else v
+                       for v in tableau.ravel().tolist()]
+            resultat = np23.array(valeurs, dtype=float).reshape(tableau.shape)
+            return float(resultat) if resultat.ndim == 0 else resultat
+        if defaut == "boucle":
+            if np23.ndim(z) == 0:
+                return float(_sig_23(np23.asarray(z, dtype=float)))
+            return np23.array([float(_sig_23(np23.float64(v))) for v in z])
+        z = np23.asarray(z, dtype=float)
+        if defaut == "naif":
+            resultat = 1 / (1 + np23.exp(-z))
+        elif defaut == "where_naif":
+            resultat = np23.where(z >= 0, 1 / (1 + np23.exp(-z)), np23.exp(z) / (1 + np23.exp(z)))
+        elif defaut == "soustraction":
+            e = np23.exp(-np23.abs(z))
+            resultat = np23.where(z >= 0, 1 / (1 + e), 1 - 1 / (1 + e))
+        elif defaut == "clip":
+            resultat = 1 / (1 + np23.exp(-np23.clip(z, -500, 500)))
+        elif defaut == "sur_place":
+            positif = z >= 0
+            np23.abs(z, out=z)
+            e = np23.exp(-z)
+            resultat = np23.where(positif, 1 / (1 + e), e / (1 + e))
+        elif defaut == "nan_zero":
+            resultat = np23.nan_to_num(_sig_23(z))
+        else:
+            resultat = _sig_23(z)
+        if defaut == "liste":
+            return resultat.tolist()
+        if defaut == "toujours_tableau":
+            return np23.atleast_1d(resultat)
+        return float(resultat) if resultat.ndim == 0 else resultat
+
+    return sigmoide
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_sigmoide_23("naif"), ("overflow", "np.exp(-np.abs(z))")),
+    (_sigmoide_23("where_naif"), ("overflow", "DEUX branches")),
+    (_sigmoide_23("soustraction"), ("sigmoide(-600)", "tous les chiffres sont perdus")),
+    (_sigmoide_23("clip"), ("np.clip", "-600")),
+    (_sigmoide_23("sur_place"), ("MODIFIÉ",)),
+    (_sigmoide_23("nan_zero"), ("NaN reste NaN",)),
+    (_sigmoide_23("liste"), ("tableau numpy",)),
+    (_sigmoide_23("toujours_tableau"), ("au lieu d'un nombre",)),
+    (_sigmoide_23("boucle"), ("Pas de boucle",)),
+    (_sigmoide_23("lent"), ("2 millions", "boucle")),
+])
+def test_serie_23_sigmoide_erreurs_classiques(mutant, mots):
+    _echec_23("sigmoide", mutant, *mots)
+
+
+# Défi 141 : perte_logistique
+
+
+def _perte_23(defaut=None):
+    def perte_logistique(y, z):
+        if defaut == "series_alignees" and isinstance(y, pd.Series) and isinstance(z, pd.Series):
+            ya, za = y, z
+        else:
+            ya, za = np23.asarray(y, dtype=float), np23.asarray(z, dtype=float)
+        yv, zv = np23.asarray(y, dtype=float), np23.asarray(z, dtype=float)
+        if yv.shape != zv.shape:
+            raise ValueError("longueurs")
+        if yv.size == 0 and defaut != "vide_accepte":
+            raise ValueError("vide")
+        if defaut != "sans_validation" and not np23.isin(yv, (0, 1)).all():
+            raise ValueError("0 ou 1")
+        if defaut == "naif":
+            p = _sig_23(zv)
+            return float(-np23.mean(yv * np23.log(p) + (1 - yv) * np23.log(1 - p)))
+        if defaut == "clip":
+            p = np23.clip(_sig_23(zv), 1e-15, 1 - 1e-15)
+            return float(-np23.mean(yv * np23.log(p) + (1 - yv) * np23.log(1 - p)))
+        if defaut == "lent":
+            return sum(max(v, 0.0) + math23.log1p(math23.exp(-abs(v))) - c * v for c, v in zip(yv, zv)) / len(yv)
+        par_client = np23.logaddexp(0.0, za) - ya * za
+        if defaut == "somme":
+            return float(np23.sum(par_client))
+        if defaut == "un_terme":
+            return float(np23.mean(ya * np23.logaddexp(0.0, -za)))
+        if defaut == "signe":
+            return -float(np23.mean(par_client))
+        if defaut == "log10":
+            return float(np23.mean(par_client) / np23.log(10))
+        return float(np23.mean(par_client))
+
+    return perte_logistique
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_perte_23("naif"), ("divide by zero", "np.logaddexp(0, z)")),
+    (_perte_23("clip"), ("np.clip", "34,5")),
+    (_perte_23("somme"), ("SOMME", "MOYENNE")),
+    (_perte_23("un_terme"), ("restés",)),
+    (_perte_23("signe"), ("NÉGATIVE",)),
+    (_perte_23("log10"), ("logarithme naturel",)),
+    (_perte_23("series_alignees"), ("ÉTIQUETTE", "np.asarray")),
+    (_perte_23("sans_validation"), ("ValueError", "y contient 2")),
+    (_perte_23("vide_accepte"), ("ValueError", "aucun client")),
+    (_perte_23("lent"), ("2 millions",)),
+])
+def test_serie_23_perte_erreurs_classiques(mutant, mots):
+    _echec_23("perte_logistique", mutant, *mots)
+
+
+# Défi 142 : gradient_logistique
+
+
+def _gradient_23(defaut=None):
+    def gradient_logistique(X, y, w, b, alpha=0.0):
+        if defaut == "pandas":
+            Xa, ya, wa = X, y, np23.asarray(w, dtype=float)
+        else:
+            Xa, ya, wa = np23.asarray(X, dtype=float), np23.asarray(y, dtype=float), np23.asarray(w, dtype=float)
+        n = len(ya)
+        z = Xa @ wa + (0.0 if defaut == "sans_b" else b)
+        if defaut == "naif":
+            p = 1 / (1 + np23.exp(-np23.asarray(z, dtype=float)))
+        else:
+            p = _sig_23(np23.asarray(z, dtype=float))
+        if isinstance(z, pd.Series):
+            p = pd.Series(p, index=z.index)
+        erreur = p - ya
+        if defaut == "signe":
+            erreur = -erreur
+        if defaut == "lent":
+            Xa = np23.asarray(Xa, dtype=float)
+            grad_w = np23.zeros(Xa.shape[1])
+            for i in range(n):
+                grad_w += Xa[i] * erreur[i]
+            return grad_w / n + alpha * wa, float(np23.mean(erreur))
+        produit = Xa @ erreur if defaut == "X_sans_T" else Xa.T @ erreur
+        produit = np23.asarray(produit, dtype=float)
+        if defaut == "somme":
+            grad_w, grad_b = produit, float(np23.sum(erreur))
+        else:
+            grad_w, grad_b = produit / n, float(np23.mean(erreur))
+        if defaut == "deux_alpha":
+            grad_w = grad_w + 2 * alpha * wa
+        elif defaut != "sans_alpha":
+            grad_w = grad_w + alpha * wa
+        if defaut == "b_penalise":
+            grad_b += alpha * b
+        return grad_w, grad_b
+
+    return gradient_logistique
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_gradient_23("somme"), ("diviser par n",)),
+    (_gradient_23("signe"), ("SIGNE",)),
+    (_gradient_23("sans_b"), ("X @ w + b",)),
+    (_gradient_23("b_penalise"), ("ordonnée à l'origine est pénalisée",)),
+    (_gradient_23("sans_alpha"), ("pénalité est oubliée",)),
+    (_gradient_23("deux_alpha"), ("compte double",)),
+    (_gradient_23("X_sans_T"), ("X.T @ erreur",)),
+    (_gradient_23("naif"), ("overflow", "VOTRE sigmoide")),
+    (_gradient_23("pandas"), ("np.asarray",)),
+    (_gradient_23("lent"), ("300 000",)),
+])
+def test_serie_23_gradient_erreurs_classiques(mutant, mots):
+    _echec_23("gradient_logistique", mutant, *mots)
+
+
+# Défi 143 : RegressionLogistiqueGD
+
+
+def _descente_23(defaut=None):
+    from defis.corrige_serie_23 import gradient_logistique
+
+    bases = (BaseEstimator23, ClassifierMixin23) if defaut == "mixin_a_droite" else (ClassifierMixin23, BaseEstimator23)
+
+    def __init__(self, alpha=0.01, pas=0.5, n_iter_max=10_000, tol=1e-6):
+        if defaut == "verifie_init" and pas <= 0:
+            raise ValueError("pas")
+        self.alpha, self.pas, self.n_iter_max, self.tol = alpha, pas, n_iter_max, tol
+
+    def fit(self, X, y):
+        if defaut != "sans_validation":
+            if (isinstance(self.alpha, bool) or not self.alpha >= 0 or isinstance(self.pas, bool) or not self.pas > 0
+                    or not _entier_23(self.n_iter_max, 1) or not self.tol >= 0):
+                raise ValueError("paramètres")
+        X = np23.asarray(X, dtype=float)
+        y = np23.asarray(y)
+        self.classes_ = np23.unique(y)
+        if self.classes_.size != 2:
+            raise ValueError("deux classes")
+        positive = self.classes_[0] if defaut == "classes_inverse" else self.classes_[1]
+        y01 = (y == positive).astype(float)
+        if defaut == "warm_start" and hasattr(self, "coef_"):
+            w, b = self.coef_.copy(), self.intercept_
+        else:
+            w, b = np23.zeros(X.shape[1]), 0.0
+        debut = 1 if defaut == "range_1" else 0
+        self.n_iter_ = self.n_iter_max
+        for iteration in range(debut, self.n_iter_max):
+            grad_w, grad_b = gradient_logistique(X, y01, w, b, self.alpha)
+            if defaut == "b_penalise":
+                grad_b += self.alpha * b
+            norme = np23.sqrt(grad_w @ grad_w) if defaut == "norme_w" else np23.sqrt(grad_w @ grad_w + grad_b ** 2)
+            if defaut != "sans_arret" and norme < self.tol:
+                self.n_iter_ = iteration
+                break
+            if defaut == "montee":
+                w, b = w + self.pas * grad_w, b + self.pas * grad_b
+            else:
+                w = w - self.pas * grad_w
+                b = b if defaut == "b_fige" else b - self.pas * grad_b
+        self.coef_, self.intercept_ = w, float(b)
+        return None if defaut == "sans_return" else self
+
+    def predict_proba(self, X):
+        if defaut != "sans_check":
+            check_is_fitted23(self)
+        p = _sig_23(np23.asarray(X, dtype=float) @ self.coef_ + self.intercept_)
+        return np23.column_stack([p, 1 - p] if defaut == "proba_inversee" else [1 - p, p])
+
+    def predict(self, X):
+        p = self.predict_proba(X)[:, 1]
+        if defaut == "predict_01":
+            return (p > 0.5).astype(int)
+        return self.classes_[(p > 0.5).astype(int)]
+
+    return type("RegressionLogistiqueGD", bases, {"__init__": __init__, "fit": fit, "predict_proba": predict_proba,
+                                                  "predict": predict})
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_descente_23("montee"), ("MONTEZ",)),
+    (_descente_23("classes_inverse"), ("classes_[1]", "signe opposé")),
+    (_descente_23("b_fige"), ("b = b - pas * grad_b",)),
+    (_descente_23("b_penalise"), ("ordonnée à l'origine est pénalisée",)),
+    (_descente_23("sans_arret"), ("ne vous arrêtez jamais",)),
+    (_descente_23("norme_w"), ("w ET b",)),
+    (_descente_23("range_1"), ("encore 0",)),
+    (_descente_23("warm_start"), ("repart de w = 0",)),
+    (_descente_23("proba_inversee"), ("inversées",)),
+    (_descente_23("predict_01"), ("ÉTIQUETTES",)),
+    (_descente_23("verifie_init"), ("dès la construction",)),
+    (_descente_23("sans_validation"), ("Vérifiez les paramètres",)),
+    (_descente_23("sans_check"), ("NotFittedError",)),
+    (_descente_23("sans_return"), ("return self",)),
+    (_descente_23("mixin_a_droite"), ("À GAUCHE",)),
+])
+def test_serie_23_descente_erreurs_classiques(mutant, mots):
+    _echec_23("RegressionLogistiqueGD", mutant, *mots)
+
+
+def test_serie_23_descente_le_pas_de_trop_et_les_autres_normes_sont_reconnus():
+    """Les variantes du critère d'arrêt que le correcteur diagnostique, même sans fabrique de mutant dédiée."""
+    from defis.checks_serie_23 import _comparer_descente, _ref_descente
+
+    class Faux:
+        def __init__(self, w, b, n_iter):
+            self.coef_, self.intercept_, self.n_iter_, self.classes_ = w, b, n_iter, np23.array([0, 1])
+
+    clients = generer_clients_23(300, graine=143)
+    X = (clients[["anciennete", "facture", "appels"]] - clients[["anciennete", "facture", "appels"]].mean()).to_numpy()
+    X = X / X.std(axis=0)
+    y = clients["churn"].to_numpy()
+    for variante, mot in (("arret_apres", "un pas de trop"), ("norme_max", "EUCLIDIENNE"), ("norme_carre", "CARRÉ")):
+        w, b, n_iter = _ref_descente(X, y, alpha=0.1, tol=1e-3, variante=variante)
+        with pytest.raises(AssertionError, match=mot):
+            _comparer_descente(Faux(w, b, n_iter), X, y, {"alpha": 0.1, "tol": 1e-3}, "fit")
+
+
+# Défi 144 : meilleure_coupure
+
+
+def _sur_tableaux_tries_23(xs, ys, min_feuille):
+    """Le calcul juste… à condition que xs soit vraiment trié (et ys rangé dans le même ordre)."""
+    n = xs.size
+    k = np23.arange(1, n)
+    partis = np23.cumsum(ys)[:-1]
+    q, qg, qd = ys.mean(), partis / k, (ys.sum() - partis) / (n - k)
+    gains = 2 * q * (1 - q) - k / n * 2 * qg * (1 - qg) - (n - k) / n * 2 * qd * (1 - qd)
+    possible = (xs[1:] != xs[:-1]) & (k >= min_feuille) & (n - k >= min_feuille)
+    if not possible.any():
+        return None, 0.0
+    i = int(np23.argmax(np23.where(possible, gains, -np23.inf)))
+    return float((xs[i] + xs[i + 1]) / 2), float(gains[i])
+
+
+def _coupure_23(defaut=None):
+    from defis.checks_serie_23 import _ref_coupure
+
+    def meilleure_coupure(x, y, min_feuille=1):
+        if not _entier_23(min_feuille, 1):
+            raise ValueError("min_feuille")
+        brut = x
+        x, y = np23.asarray(x, dtype=float), np23.asarray(y, dtype=float)
+        if x.ndim != 1 or x.shape != y.shape or x.size == 0 or np23.isnan(x).any() or not np23.isin(y, (0, 1)).all():
+            raise ValueError("entrées")
+        if defaut == "series_etiquettes" and isinstance(brut, pd.Series):
+            ordre = np23.argsort(x, kind="stable")
+            return _sur_tableaux_tries_23(brut[ordre].to_numpy(dtype=float), y[ordre], min_feuille)  # des ÉTIQUETTES
+        if defaut == "suppose_trie":
+            return _sur_tableaux_tries_23(x, y, min_feuille)
+        if defaut == "sort_sur_place":
+            ordre = np23.argsort(x, kind="stable")
+            y = y[ordre]
+            x.sort()
+        if defaut == "quadratique":
+            valeurs = np23.unique(x)
+            meilleur = None
+            for a, b in zip(valeurs[:-1], valeurs[1:]):
+                seuil = (a + b) / 2
+                gauche = x <= seuil
+                ng = int(gauche.sum())
+                if ng < min_feuille or x.size - ng < min_feuille:
+                    continue
+                q, qg, qd = y.mean(), y[gauche].mean(), y[~gauche].mean()
+                gain = 2 * q * (1 - q) - ng / x.size * 2 * qg * (1 - qg) - (x.size - ng) / x.size * 2 * qd * (1 - qd)
+                if meilleur is None or gain > meilleur[1] + 1e-12:
+                    meilleur = (float(seuil), float(gain))
+            return meilleur or (None, 0.0)
+        resultat = _ref_coupure(x, y, min_feuille, None if defaut in ("none_nan", "leve_si_aucune", "sort_sur_place")
+                                else defaut)
+        if resultat[0] is None and defaut == "none_nan":
+            return float("nan"), 0.0
+        if resultat[0] is None and defaut == "leve_si_aucune":
+            raise ValueError("aucune coupure")
+        return resultat
+
+    return meilleure_coupure
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_coupure_23("entre_egales"), ("ENTRE deux valeurs égales",)),
+    (_coupure_23("valeur_gauche"), ("valeur de gauche", "MILIEU")),
+    (_coupure_23("valeur_droite"), ("valeur de droite", "MILIEU")),
+    (_coupure_23("non_pondere"), ("PART des clients",)),
+    (_coupure_23("entropie"), ("ENTROPIE", "GINI")),
+    (_coupure_23("impurete"), ("GAIN",)),
+    (_coupure_23("plus_grand"), ("PLUS PETIT seuil",)),
+    (_coupure_23("sans_min"), ("min_feuille est ignoré",)),
+    (_coupure_23("min_gauche"), ("qu'à GAUCHE",)),
+    (_coupure_23("suppose_trie"), ("pas trié", "np.argsort")),
+    (_coupure_23("series_etiquettes"), ("ÉTIQUETTES d'index",)),
+    (_coupure_23("sort_sur_place"), ("x.sort()", "np.argsort(x)")),
+    (_coupure_23("none_nan"), ("(None, 0.0)",)),
+    (_coupure_23("leve_si_aucune"), ("None, 0.0",)),
+    (_coupure_23("quadratique"), ("10 000", "O(n²)")),
+])
+def test_serie_23_coupure_erreurs_classiques(mutant, mots):
+    _echec_23("meilleure_coupure", mutant, *mots)
+
+
+# Défi 145 : ArbreDecision
+
+
+def _arbre_23(defaut=None):
+    from defis.corrige_serie_23 import meilleure_coupure
+
+    bases = (ClassifierMixin23, BaseEstimator23)
+
+    def __init__(self, max_profondeur=3, min_feuille=1):
+        if defaut == "verifie_init" and max_profondeur is not None and max_profondeur < 1:
+            raise ValueError("max_profondeur")
+        self.max_profondeur, self.min_feuille = max_profondeur, min_feuille
+
+    def fit(self, X, y):
+        if defaut != "sans_validation":
+            if self.max_profondeur is not None and not _entier_23(self.max_profondeur, 1):
+                raise ValueError("max_profondeur")
+            if not _entier_23(self.min_feuille, 1):
+                raise ValueError("min_feuille")
+        X = np23.asarray(X, dtype=float)
+        y = np23.asarray(y)
+        self.classes_ = np23.unique(y)
+        if self.classes_.size != 2:
+            raise ValueError("deux classes")
+        positive = self.classes_[0] if defaut == "classes_inverse" else self.classes_[1]
+        self.arbre_ = self._construire(X, (y == positive).astype(float), 0)
+
+        def mesures(noeud):
+            if "colonne" not in noeud:
+                return 0, 1
+            (pg, fg), (pd_, fd) = mesures(noeud["gauche"]), mesures(noeud["droite"])
+            return 1 + max(pg, pd_), fg + fd
+
+        self.profondeur_, self.n_feuilles_ = mesures(self.arbre_)
+        if defaut == "profondeur_en_niveaux":
+            self.profondeur_ += 1
+        return self
+
+    def _construire(self, X, y, profondeur):
+        p = float(y.mean())
+        proba = {"majoritaire": float(round(p)) if p != 0.5 else 0.0}.get(defaut, p)
+        feuille = {"proba": proba, "effectif": int(y.size)}
+        limite = self.max_profondeur
+        if limite is not None:
+            limite = limite - 1 if defaut == "profondeur_moins_un" else limite + 1 if defaut == "profondeur_plus_un" \
+                else limite
+            if profondeur >= limite:
+                return feuille
+        if defaut != "pur_coupe" and p in (0.0, 1.0):
+            return feuille
+        meilleure = None
+        for colonne in range(X.shape[1]):
+            if defaut == "min_feuille_oublie":
+                seuil, gain = meilleure_coupure(X[:, colonne], y)
+            else:
+                seuil, gain = meilleure_coupure(X[:, colonne], y, self.min_feuille)
+            if seuil is None:
+                continue
+            if defaut == "premiere_colonne":
+                if meilleure is None:
+                    meilleure = (gain, colonne, seuil)
+            elif defaut == "plus_petit_gain":
+                if meilleure is None or gain < meilleure[0]:
+                    meilleure = (gain, colonne, seuil)
+            elif meilleure is None or gain > meilleure[0] + 1e-12:
+                meilleure = (gain, colonne, seuil)
+        if meilleure is None or (defaut == "gain_positif" and meilleure[0] <= 0):
+            return feuille
+        _, colonne, seuil = meilleure
+        gauche = X[:, colonne] <= seuil
+        return {"colonne": colonne, "seuil": seuil,
+                "gauche": self._construire(X[gauche], y[gauche], profondeur + 1),
+                "droite": self._construire(X[~gauche], y[~gauche], profondeur + 1)}
+
+    def predict_proba(self, X):
+        if defaut != "sans_check":
+            check_is_fitted23(self)
+        X = np23.asarray(X, dtype=float)
+        p = np23.empty(len(X))
+        for i, ligne in enumerate(X):
+            noeud = self.arbre_
+            while "colonne" in noeud:
+                if defaut == "strict":
+                    va_a_gauche = ligne[noeud["colonne"]] < noeud["seuil"]
+                else:
+                    va_a_gauche = ligne[noeud["colonne"]] <= noeud["seuil"]
+                noeud = noeud["gauche"] if va_a_gauche else noeud["droite"]
+            p[i] = noeud["proba"]
+        return np23.column_stack([p, 1 - p] if defaut == "proba_inversee" else [1 - p, p])
+
+    def predict(self, X):
+        p = self.predict_proba(X)[:, 1]
+        return self.classes_[(p >= 0.5 if defaut == "egalite_classe1" else p > 0.5).astype(int)]
+
+    return type("ArbreDecision", bases, {"__init__": __init__, "fit": fit, "_construire": _construire,
+                                         "predict_proba": predict_proba, "predict": predict})
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_arbre_23("strict"), ("EXACTEMENT sur un seuil", "x <= seuil")),
+    (_arbre_23("gain_positif"), ("gain est nul", "ou exclusif")),
+    (_arbre_23("profondeur_moins_un"), ("une profondeur trop tôt",)),
+    (_arbre_23("profondeur_plus_un"), ("profondeur maximale est atteinte",)),
+    (_arbre_23("pur_coupe"), ("PUR",)),
+    (_arbre_23("majoritaire"), ("MAJORITAIRE",)),
+    (_arbre_23("classes_inverse"), ("classes_[0]",)),
+    (_arbre_23("premiere_colonne"), ("Comparez les gains de TOUTES les colonnes",)),
+    (_arbre_23("plus_petit_gain"), ("PLUS PETIT gain",)),
+    (_arbre_23("min_feuille_oublie"), ("min_feuille",)),
+    (_arbre_23("egalite_classe1"), ("PREMIÈRE classe", "p > 0.5")),
+    (_arbre_23("proba_inversee"), ("inversées",)),
+    (_arbre_23("profondeur_en_niveaux"), ("profondeur_",)),
+    (_arbre_23("verifie_init"), ("dès la construction",)),
+    (_arbre_23("sans_validation"), ("Vérifiez les paramètres",)),
+    (_arbre_23("sans_check"), ("NotFittedError",)),
+])
+def test_serie_23_arbre_erreurs_classiques(mutant, mots):
+    _echec_23("ArbreDecision", mutant, *mots)
+
+
+@pytest.mark.parametrize("nom,fabrique", [("sigmoide", _sigmoide_23), ("perte_logistique", _perte_23),
+                                          ("gradient_logistique", _gradient_23),
+                                          ("RegressionLogistiqueGD", _descente_23),
+                                          ("meilleure_coupure", _coupure_23), ("ArbreDecision", _arbre_23)])
+def test_serie_23_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_23_les_tests_du_corrige_passent():
+    import defis.corrige_serie_23 as corrige
+
+    tests = [f for nom, f in list(vars(corrige).items()) if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_23_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.maison as maison
+    import defis.serie_23 as eleve
+
+    for nom in ("clients_exemple", "generer_clients", "NUMERIQUES", "gradient_numerique", "afficher_arbre"):
+        assert getattr(eleve, nom) is getattr(maison, nom), nom
+
+
+def test_serie_23_le_fichier_eleve_s_importe_et_tout_est_a_faire():
+    from defis.checks_serie_23 import SERIE
+
+    assert [r.statut for r in evaluer(SERIE)] == [A_FAIRE] * 6
+
+
+def test_serie_23_les_exemples_sont_neufs_a_chaque_appel():
+    premiere = clients_23()
+    premiere.iloc[0:1] = 0
+    assert clients_23().iloc[0]["anciennete"] == 2
+    assert generer_clients_23(50) is not generer_clients_23(50)
+
+
+def test_serie_23_le_generateur_est_reproductible_et_realiste():
+    a = generer_clients_23(3000, graine=4)
+    pd.testing.assert_frame_equal(a, generer_clients_23(3000, graine=4))
+    assert 0.25 < a["churn"].mean() < 0.42 and not a.isna().any(axis=None)
+    assert list(a.index[:2]) == ["G0001", "G0002"]
+    # des valeurs exactes en float32 : scikit-learn (qui range X en float32) voit les mêmes nombres
+    for colonne in ("anciennete", "facture", "appels"):
+        assert (a[colonne].astype(np23.float32).astype(float) == a[colonne]).all()
+    # le churn suit vraiment les colonnes : moins d'ancienneté, plus d'appels → plus de départs
+    assert a.loc[a["anciennete"] < 12, "churn"].mean() > a.loc[a["anciennete"] > 48, "churn"].mean() + 0.2
+    assert a.loc[a["appels"] >= 3, "churn"].mean() > a.loc[a["appels"] == 0, "churn"].mean() + 0.15
+
+
+def test_serie_23_l_exemple_a_tous_les_pieges_annonces():
+    from defis.corrige_serie_23 import meilleure_coupure
+
+    c = clients_23()
+    assert c["churn"].mean() == 0.5 and (c["facture"] == 60).sum() == 2
+    gains = {col: meilleure_coupure(c[col], c["churn"])[1] for col in ("anciennete", "facture", "appels")}
+    assert max(gains, key=gains.get) == "appels" and sorted(gains.values())[-1] - sorted(gains.values())[-2] > 0.01
+    assert c.loc[c["appels"] <= 1, "churn"].sum() == 0
+    assert c.loc[["C05", "C08"], "appels"].tolist() == [4, 4] and c.loc[["C05", "C08"], "churn"].tolist() == [0, 1]
+
+
+def test_serie_23_les_exemples_des_docstrings_sont_justes():
+    """Les exemples de defis/serie_23.py et defis/maison.py, rejoués avec le corrigé."""
+    import doctest
+
+    import defis.corrige_serie_23 as corrige
+    import defis.maison as maison
+    import defis.serie_23 as eleve
+
+    contexte = dict(vars(eleve))
+    for nom in ("sigmoide", "perte_logistique", "gradient_logistique", "RegressionLogistiqueGD", "meilleure_coupure",
+                "ArbreDecision"):
+        contexte[nom] = getattr(corrige, nom)
+    lanceur = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
+    exemples = 0
+    with warnings23.catch_warnings():
+        warnings23.simplefilter("ignore", RuntimeWarning)   # np.exp(710) prévient, c'est le sujet de l'exemple
+        for module in (eleve, maison):
+            for test in doctest.DocTestFinder().find(module):
+                test.globs = dict(contexte)
+                exemples += len(test.examples)
+                lanceur.run(test)
+    resultats = lanceur.summarize(verbose=False)
+    assert resultats.failed == 0 and exemples >= 35, resultats
+
+
+def _gains_uniques_23(X, y, noeud, min_feuille, marge=1e-9):
+    """Vrai si, à chaque nœud de l'arbre, la meilleure coupure n'a AUCUNE rivale à `marge` près (toutes colonnes)."""
+    from defis.checks_serie_23 import _coupures
+
+    if "colonne" not in noeud:
+        return True
+    gains = np23.sort(np23.concatenate([_coupures(X[:, j], y, min_feuille)[1] for j in range(X.shape[1])]))
+    if gains.size > 1 and gains[-1] - gains[-2] <= marge:
+        return False
+    gauche = X[:, noeud["colonne"]] <= noeud["seuil"]
+    return (_gains_uniques_23(X[gauche], y[gauche], noeud["gauche"], min_feuille)
+            and _gains_uniques_23(X[~gauche], y[~gauche], noeud["droite"], min_feuille))
+
+
+def test_serie_23_les_arbres_compares_a_scikit_learn_n_ont_aucune_egalite():
+    """Le correcteur compare à DecisionTreeClassifier sur ces réglages : aucune égalité ne doit dépendre du hasard."""
+    from sklearn.tree import DecisionTreeClassifier
+
+    from defis.corrige_serie_23 import NUMERIQUES, ArbreDecision
+
+    for graine, profondeur, m in ((5, 4, 10), (11, 5, 20)):
+        clients = generer_clients_23(1500, graine=graine)
+        X, y = clients[NUMERIQUES].to_numpy(dtype=float)[:1000], clients["churn"].to_numpy()[:1000]
+        arbre = ArbreDecision(max_profondeur=profondeur, min_feuille=m).fit(X, y)
+        assert _gains_uniques_23(X, y.astype(float), arbre.arbre_, m)
+        X_test = clients[NUMERIQUES].to_numpy(dtype=float)[1000:]
+        for etat in range(5):   # quel que soit le tirage de scikit-learn
+            reference = DecisionTreeClassifier(max_depth=profondeur, min_samples_leaf=m, random_state=etat).fit(X, y)
+            assert np23.allclose(arbre.predict_proba(X_test), reference.predict_proba(X_test))
+
+
+def test_serie_23_les_cas_speciaux_de_l_arbre_sont_ceux_de_scikit_learn():
+    """Le « ou exclusif » et les feuilles à 50 / 50 : scikit-learn coupe aussi quand le gain est nul."""
+    from sklearn.tree import DecisionTreeClassifier
+
+    from defis.corrige_serie_23 import ArbreDecision
+
+    X = np23.array([[1.0, 1.0], [1.0, 2.0], [2.0, 1.0], [2.0, 2.0]])
+    y = np23.array(["non", "oui", "oui", "non"])
+    reference = DecisionTreeClassifier(random_state=0).fit(X, y)
+    arbre = ArbreDecision(max_profondeur=None).fit(X, y)
+    assert reference.get_depth() == arbre.profondeur_ == 2 and reference.get_n_leaves() == arbre.n_feuilles_ == 4
+    X = np23.array([[1.0], [1.0], [2.0], [2.0]])
+    y = np23.array(["oui", "non", "oui", "non"])
+    reference = DecisionTreeClassifier(max_depth=3).fit(X, y)
+    arbre = ArbreDecision().fit(X, y)
+    assert list(reference.predict(X)) == list(arbre.predict(X)) == ["non"] * 4
+    assert reference.get_n_leaves() == arbre.n_feuilles_ == 2
+
+
+def test_serie_23_les_souches_comparees_a_scikit_learn_n_ont_aucune_egalite():
+    from defis.checks_serie_23 import _coupures
+
+    clients = generer_clients_23(800, graine=1440)
+    for colonne in ("anciennete", "facture", "appels"):
+        for m in (1, 40):
+            gains = np23.sort(_coupures(clients[colonne], clients["churn"], m)[1])
+            assert gains[-1] - gains[-2] > 1e-9, (colonne, m)
+    c = clients_23()
+    for colonne in ("anciennete", "facture", "appels"):
+        gains = np23.sort(_coupures(c[colonne], c["churn"], 1)[1])
+        assert gains[-1] - gains[-2] > 1e-9, colonne
+
+
+def test_serie_23_autres_ecritures_justes_acceptees():
+    from scipy.special import expit
+
+    def sigmoide_scipy(z):                         # la fonction de scipy, écrite en C
+        resultat = expit(np23.asarray(z, dtype=float))
+        return float(resultat) if resultat.ndim == 0 else resultat
+
+    def sigmoide_errstate(z):                      # la formule directe, en faisant taire le débordement
+        z = np23.asarray(z, dtype=float)
+        with np23.errstate(over="ignore"):
+            resultat = 1.0 / (1.0 + np23.exp(-z))
+        return resultat[()] if resultat.ndim == 0 else resultat
+
+    def perte_log1p(y, z):                         # max(z, 0) + log1p(exp(-|z|)) : l'autre écriture stable
+        y, z = np23.asarray(y, dtype=float), np23.asarray(z, dtype=float)
+        if len(y) != len(z) or len(y) == 0 or not set(np23.unique(y)) <= {0.0, 1.0}:
+            raise ValueError("entrées")
+        return float(np23.mean(np23.maximum(z, 0) + np23.log1p(np23.exp(-np23.abs(z))) - y * z))
+
+    def gradient_einsum(X, y, w, b, alpha=0.0):    # einsum et une moyenne par colonne
+        X, y, w = (np23.asarray(v, dtype=float) for v in (X, y, w))
+        erreur = expit(X @ w + b) - y
+        return (X * erreur[:, None]).mean(axis=0) + alpha * w, np23.einsum("i->", erreur) / len(y)
+
+    class RegressionLogistiqueGD(ClassifierMixin23, BaseEstimator23):   # coef_ à la forme de scikit-learn : (1, d)
+        def __init__(self, alpha=0.01, pas=0.5, n_iter_max=10_000, tol=1e-6):
+            self.alpha, self.pas, self.n_iter_max, self.tol = alpha, pas, n_iter_max, tol
+
+        def fit(self, X, y):
+            if (type(self.n_iter_max) is not int or self.n_iter_max < 1 or isinstance(self.pas, bool)
+                    or not self.pas > 0 or not self.alpha >= 0 or not self.tol >= 0):
+                raise ValueError("paramètres")
+            X = np23.asarray(X, dtype=float)
+            self.classes_, y01 = np23.unique(np23.asarray(y), return_inverse=True)
+            if len(self.classes_) != 2:
+                raise ValueError("deux classes")
+            theta = np23.zeros(X.shape[1] + 1)                     # [b, w0, w1, …]
+            X1 = np23.column_stack([np23.ones(len(X)), X])
+            masque = np23.r_[0.0, np23.ones(X.shape[1])]           # b n'est pas pénalisé
+            self.n_iter_ = self.n_iter_max
+            for i in range(self.n_iter_max):
+                gradient = X1.T @ (expit(X1 @ theta) - y01) / len(X) + self.alpha * masque * theta
+                if np23.linalg.norm(gradient) < self.tol:
+                    self.n_iter_ = i
+                    break
+                theta = theta - self.pas * gradient
+            self.coef_, self.intercept_ = theta[1:].reshape(1, -1), theta[:1]
+            return self
+
+        def predict_proba(self, X):
+            check_is_fitted23(self)
+            p = expit(np23.asarray(X, dtype=float) @ self.coef_[0] + self.intercept_[0])
+            return np23.column_stack([1 - p, p])
+
+        def predict(self, X):
+            return self.classes_[(self.predict_proba(X)[:, 1] > 0.5).astype(int)]
+
+    def coupure_python(x, y, min_feuille=1):       # trier des paires, puis une seule boucle avec des compteurs
+        if isinstance(min_feuille, bool) or not isinstance(min_feuille, numbers23.Integral) or min_feuille < 1:
+            raise ValueError("min_feuille")
+        x, y = np23.asarray(x, dtype=float), np23.asarray(y, dtype=float)
+        if x.shape != y.shape or x.size == 0 or np23.isnan(x).any() or not np23.isin(y, (0, 1)).all():
+            raise ValueError("entrées")
+        paires = sorted(zip(x.tolist(), y.tolist()))
+        n, total, partis, meilleur = len(paires), sum(v for _, v in paires), 0.0, None
+
+        def gini(q):
+            return 1 - q * q - (1 - q) * (1 - q)
+
+        for k in range(1, n):
+            partis += paires[k - 1][1]
+            if paires[k][0] == paires[k - 1][0] or k < min_feuille or n - k < min_feuille:
+                continue
+            gain = gini(total / n) - k / n * gini(partis / k) - (n - k) / n * gini((total - partis) / (n - k))
+            if meilleur is None or gain > meilleur[1]:
+                meilleur = ((paires[k - 1][0] + paires[k][0]) / 2, gain)
+        return meilleur if meilleur else (None, 0.0)
+
+    class ArbreDecision(ClassifierMixin23, BaseEstimator23):   # des indices, un `>` strict, et Gini en 1 - p² - q²
+        def __init__(self, max_profondeur=3, min_feuille=1):
+            self.max_profondeur, self.min_feuille = max_profondeur, min_feuille
+
+        def fit(self, X, y):
+            if not (self.max_profondeur is None or (type(self.max_profondeur) is int and self.max_profondeur >= 1)):
+                raise ValueError("max_profondeur")
+            if type(self.min_feuille) is not int or self.min_feuille < 1:
+                raise ValueError("min_feuille")
+            self.X_ = np23.asarray(X, dtype=float)
+            self.classes_, inverse = np23.unique(np23.asarray(y), return_inverse=True)
+            if len(self.classes_) != 2:
+                raise ValueError("deux classes")
+            self.y_ = inverse.astype(float)
+            self.arbre_ = self._noeud(np23.arange(len(self.y_)), 0)
+            self.profondeur_, self.n_feuilles_ = self._mesurer(self.arbre_)
+            del self.X_, self.y_
+            return self
+
+        def _noeud(self, indices, profondeur):
+            y = self.y_[indices]
+            feuille = {"proba": y.sum() / len(y), "effectif": len(y)}
+            if (self.max_profondeur is not None and profondeur == self.max_profondeur) or y.min() == y.max():
+                return feuille
+            choix = None
+            for j in range(self.X_.shape[1]):
+                seuil, gain = coupure_python(self.X_[indices, j], y, self.min_feuille)
+                if seuil is not None and (choix is None or gain > choix[0]):
+                    choix = (gain, j, seuil)
+            if choix is None:
+                return feuille
+            _, j, seuil = choix
+            gauche = self.X_[indices, j] <= seuil
+            return {"colonne": j, "seuil": seuil, "gauche": self._noeud(indices[gauche], profondeur + 1),
+                    "droite": self._noeud(indices[~gauche], profondeur + 1)}
+
+        def _mesurer(self, noeud):
+            if "colonne" not in noeud:
+                return 0, 1
+            (pg, fg), (pd_, fd) = self._mesurer(noeud["gauche"]), self._mesurer(noeud["droite"])
+            return max(pg, pd_) + 1, fg + fd
+
+        def predict_proba(self, X):
+            check_is_fitted23(self, "arbre_")
+            p = []
+            for ligne in np23.asarray(X, dtype=float):
+                noeud = self.arbre_
+                while "colonne" in noeud:
+                    noeud = noeud["droite"] if ligne[noeud["colonne"]] > noeud["seuil"] else noeud["gauche"]
+                p.append(noeud["proba"])
+            p = np23.array(p)
+            return np23.column_stack([1 - p, p])
+
+        def predict(self, X):
+            return self.classes_[np23.argmax(self.predict_proba(X), axis=1)]
+
+    for nom, objet in [("sigmoide", sigmoide_scipy), ("sigmoide", sigmoide_errstate),
+                       ("perte_logistique", perte_log1p), ("gradient_logistique", gradient_einsum),
+                       ("RegressionLogistiqueGD", RegressionLogistiqueGD), ("meilleure_coupure", coupure_python),
+                       ("ArbreDecision", ArbreDecision)]:
+        resultat = _evaluer(nom, objet)
+        assert resultat.statut == REUSSI, (nom, resultat.message)
