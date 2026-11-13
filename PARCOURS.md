@@ -9,6 +9,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 2. Après chaque modification, lancez `pytest -q` et `python scripts/train.py`.
 3. Notez vos résultats (avant / après) dans un fichier `JOURNAL.md` : c'est votre portfolio.
 4. Cochez les cases ci-dessous au fur et à mesure.
+5. Bloqué ? Cherchez 30 minutes, puis ouvrez [`CORRIGES.md`](CORRIGES.md) (un script par module dans `corriges/`).
 
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
@@ -66,6 +67,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 - [ ] 🟡 4.3 — Avec un coût de 500 € par client perdu et 50 € par action inutile, quel seuil est optimal ? Et à 100 € / 100 € ?
 - [ ] 🟡 4.4 — Ajoutez une courbe précision-rappel (`precision_recall_curve`) dans l'onglet Performance.
 - [ ] 🔴 4.5 — Vérifiez la **calibration** du modèle (`CalibrationDisplay`). Une probabilité de 0,7 signifie-t-elle vraiment 70 % ?
+- [ ] 🔴 4.6 — `best_threshold_by_cost` suppose que l'action de rétention est gratuite et réussit toujours. Écrivez une fonction de **gain net** (valeur client 500 €, 50 € par contact, taux de succès 100 %, 50 %, 30 %, 10 %). Comment le seuil optimal évolue-t-il ?
 
 **Auto-évaluation** : Expliquez à un manager non technique ce que signifie « rappel de 63 % ».
 
@@ -89,11 +91,18 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
 
+> Les exercices 6.2 à 6.4 sont **déjà réalisés** dans le dépôt : étudiez-les comme un exemple de
+> référence, puis prolongez-les avec les exercices 6.6 à 6.9.
+
 - [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
-- [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
-- [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
+- [x] 🟡 6.2 — Test : le modèle sauvegardé donne les mêmes prédictions une fois rechargé → `tests/test_churn.py`.
+- [x] 🟡 6.3 — GitHub Action qui lance les tests à chaque push → `.github/workflows/tests.yml`.
+- [x] 🔴 6.4 — API FastAPI (`POST /predict`) → `api.py` et `tests/test_api.py`.
 - [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
+- [ ] 🟢 6.6 — Lancez `uvicorn api:app --reload`, ouvrez `/docs` et envoyez une requête invalide. Lisez l'erreur 422.
+- [ ] 🟡 6.7 — Ajoutez `POST /predict/batch` qui accepte une liste de clients, avec son test.
+- [ ] 🟡 6.8 — Faites renvoyer par l'API les 3 variables qui pèsent le plus (réutilisez l'exercice 5.3).
+- [ ] 🔴 6.9 — Détection de dérive : un script qui compare un nouveau CSV aux données d'entraînement (PSI ou test de Kolmogorov-Smirnov par variable) et signale les variables qui ont changé.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
 
@@ -103,7 +112,8 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 Rédigez un mini-rapport (1 page) : problème, données, modèle retenu, seuil choisi et pourquoi,
 impact financier estimé, limites. Ajoutez-le au dépôt — c'est une pièce maîtresse pour un portfolio
-ou un entretien.
+ou un entretien. Un exemple est fourni dans [`RAPPORT.md`](RAPPORT.md) : inspirez-vous de sa
+structure, mais écrivez le vôtre avec vos chiffres et vos propres choix.
 
 ## 📚 Ressources
 

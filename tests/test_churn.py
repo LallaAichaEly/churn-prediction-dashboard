@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from churn.data import FEATURES, TARGET, generate_customers, validate  # noqa: E402
 from churn.features import add_engineered_features  # noqa: E402
-from churn.model import best_threshold_by_cost, build_pipeline, evaluate, train  # noqa: E402
+from churn.model import best_threshold_by_cost, build_pipeline, evaluate, load, save, train  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -86,3 +86,11 @@ def test_unknown_category_is_ignored(df):
     row = X_test.iloc[[0]].copy()
     row["payment_method"] = "Crypto"
     assert 0 <= pipeline.predict_proba(row[FEATURES])[0, 1] <= 1
+
+
+def test_saved_model_gives_identical_predictions(df, tmp_path):
+    """Ce qui est servi en production doit être exactement ce qui a été évalué."""
+    pipeline, X_test, _, proba, metrics = train(df)
+    path = save(pipeline, metrics, model_dir=tmp_path, name="m")
+    assert (tmp_path / "m_metrics.json").exists()
+    np.testing.assert_array_equal(load(path).predict_proba(X_test)[:, 1], proba)
