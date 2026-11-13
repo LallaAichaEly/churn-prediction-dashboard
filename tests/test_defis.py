@@ -7958,3 +7958,545 @@ def test_serie_20_autres_ecritures_justes_acceptees():
         return texte[: coupures[limite - 2] if limite > 1 else 0].rstrip() + "…"
 
     assert _evaluer("tronquer", tronquer).statut == REUSSI
+
+
+# --------------------------------------------------------------------------- Série 21 : le temps qui passe
+
+import datetime as dt21  # noqa: E402
+import math as math21  # noqa: E402
+
+import numpy as np21  # noqa: E402
+
+from defis.abonnements import abonnements_exemple as abonnements_21  # noqa: E402
+from defis.abonnements import dates_saisies as dates_21  # noqa: E402
+from defis.abonnements import factures_exemple as factures_21  # noqa: E402
+from defis.abonnements import generer_abonnements as generer_abonnements_21  # noqa: E402
+from defis.abonnements import generer_factures as generer_factures_21  # noqa: E402
+
+
+def _echec_21(nom, objet, *mots):
+    resultat = _evaluer(nom, objet)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+# Défi 128 : lire_dates
+
+
+def _lire_dates_21(defaut=None):
+    def lire_dates(textes):
+        if defaut == "oublie_return":
+            return None
+        if defaut == "modifie":
+            textes[:] = textes.str.strip()
+            propres = textes
+        else:
+            propres = textes if defaut == "sans_strip" else textes.str.strip()
+        if defaut == "texte":
+            return propres
+        if defaut == "sans_format":
+            resultat = pd.to_datetime(propres)
+        elif defaut == "dayfirst":
+            resultat = pd.to_datetime(propres, dayfirst=True)
+        elif defaut == "coerce":
+            resultat = pd.to_datetime(propres, format="%d/%m/%Y", errors="coerce")
+        else:
+            resultat = pd.to_datetime(propres, format="%d/%m/%Y")
+        if defaut == "liste":
+            return pd.Series(list(resultat))
+        if defaut == "sans_nom":
+            return resultat.rename(None)
+        return resultat
+
+    return lire_dates
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_lire_dates_21("sans_format"), ("INVERSÉS", 'format="%d/%m/%Y"')),
+    (_lire_dates_21("dayfirst"), ("dayfirst=True", "EXIGE")),
+    (_lire_dates_21("coerce"), ('errors="coerce"', "NaT")),
+    (_lire_dates_21("sans_strip"), (".str.strip()",)),
+    (_lire_dates_21("liste"), ("[7, 3, 9]", "garde l'index")),
+    (_lire_dates_21("texte"), ("DATES", "pd.to_datetime")),
+    (_lire_dates_21("modifie"), ("MODIFIÉ",)),
+    (_lire_dates_21("sans_nom"), ("'inscription'",)),
+    (_lire_dates_21("oublie_return"), ("return",)),
+])
+def test_serie_21_lire_dates_erreurs_classiques(mutant, mots):
+    _echec_21("lire_dates", mutant, *mots)
+
+
+# Défi 129 : nouveaux_par_mois
+
+
+def _nouveaux_21(defaut=None):
+    def nouveaux_par_mois(debuts, premier, dernier):
+        mois = pd.period_range(premier, dernier, freq="M", name="mois")
+        if defaut == "dernier_exclu":
+            mois = mois[:-1]
+        if defaut == "dt_month":
+            par_numero = debuts.dt.month.value_counts()
+            return pd.Series([int(par_numero.get(m.month, 0)) for m in mois], index=mois, name="nouveaux")
+        if defaut == "minuit":
+            return pd.Series([int(((debuts >= m.start_time) & (debuts <= m.end_time.normalize())).sum()) for m in mois],
+                             index=mois, name="nouveaux")
+        if defaut == "resample":
+            return debuts.dropna().to_frame("d").set_index("d").resample("MS").size().rename("nouveaux")
+        comptes = debuts.dt.to_period("M").value_counts()
+        if defaut == "sans_reindex":
+            comptes = comptes.sort_index()
+            resultat = comptes[(comptes.index >= mois[0]) & (comptes.index <= mois[-1])].rename_axis("mois")
+        elif defaut == "float":
+            resultat = comptes.reindex(mois).fillna(0)
+        else:
+            resultat = comptes.reindex(mois, fill_value=0).astype("int64")
+        if defaut == "chaines":
+            resultat.index = resultat.index.astype(str)
+        if defaut == "oublie_return":
+            return None
+        return resultat if defaut == "sans_nom" else resultat.rename("nouveaux")
+
+    return nouveaux_par_mois
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_nouveaux_21("sans_reindex"), ("il manque les mois 2024-04, 2024-05", "fill_value=0")),
+    (_nouveaux_21("dernier_exclu"), ("INCLUS",)),
+    (_nouveaux_21("dt_month"), ("dt.month", "2023")),
+    (_nouveaux_21("minuit"), ("23 h 30", "dt.to_period")),
+    (_nouveaux_21("resample"), ("DATES", "Period")),
+    (_nouveaux_21("float"), ("ENTIERS",)),
+    (_nouveaux_21("chaines"), ("se trient mal",)),
+    (_nouveaux_21("sans_nom"), ("'nouveaux'",)),
+    (_nouveaux_21("oublie_return"), ("return",)),
+])
+def test_serie_21_nouveaux_par_mois_erreurs_classiques(mutant, mots):
+    _echec_21("nouveaux_par_mois", mutant, *mots)
+
+
+# Défi 130 : mouvements_mensuels
+
+
+def _mouvements_21(defaut=None):
+    def mouvements_mensuels(abonnements, premier, dernier):
+        debut, fin = abonnements["debut"], abonnements["fin"]
+        if defaut != "sans_valueerror" and (fin < debut).any():
+            raise ValueError("fin avant début")
+        if defaut == "modifie":
+            abonnements["mois_debut"] = debut.dt.to_period("M")
+        mois_debut, mois_fin = debut.dt.to_period("M"), fin.dt.to_period("M")
+        lignes = []
+        for m in pd.period_range(premier, dernier, freq="M"):
+            if defaut == "nat_oublie":
+                present = (mois_debut < m) & (mois_fin >= m)
+            elif defaut == "arrive_le_1er":
+                present = (debut <= m.start_time) & (mois_fin.isna() | (mois_fin >= m))
+            elif defaut == "parti_le_1er":
+                present = (mois_debut < m) & (fin.isna() | (fin > m.start_time))
+            elif defaut == "stock_oublie":
+                present = (mois_debut < m) & (mois_debut >= pd.Period(premier, "M")) & (mois_fin.isna() | (mois_fin >= m))
+            else:
+                present = (mois_debut < m) & (mois_fin.isna() | (mois_fin >= m))
+            arrive, part = mois_debut == m, mois_fin == m
+            actifs, n_arrive, n_part = int(present.sum()), int(arrive.sum()), int(part.sum())
+            actifs_fin = actifs + n_arrive if defaut == "identite" else actifs + n_arrive - n_part
+            if defaut == "division_zero":
+                taux = int((present & part).sum()) / actifs
+            elif defaut == "taux_tous_partis":
+                taux = n_part / actifs if actifs else float("nan")
+            elif defaut == "taux_sur_fin":
+                taux = int((present & part).sum()) / actifs_fin if actifs_fin else float("nan")
+            else:
+                taux = int((present & part).sum()) / actifs if actifs else (0.0 if defaut == "taux_zero" else float("nan"))
+            lignes.append((actifs, n_arrive, n_part, actifs_fin, taux))
+        colonnes = ["actifs_debut", "nouveaux", "partis", "actifs_fin", "taux_churn"]
+        table = pd.DataFrame(lignes, index=pd.period_range(premier, dernier, freq="M", name="mois"), columns=colonnes)
+        if defaut == "float":
+            table = table.astype("float64")
+        if defaut == "ordre_colonnes":
+            table = table[["nouveaux", "partis", "actifs_debut", "actifs_fin", "taux_churn"]]
+        return table
+
+    return mouvements_mensuels
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_mouvements_21("nat_oublie"), ("TOUJOURS ABONNÉS", "isna()")),
+    (_mouvements_21("arrive_le_1er"), ("arrivé le 1er janvier", "AVANT")),
+    (_mouvements_21("parti_le_1er"), ("parti le 1er février", "APRÈS")),
+    (_mouvements_21("stock_oublie"), ("stock de départ",)),
+    (_mouvements_21("identite"), ("boucler",)),
+    (_mouvements_21("taux_tous_partis"), ("D, arrivé le 10",)),
+    (_mouvements_21("taux_sur_fin"), ("DÉBUT",)),
+    (_mouvements_21("taux_zero"), ("PERSONNE", "NaN")),
+    (_mouvements_21("division_zero"), ("ZeroDivisionError", "NaN")),
+    (_mouvements_21("sans_valueerror"), ("ValueError",)),
+    (_mouvements_21("float"), ("ENTIERS",)),
+    (_mouvements_21("ordre_colonnes"), ("dans cet ordre",)),
+    (_mouvements_21("modifie"), ("MODIFIÉ",)),
+])
+def test_serie_21_mouvements_mensuels_erreurs_classiques(mutant, mots):
+    _echec_21("mouvements_mensuels", mutant, *mots)
+
+
+# Défi 131 : table_retention
+
+
+def _retention_21(defaut=None):
+    def table_retention(abonnements, photo):
+        if defaut == "photo_texte":
+            dernier = pd.Period(photo[:7], "M") - 1
+        elif defaut == "veille":
+            dernier = (pd.Timestamp(photo) - pd.Timedelta(days=1)).to_period("M") - 1
+        elif defaut == "heure_de_plus":
+            dernier = (pd.Timestamp(photo) + pd.Timedelta(hours=1)).to_period("M") - 1
+        else:
+            dernier = pd.Timestamp(photo).to_period("M") - (0 if defaut == "mois_en_cours" else 1)
+        cohorte = abonnements["debut"].dt.to_period("M")
+        mois_fin = abonnements["fin"].dt.to_period("M")
+        garde = cohorte <= dernier
+        cohorte, mois_fin = cohorte[garde], mois_fin[garde]
+        cohortes = pd.PeriodIndex(sorted(cohorte.unique()), freq="M", name="cohorte")
+        ages = list(range((dernier - cohortes[0]).n + 1))
+        table = pd.DataFrame(np21.nan, index=cohortes, columns=ages)
+        for c in cohortes:
+            fins = mois_fin[cohorte == c]
+            encore = len(fins)
+            for a in ages:
+                m = c + a
+                if m > dernier:
+                    if defaut == "zero_futur":
+                        table.loc[c, a] = 0.0
+                        continue
+                    break
+                if defaut == "nat_oublie":
+                    restent = fins > m
+                elif defaut == "fin_incluse":
+                    restent = fins.isna() | (fins >= m)
+                else:
+                    restent = fins.isna() | (fins > m)
+                if defaut == "conditionnel":
+                    table.loc[c, a] = restent.sum() / encore if encore else np21.nan
+                    encore = int(restent.sum())
+                else:
+                    table.loc[c, a] = restent.sum() / len(fins)
+        if defaut == "colonnes_mois":
+            table.columns = [cohortes[0] + a for a in ages]
+        if defaut == "index_texte":
+            table.index = table.index.astype(str)
+        return table
+
+    return table_retention
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_retention_21("zero_futur"), ("cohorte 2024-03, âge 1 : 0 au lieu de NaN", "PAS ENCORE TERMINÉS", "triangle")),
+    (_retention_21("mois_en_cours"), ("colonne de trop", "MOINS 1")),
+    (_retention_21("conditionnel"), ("ENTIÈRE",)),
+    (_retention_21("nat_oublie"), ("NaT", "isna()")),
+    (_retention_21("fin_incluse"), ("PENDANT", "APRÈS")),
+    (_retention_21("veille"), ("1er avril à minuit",)),
+    (_retention_21("heure_de_plus"), ("31 mars à 23 h",)),
+    (_retention_21("photo_texte"), ("pd.Timestamp(photo)",)),
+    (_retention_21("colonnes_mois"), ("ÂGES",)),
+    (_retention_21("index_texte"), ("se trient mal",)),
+])
+def test_serie_21_table_retention_erreurs_classiques(mutant, mots):
+    _echec_21("table_retention", mutant, *mots)
+
+
+# Défi 132 : plis_temporels
+
+
+def _plis_21(defaut=None):
+    def plis_temporels(mois, n_plis, horizon):
+        if defaut != "sans_valueerror":
+            if n_plis < 1 or horizon < 1:
+                raise ValueError("paramètres")
+        distincts = sorted(mois.unique())
+        if defaut == "calendrier":
+            distincts = list(pd.period_range(distincts[0], distincts[-1], freq="M"))
+        if defaut != "sans_valueerror" and len(distincts) < n_plis:
+            raise ValueError("pas assez de mois")
+        if defaut == "trie":
+            mois = mois.sort_values(kind="stable").reset_index(drop=True)
+        positions = mois.index.to_numpy() if defaut == "etiquettes" else np21.arange(len(mois))
+        plis = []
+        for rang, t in enumerate(distincts[-n_plis:]):
+            if defaut == "fuite":
+                garde = mois < t
+            elif defaut == "un_de_trop":
+                garde = mois < t - horizon
+            elif defaut == "mois_presents":
+                rang_t = len(distincts) - n_plis + rang
+                garde = mois <= distincts[rang_t - horizon] if rang_t - horizon >= 0 else mois < distincts[0]
+            else:
+                garde = mois <= t - horizon
+            test, train = (mois == t).to_numpy(), garde.to_numpy()
+            if defaut != "masques":
+                test, train = positions[test], positions[train]
+            if defaut != "sans_valueerror" and not train.any():
+                raise ValueError("pas d'entraînement")
+            if defaut == "non_trie":
+                train = train[::-1]
+            plis.append((train, test))
+        return plis[::-1] if defaut == "ordre_plis" else plis
+
+    return plis_temporels
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_plis_21("fuite"), ("FUITE", "t - horizon")),
+    (_plis_21("un_de_trop"), ("l'égalité est permise",)),
+    (_plis_21("etiquettes"), ("ÉTIQUETTES", "np.arange(len(mois))")),
+    (_plis_21("trie"), ("TRIÉES",)),
+    (_plis_21("calendrier"), ("avril et mai manquent", "PRÉSENTS")),
+    (_plis_21("mois_presents"), ("avril et mai manquent", "CALENDRIER")),
+    (_plis_21("masques"), ("masque de booléens",)),
+    (_plis_21("non_trie"), ("pas trié",)),
+    (_plis_21("ordre_plis"), ("CHRONOLOGIQUE",)),
+    (_plis_21("sans_valueerror"), ("ValueError",)),
+])
+def test_serie_21_plis_temporels_erreurs_classiques(mutant, mots):
+    _echec_21("plis_temporels", mutant, *mots)
+
+
+# Défi 133 : pont_mrr
+
+
+def _pont_21(defaut=None):
+    def pont_mrr(factures):
+        if defaut != "sans_valueerror" and (factures["montant"] <= 0).any():
+            raise ValueError("montant")
+        if defaut == "modifie":
+            factures["mois_texte"] = factures["mois"].astype(str)
+        colonnes = ["mrr", "nouveau", "reactivation", "expansion", "contraction", "perdu"]
+        if defaut in ("shift_global", "shift_client"):
+            # La table LONGUE, décalée d'une ligne : globalement, ou client par client (sans calendrier).
+            longue = factures.groupby(["client", "mois"], as_index=False)["montant"].sum().sort_values(["client", "mois"])
+            if defaut == "shift_global":
+                avant = longue["montant"].shift(fill_value=0.0)
+                deja = pd.Series(False, index=longue.index)
+            else:
+                avant = longue.groupby("client")["montant"].shift(fill_value=0.0)
+                deja = longue.groupby("client").cumcount() > 0
+            b = longue["montant"]
+            longue = longue.assign(
+                nouveau=b.where((avant == 0) & ~deja, 0.0), reactivation=b.where((avant == 0) & deja, 0.0),
+                expansion=(b - avant).where((avant > 0) & (b > avant), 0.0),
+                contraction=(avant - b).where((avant > 0) & (b < avant), 0.0), perdu=0.0, mrr=b)
+            pont = longue.groupby("mois")[colonnes].sum()
+            return pont.reindex(pd.period_range(pont.index.min(), pont.index.max(), freq="M", name="mois"),
+                                fill_value=0.0)
+        if defaut == "sans_somme":
+            factures = factures.drop_duplicates(["client", "mois"], keep="last")
+        mois = pd.period_range(factures["mois"].min(), factures["mois"].max(), freq="M", name="mois")
+        grille = factures.pivot_table(index="client", columns="mois", values="montant", aggfunc="sum", fill_value=0.0)
+        if defaut != "sans_trou":
+            grille = grille.reindex(columns=mois, fill_value=0.0)
+        avant = grille.shift(1, axis=1, fill_value=0.0)
+        deja = grille.cumsum(axis=1).shift(1, axis=1, fill_value=0.0) > 0
+        if defaut == "reactivation_nouveau":
+            deja = deja & False
+        arrive = (avant == 0) & (grille > 0)
+        signe = -1.0 if defaut == "negatifs" else 1.0
+        pont = pd.DataFrame({
+            "mrr": grille.sum(),
+            "nouveau": grille.where(arrive & ~deja, 0.0).sum(),
+            "reactivation": grille.where(arrive & deja, 0.0).sum(),
+            "expansion": (grille - avant).where((avant > 0) & (grille > avant), 0.0).sum(),
+            "contraction": signe * (avant - grille).where((grille > 0) & (grille < avant), 0.0).sum(),
+            "perdu": signe * avant.where((avant > 0) & (grille == 0), 0.0).sum(),
+        })
+        if defaut == "index_texte":
+            pont.index = pont.index.astype(str)
+        return pont[colonnes]
+
+    return pont_mrr
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_pont_21("shift_global"), ("ligne précédente", "LUI-MÊME")),
+    (_pont_21("shift_client"), ("PERDU en février", "CALENDAIRE")),
+    (_pont_21("sans_somme"), ("deux lignes le MÊME mois", "aggfunc")),
+    (_pont_21("reactivation_nouveau"), ("réactivation", "pas un nouveau")),
+    (_pont_21("sans_trou"), ("février EXISTE",)),
+    (_pont_21("negatifs"), ("NÉGATIFS",)),
+    (_pont_21("sans_valueerror"), ("ValueError",)),
+    (_pont_21("modifie"), ("MODIFIÉ",)),
+    (_pont_21("index_texte"), ("se trient mal",)),
+])
+def test_serie_21_pont_mrr_erreurs_classiques(mutant, mots):
+    _echec_21("pont_mrr", mutant, *mots)
+
+
+@pytest.mark.parametrize("nom,fabrique", [("lire_dates", _lire_dates_21), ("nouveaux_par_mois", _nouveaux_21),
+                                          ("mouvements_mensuels", _mouvements_21), ("table_retention", _retention_21),
+                                          ("plis_temporels", _plis_21), ("pont_mrr", _pont_21)])
+def test_serie_21_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_21_les_tests_du_corrige_passent():
+    import defis.corrige_serie_21 as corrige
+
+    tests = [f for nom, f in list(vars(corrige).items()) if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_21_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.abonnements as abonnements
+    import defis.serie_21 as eleve
+
+    for nom in ("abonnements_exemple", "dates_saisies", "factures_exemple", "generer_abonnements", "generer_factures"):
+        assert getattr(eleve, nom) is getattr(abonnements, nom), nom
+
+
+def test_serie_21_le_fichier_eleve_s_importe_et_tout_est_a_faire():
+    from defis.checks_serie_21 import SERIE
+
+    assert [r.statut for r in evaluer(SERIE)] == [A_FAIRE] * 6
+
+
+def test_serie_21_les_exemples_sont_neufs_a_chaque_appel():
+    """Chaque appel renvoie une NOUVELLE table : la modifier n'abîme pas l'exemple suivant."""
+    for fabrique in (abonnements_21, dates_21, factures_21):
+        premiere = fabrique()
+        assert fabrique() is not premiere
+        premiere.iloc[0:1] = None
+        assert not fabrique().iloc[:1].isna().all(axis=None)
+
+
+def test_serie_21_les_generateurs_sont_reproductibles_et_realistes():
+    a, b = generer_abonnements_21(300, graine=4), generer_abonnements_21(300, graine=4)
+    pd.testing.assert_frame_equal(a, b)
+    assert not (a["fin"] < a["debut"]).any()
+    assert 0.2 < a["fin"].isna().mean() < 0.7                                # des abonnés toujours là
+    assert (a["debut"].dt.day == 1).mean() > 0.15                            # des arrivées le 1er du mois
+    assert (a["debut"].dt.hour == 23).any() and (a["fin"].dt.day == 1).any()  # 23 h 30, départs le 1er
+    f = generer_factures_21(60, graine=4)
+    pd.testing.assert_frame_equal(f, generer_factures_21(60, graine=4))
+    assert f.duplicated(["client", "mois"]).any()                             # des options sur une ligne à part
+    assert (f["montant"] > 0).all() and str(f["mois"].dtype) == "period[M]"
+
+
+def test_serie_21_les_exemples_des_docstrings_sont_justes():
+    """Les exemples de defis/serie_21.py et defis/abonnements.py, rejoués avec le corrigé."""
+    import defis.serie_21 as eleve
+    from defis.corrige_serie_21 import (lire_dates, mouvements_mensuels, nouveaux_par_mois, plis_temporels, pont_mrr,
+                                        table_retention)
+
+    def lignes(objet):
+        return [ligne.rstrip() for ligne in str(objet).splitlines()]
+
+    def dans_la_docstring(fonction, objet):
+        doc = [ligne.strip() for ligne in fonction.__doc__.splitlines()]
+        sortie = [ligne.strip() for ligne in lignes(objet)]
+        debut = doc.index(sortie[0])
+        assert doc[debut: debut + len(sortie)] == sortie, (doc[debut: debut + len(sortie)], sortie)
+
+    dates = lire_dates(dates_21())
+    assert (dates.loc[101], dates.loc[103]) == (pd.Timestamp("2024-01-03"), pd.Timestamp("2024-02-15"))
+    with pytest.raises(ValueError, match='time data "2024-01-03" doesn\'t match format "%d/%m/%Y"'):
+        lire_dates(pd.Series(["2024-01-03"]))
+    dans_la_docstring(eleve.nouveaux_par_mois, nouveaux_par_mois(abonnements_21()["debut"], "2024-01", "2024-05"))
+    dans_la_docstring(eleve.mouvements_mensuels, mouvements_mensuels(abonnements_21(), "2024-01", "2024-04"))
+    dans_la_docstring(eleve.table_retention, table_retention(abonnements_21(), "2024-04-15").round(2))
+    dans_la_docstring(eleve.pont_mrr, pont_mrr(factures_21()))
+    mois = pd.Series(pd.PeriodIndex(["2024-03", "2024-01", "2024-02", "2024-03", "2024-01"], freq="M"),
+                     index=[10, 20, 30, 40, 50])
+    assert repr(plis_temporels(mois, n_plis=1, horizon=2)) == "[(array([1, 4]), array([0, 3]))]"
+    assert repr(plis_temporels(mois, n_plis=2, horizon=1)) == \
+        "[(array([1, 4]), array([2])), (array([1, 2, 4]), array([0, 3]))]"
+    assert pd.to_datetime(pd.Series(["03/01/2024"]))[0] == pd.Timestamp("2024-03-01")    # le piège annoncé
+    debut = abonnements_21()["debut"].dt.to_period("M")
+    assert (debut[0], debut[0] + 2, (debut[7] - debut[0]).n) == (pd.Period("2023-11", "M"), pd.Period("2024-01", "M"), 4)
+    import defis.abonnements as module
+    dans_la_docstring(module, abonnements_21().head(3))
+
+
+def test_serie_21_autres_ecritures_justes_acceptees():
+    def lire_dates(textes):                     # date par date, avec le module datetime
+        def une(texte):
+            if not isinstance(texte, str) or not texte.strip():
+                return pd.NaT
+            return dt21.datetime.strptime(texte.strip(), "%d/%m/%Y")
+        return pd.to_datetime(textes.map(une))
+
+    def nouveaux_par_mois(debuts, premier, dernier):   # groupby sur (année, mois), puis un calendrier
+        valides = debuts.dropna()
+        comptes = valides.groupby([valides.dt.year, valides.dt.month]).size()
+        mois = pd.period_range(premier, dernier, freq="M", name="mois")
+        return pd.Series([int(comptes.get((m.year, m.month), 0)) for m in mois], index=mois, name="nouveaux")
+
+    def mouvements_mensuels(abonnements, premier, dernier):   # des dates plutôt que des Period
+        debut, fin = abonnements["debut"], abonnements["fin"]
+        if ((fin < debut) & fin.notna()).any():
+            raise ValueError("fin avant début")
+        mois = pd.period_range(premier, dernier, freq="M", name="mois")
+        lignes = {}
+        for m in mois:
+            ouverture, cloture = m.start_time, (m + 1).start_time
+            present = (debut < ouverture) & ~(fin < ouverture)          # ~(NaT < x) est vrai : NaT reste
+            arrive = (debut >= ouverture) & (debut < cloture)
+            part = (fin >= ouverture) & (fin < cloture)
+            n = int(present.sum())
+            lignes[m] = {"actifs_debut": n, "nouveaux": int(arrive.sum()), "partis": int(part.sum()),
+                         "actifs_fin": n + int(arrive.sum()) - int(part.sum()),
+                         "taux_churn": (present & part).sum() / n if n else float("nan")}
+        return pd.DataFrame.from_dict(lignes, orient="index").rename_axis("mois").set_axis(mois)
+
+    def table_retention(abonnements, photo):   # vectorisé : l'âge du départ, en mois
+        dernier = pd.Timestamp(photo).to_period("M") - 1
+        table = abonnements.assign(cohorte=abonnements["debut"].dt.to_period("M"),
+                                   fin_m=abonnements["fin"].dt.to_period("M"))
+        table = table[table["cohorte"] <= dernier]
+        premiere = table["cohorte"].min()
+        ages = range((dernier - premiere).n + 1)
+        age_depart = [((f - c).n if not pd.isna(f) else math21.inf) for c, f in zip(table["cohorte"], table["fin_m"])]
+        table = table.assign(age_depart=age_depart)
+        lignes = {}
+        for c, groupe in table.groupby("cohorte"):
+            lignes[c] = [(groupe["age_depart"] > a).mean() if c + a <= dernier else float("nan") for a in ages]
+        resultat = pd.DataFrame.from_dict(lignes, orient="index", columns=list(ages))
+        resultat.index = pd.PeriodIndex(resultat.index, freq="M", name="cohorte")
+        return resultat
+
+    def plis_temporels(mois, n_plis, horizon):   # np.flatnonzero et un tuple
+        if min(n_plis, horizon) < 1 or mois.nunique() < n_plis:
+            raise ValueError("paramètres")
+        plis = []
+        for t in sorted(set(mois))[-n_plis:]:
+            train = np21.flatnonzero((mois <= t - horizon).to_numpy())
+            if train.size == 0:
+                raise ValueError("pas d'entraînement")
+            plis.append((train, np21.flatnonzero((mois == t).to_numpy())))
+        return plis
+
+    def pont_mrr(factures):   # groupby + unstack, et des boucles sur les mois
+        if (factures["montant"] <= 0).any():
+            raise ValueError("montant")
+        mois = pd.period_range(factures["mois"].min(), factures["mois"].max(), freq="M", name="mois")
+        grille = factures.groupby(["client", "mois"])["montant"].sum().unstack(fill_value=0.0)
+        grille = grille.reindex(columns=mois, fill_value=0.0)
+        lignes, deja = [], pd.Series(False, index=grille.index)
+        precedent = pd.Series(0.0, index=grille.index)
+        for m in mois:
+            b, a = grille[m], precedent
+            lignes.append({"mrr": b.sum(), "nouveau": b[(a == 0) & (b > 0) & ~deja].sum(),
+                           "reactivation": b[(a == 0) & (b > 0) & deja].sum(),
+                           "expansion": (b - a)[(a > 0) & (b > a)].sum(),
+                           "contraction": (a - b)[(b > 0) & (b < a)].sum(), "perdu": a[(a > 0) & (b == 0)].sum()})
+            deja, precedent = deja | (b > 0), b
+        return pd.DataFrame(lignes, index=mois).astype(float)
+
+    for nom, fonction in [("lire_dates", lire_dates), ("nouveaux_par_mois", nouveaux_par_mois),
+                          ("mouvements_mensuels", mouvements_mensuels), ("table_retention", table_retention),
+                          ("plis_temporels", plis_temporels), ("pont_mrr", pont_mrr)]:
+        resultat = _evaluer(nom, fonction)
+        assert resultat.statut == REUSSI, (nom, resultat.message)

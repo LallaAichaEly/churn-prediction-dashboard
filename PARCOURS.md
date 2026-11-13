@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 127 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_20.py`, corrigés par
+> [défis](defis/README.md) : 133 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_21.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -92,12 +92,19 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > réécriture dans l'ombre de l'ancienne version. C'est le quotidien d'un premier poste. Le défi 116 prépare l'exercice
 > 6.2 (le modèle rechargé doit prédire exactement comme avant), et le défi 121 est la façon prudente de remplacer le
 > modèle servi par l'API de l'exercice 6.4 : le nouveau tourne dans l'ombre de l'ancien avant de prendre sa place.
-> Enfin, la série 20 (`defis/serie_20.py`, défis 122 à 127) vous apprend à manipuler du texte sans surprises : deux
+> Puis la série 20 (`defis/serie_20.py`, défis 122 à 127) vous apprend à manipuler du texte sans surprises : deux
 > « Hélène Dupré » identiques à l'écran mais différents pour `==` (normalisation Unicode, `casefold`, caractères
 > invisibles), une recherche qui ignore les accents, sept formats de numéro ramenés à un seul (ou refusés), le prix
 > d'un SMS qui double à cause d'une apostrophe, un export « HÃ©lÃ¨ne » réparé sans abîmer le reste, et un aperçu qui
 > ne coupe jamais un emoji. Faites-la avant l'exercice 1.5 : le vrai jeu de données Kaggle arrive par un fichier, et
 > les noms de colonnes, de contrats ou de villes s'y écrivent rarement d'une seule façon.
+> Enfin, la série 21 (`defis/serie_21.py`, défis 128 à 133) vous apprend à faire parler le temps : lire des dates
+> françaises sans inverser jour et mois, compter par mois sans oublier les mois vides, calculer le stock de clients et
+> le VRAI taux de churn mensuel (les clients toujours abonnés ont une fin à NaT, et toute comparaison avec NaT est
+> fausse), construire la table de rétention par cohorte, valider un modèle dans le temps sans fuite, et décomposer la
+> variation du revenu mensuel (nouveaux, réactivations, hausses, baisses, départs). Le défi 132 est la bonne façon de
+> faire l'exercice 3.4 quand les données sont des photos mensuelles : une validation croisée au hasard y apprend
+> l'avenir. Les défis 130 et 131 donnent les chiffres qu'on attend de tout suivi mensuel du churn.
 
 ---
 
