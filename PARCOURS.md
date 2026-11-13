@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 133 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_21.py`, corrigés par
+> [défis](defis/README.md) : 139 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_22.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -98,13 +98,21 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > d'un SMS qui double à cause d'une apostrophe, un export « HÃ©lÃ¨ne » réparé sans abîmer le reste, et un aperçu qui
 > ne coupe jamais un emoji. Faites-la avant l'exercice 1.5 : le vrai jeu de données Kaggle arrive par un fichier, et
 > les noms de colonnes, de contrats ou de villes s'y écrivent rarement d'une seule façon.
-> Enfin, la série 21 (`defis/serie_21.py`, défis 128 à 133) vous apprend à faire parler le temps : lire des dates
+> Puis la série 21 (`defis/serie_21.py`, défis 128 à 133) vous apprend à faire parler le temps : lire des dates
 > françaises sans inverser jour et mois, compter par mois sans oublier les mois vides, calculer le stock de clients et
 > le VRAI taux de churn mensuel (les clients toujours abonnés ont une fin à NaT, et toute comparaison avec NaT est
 > fausse), construire la table de rétention par cohorte, valider un modèle dans le temps sans fuite, et décomposer la
 > variation du revenu mensuel (nouveaux, réactivations, hausses, baisses, départs). Le défi 132 est la bonne façon de
 > faire l'exercice 3.4 quand les données sont des photos mensuelles : une validation croisée au hasard y apprend
 > l'avenir. Les défis 130 et 131 donnent les chiffres qu'on attend de tout suivi mensuel du churn.
+> Enfin, la série 22 (`defis/serie_22.py`, défis 134 à 139) vous apprend à écrire vos propres briques
+> scikit-learn, celles qui entrent dans un `Pipeline`, une validation croisée et un `GridSearchCV` : un imputeur qui
+> apprend sur le train (le contrat fit / transform), un regroupeur de villes rares dont le seuil se règle
+> (`get_params`, `set_params`, `clone`), un score en euros pour comparer les modèles, un encodage par la cible lissé
+> puis calculé hors pli (`fit_transform` ≠ `fit` puis `transform`), et un classifieur qui choisit son seuil d'alerte
+> sur des probabilités hors pli. Les défis 134 et 138 sont la forme « industrielle » de l'exercice 2.5 (une fuite
+> qu'un Pipeline empêche… si la brique respecte le contrat), le défi 135 prépare l'exercice 3.5, et les défis 136 et
+> 139 font de l'exercice 4.3 un vrai réglage de modèle.
 
 ---
 

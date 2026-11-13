@@ -8500,3 +8500,726 @@ def test_serie_21_autres_ecritures_justes_acceptees():
                           ("plis_temporels", plis_temporels), ("pont_mrr", pont_mrr)]:
         resultat = _evaluer(nom, fonction)
         assert resultat.statut == REUSSI, (nom, resultat.message)
+
+
+# --------------------------------------------------------------------------- Série 22 : briques scikit-learn
+
+import numbers as numbers22  # noqa: E402
+
+import numpy as np22  # noqa: E402
+from sklearn.base import BaseEstimator as BaseEstimator22  # noqa: E402
+from sklearn.base import ClassifierMixin as ClassifierMixin22  # noqa: E402
+from sklearn.base import TransformerMixin as TransformerMixin22  # noqa: E402
+from sklearn.base import clone as clone22  # noqa: E402
+from sklearn.base import is_classifier as is_classifier22  # noqa: E402
+from sklearn.metrics import make_scorer as make_scorer22  # noqa: E402
+from sklearn.model_selection import KFold as KFold22  # noqa: E402
+from sklearn.model_selection import StratifiedKFold as StratifiedKFold22  # noqa: E402
+from sklearn.model_selection import cross_val_predict as cross_val_predict22  # noqa: E402
+from sklearn.utils.validation import check_is_fitted as check_is_fitted22  # noqa: E402
+
+from defis.briques import clients_exemple as clients_22  # noqa: E402
+from defis.briques import generer_clients as generer_clients_22  # noqa: E402
+
+
+def _echec_22(nom, objet, *mots):
+    resultat = _evaluer(nom, objet)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+def _entier_22(m, minimum):
+    return not isinstance(m, bool) and isinstance(m, numbers22.Integral) and m >= minimum
+
+
+# Défi 134 : ImputeurMediane
+
+
+def _imputeur_22(defaut=None):
+    bases = (BaseEstimator22,) if defaut == "sans_mixin" else (TransformerMixin22, BaseEstimator22)
+
+    def fit(self, X, y=None):
+        if defaut == "moyenne":
+            medianes = X.mean()
+        elif defaut == "np_median":
+            medianes = pd.Series({c: np22.median(X[c].to_numpy(dtype=float)) for c in X.columns})
+        elif defaut == "commune":
+            medianes = pd.Series(np22.nanmedian(X.to_numpy(dtype=float)), index=X.columns)
+        elif defaut == "colonnes_trouees":
+            medianes = X.loc[:, X.isna().any()].median()
+        else:
+            medianes = X.median()
+        if medianes.isna().any() and defaut not in ("np_median", "colonne_vide_acceptee"):
+            raise ValueError("colonne vide")
+        if defaut == "garde_premier" and hasattr(self, "medianes_"):
+            return self
+        if defaut == "sans_underscore":
+            self.medianes = medianes
+        else:
+            self.medianes_ = medianes
+        return None if defaut == "sans_return" else self
+
+    def transform(self, X):
+        if defaut not in ("sans_underscore", "sans_check"):
+            check_is_fitted22(self)
+        medianes = self.medianes if defaut == "sans_underscore" else self.medianes_
+        if defaut not in ("sans_controle_colonnes", "colonnes_trouees") and set(X.columns) != set(medianes.index):
+            raise ValueError("colonnes")
+        if defaut == "mediane_test":
+            return X.fillna(X.median())
+        if defaut == "zero":
+            return X.fillna(0)
+        if defaut == "modifie":
+            X.fillna(medianes, inplace=True)
+            return X
+        resultat = X.fillna(medianes)
+        return resultat.to_numpy() if defaut == "tableau" else resultat
+
+    return type("ImputeurMediane", bases, {"fit": fit, "transform": transform})
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_imputeur_22("mediane_test"), ("médiane du TEST",)),
+    (_imputeur_22("moyenne"), ("MOYENNE", "300 €")),
+    (_imputeur_22("zero"), ("avec 0",)),
+    (_imputeur_22("np_median"), ("np.median", "X.median()")),
+    (_imputeur_22("commune"), ("MÊME valeur",)),
+    (_imputeur_22("colonnes_trouees"), ("'appels'", "TOUTES les colonnes")),
+    (_imputeur_22("sans_return"), ("return self",)),
+    (_imputeur_22("modifie"), ("MODIFIÉ",)),
+    (_imputeur_22("sans_underscore"), ("FINIT PAR _",)),
+    (_imputeur_22("sans_check"), ("AVANT fit", "check_is_fitted(self)")),
+    (_imputeur_22("sans_controle_colonnes"), ("'facture'", "ValueError")),
+    (_imputeur_22("colonne_vide_acceptee"), ("aucune valeur", "ValueError")),
+    (_imputeur_22("garde_premier"), ("PREMIER train",)),
+    (_imputeur_22("tableau"), ("tableau numpy",)),
+    (_imputeur_22("sans_mixin"), ("TransformerMixin",)),
+])
+def test_serie_22_imputeur_erreurs_classiques(mutant, mots):
+    _echec_22("ImputeurMediane", mutant, *mots)
+
+
+# Défi 135 : RegroupeurRares
+
+
+def _regroupeur_22(defaut=None):
+    def __init__(self, min_effectif=10, libelle="Autre"):
+        if defaut == "verif_init" and not _entier_22(min_effectif, 1):
+            raise ValueError("min_effectif")
+        if defaut == "autre_nom":
+            self.seuil = min_effectif
+        else:
+            self.min_effectif = int(min_effectif) if defaut == "conversion" else min_effectif
+        if defaut == "copie_privee":
+            self._m = min_effectif
+        self.libelle = libelle
+
+    def __init_kwargs__(self, **parametres):
+        self.min_effectif = parametres.get("min_effectif", 10)
+        self.libelle = parametres.get("libelle", "Autre")
+
+    def fit(self, X, y=None):
+        m = self._m if defaut == "copie_privee" else (self.seuil if defaut == "autre_nom" else self.min_effectif)
+        if defaut == "bool_accepte":
+            valide = isinstance(m, numbers22.Integral) and m >= 1
+        elif defaut == "int_seulement":
+            valide = isinstance(m, int) and not isinstance(m, bool) and m >= 1
+        else:
+            valide = _entier_22(m, 1)
+        if defaut not in ("sans_validation", "verif_init") and not valide:
+            raise ValueError("min_effectif")
+        if defaut == "cumule" and hasattr(self, "modalites_"):
+            modalites = self.modalites_
+        else:
+            modalites = {}
+        if defaut == "commun":
+            communs = pd.concat([X[c] for c in X.columns]).value_counts()
+        for colonne in X.columns:
+            comptes = communs if defaut == "commun" else X[colonne].value_counts()
+            gardees = set(comptes.index[comptes > m] if defaut == "strict" else comptes.index[comptes >= m])
+            modalites[colonne] = modalites.get(colonne, set()) | gardees
+        self.modalites_ = modalites
+        self.m_ = m
+        return self
+
+    def transform(self, X):
+        check_is_fitted22(self)
+        resultat = X if defaut == "modifie" else X.copy()
+        for colonne, gardees in self.modalites_.items():
+            if defaut == "compte_test":
+                comptes = X[colonne].value_counts()
+                gardees = set(comptes.index[comptes >= self.m_])
+            garde = X[colonne].isin(gardees)
+            if defaut != "nan_autre":
+                garde = garde | X[colonne].isna()
+            resultat[colonne] = X[colonne].where(garde, "Autre" if defaut == "libelle_fixe" else self.libelle)
+        return resultat
+
+    corps = {"fit": fit, "transform": transform,
+             "__init__": __init_kwargs__ if defaut == "kwargs" else __init__}
+    return type("RegroupeurRares", (TransformerMixin22, BaseEstimator22), corps)
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_regroupeur_22("verif_init"), ("dès la construction", "set_params")),
+    (_regroupeur_22("conversion"), ("dès la construction",)),
+    (_regroupeur_22("autre_nom"), ("SON nom",)),
+    (_regroupeur_22("kwargs"), ("**kwargs",)),
+    (_regroupeur_22("copie_privee"), ("set_params",)),
+    (_regroupeur_22("nan_autre"), ("VIDE", "isna()")),
+    (_regroupeur_22("strict"), ("Lyon", "`>=`")),
+    (_regroupeur_22("compte_test"), ("TRANSFORM",)),
+    (_regroupeur_22("commun"), ("TOUTES les colonnes",)),
+    (_regroupeur_22("sans_validation"), ("min_effectif=0", "ValueError")),
+    (_regroupeur_22("bool_accepte"), ("min_effectif=True", "isinstance(True, int)")),
+    (_regroupeur_22("int_seulement"), ("np.int64(3)", "numbers.Integral")),
+    (_regroupeur_22("cumule"), ("fit PRÉCÉDENT",)),
+    (_regroupeur_22("modifie"), ("MODIFIÉ",)),
+    (_regroupeur_22("libelle_fixe"), ("self.libelle",)),
+])
+def test_serie_22_regroupeur_erreurs_classiques(mutant, mots):
+    _echec_22("RegroupeurRares", mutant, *mots)
+
+
+# Défi 136 : scoreur_cout
+
+
+def _scoreur_22(defaut=None):
+    def scoreur_cout(cout_fn, cout_fp, seuil=0.5, positif=1):
+        def verifier():
+            for cout in (cout_fn, cout_fp):
+                if isinstance(cout, bool) or not isinstance(cout, numbers22.Real) or not cout >= 0:
+                    raise ValueError("coût")
+            if not 0 <= seuil <= 1:
+                raise ValueError("seuil")
+
+        if defaut not in ("sans_validation", "validation_tardive"):
+            verifier()
+
+        def scoreur(estimateur, X, y):
+            if defaut == "validation_tardive":
+                verifier()
+            if defaut == "fit":
+                estimateur.fit(X, y)
+            classes = list(estimateur.classes_)
+            if defaut == "indexerror":
+                colonne = int(np22.flatnonzero(np22.asarray(classes) == positif)[0])
+            else:
+                colonne = classes.index(positif)
+            if defaut == "predict":
+                alerte = np22.asarray(estimateur.predict(X)) == positif
+            else:
+                proba = estimateur.predict_proba(X)[:, 1 if defaut == "colonne1" else colonne]
+                alerte = proba > seuil if defaut == "strict" else proba >= seuil
+            reel = (y.values if defaut == "y_values" else np22.asarray(y)) == positif
+            fn, fp = (cout_fp, cout_fn) if defaut == "inverse" else (cout_fn, cout_fp)
+            cout = fn * np22.sum(reel & ~alerte) + fp * np22.sum(~reel & alerte)
+            if defaut == "total":
+                return -float(cout)
+            return float(cout / len(reel)) if defaut == "signe" else -float(cout / len(reel))
+
+        return None if defaut == "oublie_return" else scoreur
+
+    return scoreur_cout
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_scoreur_22("signe"), ("POSITIF", "MAXIMISE")),
+    (_scoreur_22("total"), ("TOTAL",)),
+    (_scoreur_22("strict"), ("0,30 pile", "`>=`")),
+    (_scoreur_22("predict"), ("predict", "0,5")),
+    (_scoreur_22("colonne1"), ("classes_ = ['part', 'reste']", "colonne 0")),
+    (_scoreur_22("inverse"), ("inversés",)),
+    (_scoreur_22("fit"), ("DÉJÀ entraîné",)),
+    (_scoreur_22("y_values"), ("AttributeError", "np.asarray(y)")),
+    (_scoreur_22("indexerror"), ("IndexError", "ValueError")),
+    (_scoreur_22("sans_validation"), ("scoreur_cout(-500, 50)", "dès l'appel")),
+    (_scoreur_22("validation_tardive"), ("dès l'appel",)),
+    (_scoreur_22("oublie_return"), ("return scoreur",)),
+])
+def test_serie_22_scoreur_erreurs_classiques(mutant, mots):
+    _echec_22("scoreur_cout", mutant, *mots)
+
+
+# Défi 137 : EncodeurCible
+
+
+def _encodeur_22(defaut=None):
+    def __init__(self, lissage=10.0):
+        if defaut == "verif_init" and (isinstance(lissage, bool) or not lissage >= 0):
+            raise ValueError("lissage")
+        self.lissage = lissage
+
+    def fit(self, X, y=None):
+        lissage = self.lissage
+        if defaut not in ("verif_init", "sans_validation_lissage") and (
+                isinstance(lissage, bool) or not isinstance(lissage, numbers22.Real) or not lissage >= 0):
+            raise ValueError("lissage")
+        if y is None and defaut != "sans_y_check":
+            raise ValueError("y")
+        if defaut != "par_index":
+            y = np22.asarray(y, dtype=float)
+            if defaut == "sans_longueur":
+                y = y[: len(X)]
+            elif len(y) != len(X):
+                raise ValueError("longueur")
+        self.moyenne_ = float(np22.mean(y))
+        self.encodages_ = {}
+        for colonne in X.columns:
+            valeurs = X[colonne].fillna("(vide)") if defaut == "nan_modalite" else X[colonne]
+            if defaut == "par_index":
+                stats = y.astype(float).groupby(valeurs).agg(["sum", "count"])
+            else:
+                stats = pd.Series(y).groupby(valeurs.to_numpy()).agg(["sum", "count"])
+            moyenne = float((stats["sum"] / stats["count"]).mean()) if defaut == "moyenne_des_taux" else self.moyenne_
+            if defaut == "moyenne_des_taux":
+                self.moyenne_ = moyenne
+            if defaut == "brut":
+                code = stats["sum"] / stats["count"]
+            elif defaut == "poids_inverses":
+                code = (stats["count"] * moyenne + lissage * stats["sum"] / stats["count"]) / (stats["count"] + lissage)
+            else:
+                code = (stats["sum"] + lissage * moyenne) / (stats["count"] + lissage)
+            self.encodages_[colonne] = code
+        return self
+
+    def transform(self, X):
+        check_is_fitted22(self)
+        resultat = X if defaut == "modifie" else pd.DataFrame(index=X.index)
+        for colonne, encodage in self.encodages_.items():
+            valeurs = X[colonne].fillna("(vide)") if defaut == "nan_modalite" else X[colonne]
+            code = valeurs.map(encodage).astype(float)
+            if defaut == "inconnu_zero":
+                code = code.fillna(0.0)
+            elif defaut != "inconnu_nan":
+                code = code.fillna(self.moyenne_)
+            resultat[colonne] = code
+        return resultat
+
+    return type("EncodeurCible", (TransformerMixin22, BaseEstimator22),
+                {"__init__": __init__, "fit": fit, "transform": transform})
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_encodeur_22("brut"), ("BRUT",)),
+    (_encodeur_22("poids_inverses"), ("à l'envers",)),
+    (_encodeur_22("moyenne_des_taux"), ("chaque CLIENT compte autant",)),
+    (_encodeur_22("inconnu_nan"), ("Quimper", "NaN", "fillna(self.moyenne_)")),
+    (_encodeur_22("inconnu_zero"), ("donne 0",)),
+    (_encodeur_22("nan_modalite"), ("case vide", "pas une modalité")),
+    (_encodeur_22("par_index"), ("PAR POSITION",)),
+    (_encodeur_22("sans_y_check"), ("sans y", "ValueError")),
+    (_encodeur_22("sans_longueur"), ("une ligne de plus",)),
+    (_encodeur_22("verif_init"), ("dès la construction",)),
+    (_encodeur_22("sans_validation_lissage"), ("lissage=-1",)),
+    (_encodeur_22("modifie"), ("MODIFIÉ",)),
+])
+def test_serie_22_encodeur_erreurs_classiques(mutant, mots):
+    _echec_22("EncodeurCible", mutant, *mots)
+
+
+# Défi 138 : EncodeurCibleHorsPli
+
+
+def _hors_pli_22(defaut=None):
+    from defis.corrige_serie_22 import EncodeurCible
+
+    parent = BaseEstimator22 if defaut == "pas_heritage" else EncodeurCible
+
+    def __init__(self, lissage=10.0, n_plis=5, graine=0):
+        if defaut != "sans_super":
+            self.lissage = lissage
+        self.n_plis = n_plis
+        self.graine = graine
+
+    def fit_transform(self, X, y=None):
+        if defaut != "sans_fit":
+            self.fit(X, y)
+        y = np22.asarray(y, dtype=float)
+        resultat = pd.DataFrame(np22.nan, index=X.index, columns=list(X.columns), dtype=float)
+        if defaut == "sans_melange":
+            plis = KFold22(n_splits=self.n_plis).split(X)
+        elif defaut == "stratifie":
+            plis = StratifiedKFold22(n_splits=self.n_plis, shuffle=True, random_state=self.graine).split(X, y)
+        else:
+            graine = 0 if defaut == "graine_ignoree" else self.graine
+            plis = KFold22(n_splits=self.n_plis, shuffle=True, random_state=graine).split(X)
+        moyenne = float(y.mean())
+        for train, test in plis:
+            encodeur = EncodeurCible(lissage=self.lissage).fit(X.iloc[train], y[train])
+            if defaut == "moyenne_globale":
+                encodeur.moyenne_ = moyenne
+                encodeur.fit(X.iloc[train], y[train])
+                for colonne in X.columns:
+                    stats = pd.Series(y[train]).groupby(X[colonne].iloc[train].to_numpy()).agg(["sum", "count"])
+                    encodeur.encodages_[colonne] = (stats["sum"] + self.lissage * moyenne) / (stats["count"] + self.lissage)
+                encodeur.moyenne_ = moyenne
+            if defaut == "loc":
+                resultat.loc[test] = encodeur.transform(X.iloc[test]).to_numpy()
+            else:
+                resultat.iloc[test] = encodeur.transform(X.iloc[test]).to_numpy()
+            if defaut == "dernier_pli":
+                self.encodages_, self.moyenne_ = encodeur.encodages_, encodeur.moyenne_
+        return resultat
+
+    corps = {"__init__": __init__}
+    if defaut == "pas_heritage":
+        corps.update({"fit": EncodeurCible.fit, "transform": EncodeurCible.transform})
+    if defaut != "naif":
+        corps["fit_transform"] = fit_transform
+    if defaut == "pas_heritage":
+        return type("EncodeurCibleHorsPli", (TransformerMixin22, BaseEstimator22), corps)
+    return type("EncodeurCibleHorsPli", (parent,), corps)
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_hors_pli_22("naif"), ("SA propre réponse", "Redéfinissez `fit_transform`")),
+    (_hors_pli_22("moyenne_globale"), ("TOUT y",)),
+    (_hors_pli_22("sans_melange"), ("pas mélangés", "shuffle=True")),
+    (_hors_pli_22("stratifie"), ("stratifiés", "pas StratifiedKFold")),
+    (_hors_pli_22("graine_ignoree"), ("graine=3", "self.graine")),
+    (_hors_pli_22("sans_fit"), ("NotFittedError", "self.fit(X, y)")),
+    (_hors_pli_22("dernier_pli"), ("TOUT le train", "dernier pli")),
+    (_hors_pli_22("loc"), ("POSITIONS", "iloc")),
+    (_hors_pli_22("sans_super"), ("SON nom",)),
+    (_hors_pli_22("pas_heritage"), ("HÉRITER",)),
+])
+def test_serie_22_hors_pli_erreurs_classiques(mutant, mots):
+    _echec_22("EncodeurCibleHorsPli", mutant, *mots)
+
+
+def test_serie_22_hors_pli_le_leave_one_out_est_reconnu():
+    from defis.checks_serie_22 import _ref_hors_pli
+    from defis.corrige_serie_22 import EncodeurCible
+
+    class EncodeurCibleHorsPli(EncodeurCible):
+        def __init__(self, lissage=10.0, n_plis=5, graine=0):
+            super().__init__(lissage=lissage)
+            self.n_plis, self.graine = n_plis, graine
+
+        def fit_transform(self, X, y=None):
+            self.fit(X, y)
+            return _ref_hors_pli(X, y, self.lissage, variante="loo")
+
+    _echec_22("EncodeurCibleHorsPli", EncodeurCibleHorsPli, "leave-one-out")
+
+
+# Défi 139 : ClassifieurSeuil
+
+
+def _seuil_22(defaut=None):
+    bases = (BaseEstimator22, ClassifierMixin22) if defaut == "ordre_mixins" else (ClassifierMixin22, BaseEstimator22)
+
+    def __init__(self, estimateur, cout_fn=500.0, cout_fp=50.0, n_plis=5, graine=0):
+        if defaut == "verif_init" and cout_fn < 0:
+            raise ValueError("coût")
+        self.estimateur, self.cout_fn, self.cout_fp, self.n_plis, self.graine = estimateur, cout_fn, cout_fp, n_plis, graine
+
+    def fit(self, X, y):
+        if defaut not in ("sans_validation", "verif_init"):
+            if min(self.cout_fn, self.cout_fp) < 0 or not _entier_22(self.n_plis, 2):
+                raise ValueError("paramètres")
+        y = np22.asarray(y)
+        self.classes_ = np22.unique(y)
+        if len(self.classes_) != 2 and defaut != "sans_validation":
+            raise ValueError("classes")
+        if defaut == "train":
+            proba = clone22(self.estimateur).fit(X, y).predict_proba(X)[:, 1]
+        else:
+            if defaut == "plis_par_defaut":
+                plis = self.n_plis
+            elif defaut == "kfold":
+                plis = KFold22(n_splits=self.n_plis, shuffle=True, random_state=self.graine)
+            else:
+                plis = StratifiedKFold22(n_splits=self.n_plis, shuffle=True, random_state=self.graine)
+            proba = cross_val_predict22(clone22(self.estimateur), X, y, cv=plis, method="predict_proba")[:, 1]
+        reel = y == self.classes_[1]
+        fn, fp = (self.cout_fp, self.cout_fn) if defaut == "inverse" else (self.cout_fn, self.cout_fp)
+        grille = np22.arange(1, 100) / 100
+        couts = np22.array([fn * np22.sum(reel & ~((proba > s) if defaut == "strict" else (proba >= s)))
+                            + fp * np22.sum(~reel & ((proba > s) if defaut == "strict" else (proba >= s)))
+                            for s in grille])
+        if defaut == "plus_grand":
+            self.seuil_ = float(grille[len(couts) - 1 - int(np22.argmin(couts[::-1]))])
+        else:
+            self.seuil_ = float(grille[int(np22.argmin(couts))])
+        if defaut == "sans_clone":
+            self.estimateur_ = self.estimateur.fit(X, y)
+        elif defaut == "dernier_pli":
+            train, _ = list(StratifiedKFold22(n_splits=self.n_plis, shuffle=True, random_state=self.graine)
+                            .split(X, y))[-1]
+            self.estimateur_ = clone22(self.estimateur).fit(X.iloc[train], y[train])
+        else:
+            self.estimateur_ = clone22(self.estimateur).fit(X, y)
+        return self
+
+    def predict_proba(self, X):
+        if defaut != "sans_check":
+            check_is_fitted22(self)
+        return self.estimateur_.predict_proba(X)
+
+    def predict(self, X):
+        if defaut == "predict_05":
+            check_is_fitted22(self)
+            return self.estimateur_.predict(X)
+        positif = self.predict_proba(X)[:, 1] >= self.seuil_
+        if defaut == "etiquettes_01":
+            return positif.astype(int)
+        return self.classes_[positif.astype(int)]
+
+    return type("ClassifieurSeuil", bases, {"__init__": __init__, "fit": fit, "predict_proba": predict_proba,
+                                             "predict": predict})
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_seuil_22("train"), ("PROPRES données", "HORS PLI")),
+    (_seuil_22("plis_par_defaut"), ("pas mélangés", "StratifiedKFold")),
+    (_seuil_22("kfold"), ("pas stratifiés",)),
+    (_seuil_22("inverse"), ("inversés",)),
+    (_seuil_22("sans_clone"), ("ENTRAÎNÉ l'estimateur reçu", "clone")),
+    (_seuil_22("dernier_pli"), ("TOUT le train",)),
+    (_seuil_22("predict_05"), ("seuil de 0,5", "self.seuil_")),
+    (_seuil_22("etiquettes_01"), ("ÉTIQUETTES",)),
+    pytest.param(_seuil_22("ordre_mixins"), ("À GAUCHE",), marks=pytest.mark.skipif(
+        is_classifier22(type("Essai", (BaseEstimator22, ClassifierMixin22), {})()),
+        reason="avant scikit-learn 1.6, l'ordre des mixins ne change pas is_classifier")),
+    (_seuil_22("sans_validation"), ("ValueError",)),
+    (_seuil_22("sans_check"), ("AVANT fit", "check_is_fitted")),
+    (_seuil_22("verif_init"), ("dès la construction",)),
+])
+def test_serie_22_seuil_erreurs_classiques(mutant, mots):
+    _echec_22("ClassifieurSeuil", mutant, *mots)
+
+
+def test_serie_22_seuil_le_strict_et_l_egalite_sont_reconnus():
+    """`>` au lieu de `>=` et « le plus grand seuil » ne changent le seuil que sur des égalités : on les force."""
+    from defis.checks_serie_22 import _verifier_seuil
+
+    class Factice(ClassifierMixin22, BaseEstimator22):
+        def fit(self, X, y):
+            self.classes_ = np22.unique(y)
+            return self
+
+        def predict_proba(self, X):
+            p = np22.asarray(X["p"], dtype=float)
+            return np22.column_stack([1 - p, p])
+
+        def predict(self, X):
+            return self.classes_[(self.predict_proba(X)[:, 1] >= 0.5).astype(int)]
+
+    X = pd.DataFrame({"p": [0.2, 0.2, 0.2, 0.2, 0.6, 0.6, 0.6, 0.6, 0.9, 0.9]})
+    y = np22.array([0, 0, 0, 1, 0, 1, 1, 1, 1, 1])
+    with pytest.raises(AssertionError, match="PLUS PETIT"):
+        _verifier_seuil(0.6, 0.21, "fit", Factice(), X, y, cout_fn=1.0, cout_fp=1.0, n_plis=2)
+    with pytest.raises(AssertionError, match="`>=`"):
+        _verifier_seuil(0.2, 0.21, "fit", Factice(), X, y, cout_fn=1.0, cout_fp=1.0, n_plis=2)
+
+
+@pytest.mark.parametrize("nom,fabrique", [("ImputeurMediane", _imputeur_22), ("RegroupeurRares", _regroupeur_22),
+                                          ("scoreur_cout", _scoreur_22), ("EncodeurCible", _encodeur_22),
+                                          ("EncodeurCibleHorsPli", _hors_pli_22), ("ClassifieurSeuil", _seuil_22)])
+def test_serie_22_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_22_les_tests_du_corrige_passent():
+    import defis.corrige_serie_22 as corrige
+
+    tests = [f for nom, f in list(vars(corrige).items()) if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_22_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.briques as briques
+    import defis.serie_22 as eleve
+
+    for nom in ("clients_exemple", "generer_clients", "NUMERIQUES", "CATEGORIES"):
+        assert getattr(eleve, nom) is getattr(briques, nom), nom
+
+
+def test_serie_22_le_fichier_eleve_s_importe_et_tout_est_a_faire():
+    from defis.checks_serie_22 import SERIE
+
+    assert [r.statut for r in evaluer(SERIE)] == [A_FAIRE] * 6
+
+
+def test_serie_22_les_exemples_sont_neufs_a_chaque_appel():
+    premiere = clients_22()
+    premiere.iloc[0:1] = None
+    assert not clients_22().iloc[:1].isna().all(axis=None)
+    assert generer_clients_22(50) is not generer_clients_22(50)
+
+
+def test_serie_22_le_generateur_est_reproductible_et_realiste():
+    a = generer_clients_22(800, graine=4)
+    pd.testing.assert_frame_equal(a, generer_clients_22(800, graine=4))
+    assert 0.2 < a["churn"].mean() < 0.5
+    assert 0.02 < a["anciennete"].isna().mean() < 0.1 and 0.01 < a["ville"].isna().mean() < 0.07
+    comptes = a["ville"].value_counts()
+    assert comptes.iloc[0] > 100 and (comptes <= 5).sum() >= 5                   # la longue traîne
+    assert list(a.index[:2]) == ["G0001", "G0002"]
+    # le churn dépend vraiment de la ville : l'encodage par la cible a quelque chose à trouver
+    taux = a.groupby("ville")["churn"].agg(["mean", "size"])
+    assert taux.loc[taux["size"] >= 30, "mean"].std() > 0.05
+
+
+def test_serie_22_l_exemple_a_tous_les_pieges_annonces():
+    c = clients_22()
+    assert c[["anciennete", "facture"]].isna().sum().tolist() == [2, 1] and not c["appels"].isna().any()
+    assert c["facture"].mean() > 80 and c["facture"].median() == 60
+    villes = c["ville"].value_counts()
+    assert villes["Paris"] == 5 and villes["Lyon"] == 3 and c["ville"].isna().sum() == 1
+    assert (villes == 1).sum() == 3 and c.loc[c["ville"] == "Albi", "churn"].tolist() == [1]
+
+
+def test_serie_22_les_exemples_des_docstrings_sont_justes():
+    """Les exemples de defis/serie_22.py et defis/briques.py, rejoués avec le corrigé."""
+    import doctest
+
+    import defis.briques as briques
+    import defis.corrige_serie_22 as corrige
+    import defis.serie_22 as eleve
+
+    contexte = dict(vars(eleve))
+    for nom in ("ImputeurMediane", "RegroupeurRares", "scoreur_cout", "EncodeurCible", "EncodeurCibleHorsPli",
+                "ClassifieurSeuil"):
+        contexte[nom] = getattr(corrige, nom)
+    lanceur = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
+    exemples = 0
+    for module in (eleve, briques):
+        for test in doctest.DocTestFinder().find(module):
+            test.globs = dict(contexte)
+            exemples += len(test.examples)
+            lanceur.run(test)
+    resultats = lanceur.summarize(verbose=False)
+    assert resultats.failed == 0 and exemples >= 30, resultats
+
+
+def test_serie_22_autres_ecritures_justes_acceptees():
+    def scoreur_cout(cout_fn, cout_fp, seuil=0.5, positif=1):    # make_scorer, comme dans le commentaire du corrigé
+        if min(cout_fn, cout_fp) < 0 or cout_fn != cout_fn or cout_fp != cout_fp or not 0 <= seuil <= 1:
+            raise ValueError("paramètres")
+
+        def cout_moyen(y, proba, pos_label, cout_fn, cout_fp, seuil):
+            reel, alerte = np22.asarray(y) == pos_label, proba >= seuil
+            return (cout_fn * np22.sum(reel & ~alerte) + cout_fp * np22.sum(~reel & alerte)) / len(reel)
+
+        return make_scorer22(cout_moyen, response_method="predict_proba", greater_is_better=False,
+                             pos_label=positif, cout_fn=cout_fn, cout_fp=cout_fp, seuil=seuil)
+
+    class ImputeurMediane(TransformerMixin22, BaseEstimator22):    # une boucle, et np.nanmedian
+        def fit(self, X, y=None):
+            self.medianes_ = {}
+            for colonne in X.columns:
+                valeurs = X[colonne].to_numpy(dtype=float)
+                if np22.isnan(valeurs).all():
+                    raise ValueError(f"{colonne} est vide")
+                self.medianes_[colonne] = float(np22.nanmedian(valeurs))
+            return self
+
+        def transform(self, X):
+            check_is_fitted22(self)
+            if sorted(X.columns) != sorted(self.medianes_):
+                raise ValueError("colonnes")
+            resultat = X.copy()
+            for colonne, mediane in self.medianes_.items():
+                resultat[colonne] = resultat[colonne].fillna(mediane)
+            return resultat
+
+    class RegroupeurRares(TransformerMixin22, BaseEstimator22):    # Counter et des compréhensions
+        def __init__(self, min_effectif=10, libelle="Autre"):
+            self.min_effectif = min_effectif
+            self.libelle = libelle
+
+        def fit(self, X, y=None):
+            import collections
+
+            m = self.min_effectif
+            if type(m) is bool or not isinstance(m, (int, np22.integer)) or m < 1:
+                raise ValueError("min_effectif")
+            self.frequentes_ = {c: {v for v, n in collections.Counter(X[c].dropna()).items() if n >= m}
+                                for c in X.columns}
+            return self
+
+        def transform(self, X):
+            check_is_fitted22(self)
+            return X.apply(lambda col: col.map(
+                lambda v: v if pd.isna(v) or v in self.frequentes_[col.name] else self.libelle))
+
+    class EncodeurCible(TransformerMixin22, BaseEstimator22):   # une table pandas, merge et dictionnaires
+        def __init__(self, lissage=10.0):
+            self.lissage = lissage
+
+        def fit(self, X, y=None):
+            if y is None or isinstance(self.lissage, bool) or not self.lissage >= 0:
+                raise ValueError("y ou lissage")
+            y = list(y)
+            if len(y) != len(X):
+                raise ValueError("longueur")
+            table = X.reset_index(drop=True).assign(_y=y)
+            self.prior_ = sum(y) / len(y)
+            self.tables_ = {}
+            for colonne in X.columns:
+                groupes = table.dropna(subset=[colonne]).groupby(colonne)["_y"]
+                self.tables_[colonne] = ((groupes.sum() + self.lissage * self.prior_)
+                                         / (groupes.count() + self.lissage)).to_dict()
+            return self
+
+        def transform(self, X):
+            check_is_fitted22(self)
+            return pd.DataFrame({c: [float(self.tables_[c].get(v, self.prior_)) if not pd.isna(v) else self.prior_
+                                     for v in X[c]] for c in X.columns}, index=X.index)
+
+    from defis.corrige_serie_22 import EncodeurCible as Base
+
+    class EncodeurCibleHorsPli(Base):   # des masques booléens plutôt que iloc[test] =
+        def __init__(self, lissage=10.0, n_plis=5, graine=0):
+            self.lissage, self.n_plis, self.graine = lissage, n_plis, graine
+
+        def fit_transform(self, X, y=None):
+            if type(self.n_plis) is not int or self.n_plis < 2:
+                raise ValueError("n_plis")
+            self.fit(X, y)
+            y = np22.asarray(y, dtype=float)
+            morceaux = []
+            for train, test in KFold22(self.n_plis, shuffle=True, random_state=self.graine).split(X):
+                morceaux.append(Base(lissage=self.lissage).fit(X.iloc[train], y[train]).transform(X.iloc[test]))
+            return pd.concat(morceaux).reindex(X.index)
+
+    class ClassifieurSeuil(ClassifierMixin22, BaseEstimator22):   # en réutilisant le code du projet
+        def __init__(self, estimateur, cout_fn=500.0, cout_fp=50.0, n_plis=5, graine=0):
+            self.estimateur, self.cout_fn, self.cout_fp = estimateur, cout_fn, cout_fp
+            self.n_plis, self.graine = n_plis, graine
+
+        def fit(self, X, y):
+            from churn.model import best_threshold_by_cost
+
+            if self.cout_fn < 0 or self.cout_fp < 0 or type(self.n_plis) is not int or self.n_plis < 2:
+                raise ValueError("paramètres")
+            self.classes_ = np22.unique(y)
+            if self.classes_.size != 2:
+                raise ValueError("deux classes")
+            plis = StratifiedKFold22(self.n_plis, shuffle=True, random_state=self.graine)
+            proba = cross_val_predict22(clone22(self.estimateur), X, y, cv=plis, method="predict_proba")[:, 1]
+            reel = (np22.asarray(y) == self.classes_[1]).astype(int)
+            self.seuil_ = best_threshold_by_cost(reel, proba, self.cout_fn, self.cout_fp)
+            self.estimateur_ = clone22(self.estimateur).fit(X, y)
+            return self
+
+        def predict_proba(self, X):
+            check_is_fitted22(self, "estimateur_")
+            return self.estimateur_.predict_proba(X)
+
+        def predict(self, X):
+            return np22.where(self.predict_proba(X)[:, 1] >= self.seuil_, self.classes_[1], self.classes_[0])
+
+    for nom, objet in [("scoreur_cout", scoreur_cout), ("ImputeurMediane", ImputeurMediane),
+                       ("RegroupeurRares", RegroupeurRares), ("EncodeurCible", EncodeurCible),
+                       ("EncodeurCibleHorsPli", EncodeurCibleHorsPli), ("ClassifieurSeuil", ClassifieurSeuil)]:
+        resultat = _evaluer(nom, objet)
+        assert resultat.statut == REUSSI, (nom, resultat.message)
