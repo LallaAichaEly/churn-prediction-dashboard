@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 73 fonctions, classes, requêtes SQL et tests courts dans `defis/serie_00.py` à `defis/serie_11.py`, corrigés par
+> [défis](defis/README.md) : 79 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_12.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -53,6 +53,9 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > tas, file) et annoncer la complexité de sa solution. Et parce que presque toutes les offres data
 > demandent du SQL, la série 10 (`defis/serie_10.py`, défis 62 à 67) entraîne les requêtes qui donnent
 > un chiffre faux sans planter : NULL, anti-jointure, `LEFT JOIN`, explosion des jointures, fenêtres.
+> Enfin, la série 12 (`defis/serie_12.py`, défis 74 à 79) vous fait écrire les routes d'une API web avec
+> FastAPI, une notion à la fois : codes HTTP, paramètres, modèles Pydantic, PATCH, clé d'API, idempotence.
+> Faites-la avant l'exercice 6.4 : vous saurez alors lire `api.py` ligne à ligne et y ajouter une route.
 
 ---
 

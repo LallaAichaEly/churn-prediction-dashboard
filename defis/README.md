@@ -38,6 +38,9 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > décorateurs, les notions de Python qu'on rencontre dès la première vraie tâche en équipe.
 > Et la **série 08** (défis 50 à 55) : construire la table du modèle à partir de sources réelles
 > (texte, plusieurs tables, JSON, mises à jour, journal d'événements) sans abîmer les données.
+> Pour finir, la **série 12** (défis 74 à 79) : écrire vous-même les routes d'une API web avec FastAPI
+> (lire, chercher, créer, modifier, protéger par une clé, rejouer une requête sans envoyer deux SMS).
+> Elle ne demande que la série 00 et le défi 40, et prépare l'exercice 6.4 du parcours.
 >
 > 🧠 **Vous préparez un entretien technique ?** La **série 09** (défis 56 à 61) reprend les classiques
 > de l'algorithmique sur des données de churn. Elle ne demande que les séries 00 et 07.
@@ -60,6 +63,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | **09 — Penser en algorithmes** 🧠 | `defis/serie_09.py` | la méthode d'entretien en 5 étapes et les **complexités** O(1) à O(n²) ; « two sum » avec un **dictionnaire** (la position 0 est « fausse »), délimiteurs d'une formule avec une **pile**, pic d'appels par **fenêtre glissante** (deux pointeurs), **fusion d'intervalles** de dates (`timedelta`, périodes contenues), top k d'un **flux** avec un **tas** (`heapq`, mémoire O(k), égalités), clients proches d'un parti par **parcours en largeur** multi-sources (`deque`) | 6, n° 56 à 61 (🟢×2 🟡×3 🔴×1) |
 | **10 — SQL pour l'analyse** 🗄️ | `defis/serie_10.py` | l'ordre d'évaluation d'une requête et la logique à trois valeurs de **NULL** (`IS NULL`, `COUNT(col)`, `COALESCE`), **anti-jointure** (le piège de `NOT IN` face à un NULL), **`LEFT JOIN` : ON ou WHERE ?** et `COUNT(*)` qui compte 1 pour « aucun appel », une variable de « photo » à une date passée (paramètre nommé, priorité AND/OR), **explosion des jointures** (fan-out) et CTE, **fonctions de fenêtre** (`LAG`, cumul `SUM() OVER`, fenêtre nommée), **îlots et trous** (mois consécutifs avec `ROW_NUMBER()`, `HAVING`) | 6, n° 62 à 67 (🟢×2 🟡×3 🔴×1) |
 | **11 — Tester comme un·e pro** 🧪 | `defis/serie_11.py` | choisir ses exemples aux **frontières** (`pytest.mark.parametrize`, le piège de 0 dans un `if`), comparer des flottants avec **`pytest.approx`** (et pourquoi `1 - 2/3 != 1/3`), tester le chemin d'erreur avec **`pytest.raises`** (`match`, ni trop large ni fragile), remplacer un service d'e-mails par un **faux** (injection de dépendance, panne simulée, `unittest.mock`), tester un **fichier** dans un dossier temporaire (`tmp_path`, ne jamais écraser), **tests par propriétés** sur des centaines de cas tirés au hasard (graine fixe, Hypothesis) | 6, n° 68 à 73 (🟢×2 🟡×3 🔴×1) |
+| **12 — Construire une API web** 🌐 | `defis/serie_12.py` | une route `GET` et son paramètre de chemin, répondre **404** plutôt que planter (500) ou renvoyer `null`, **paramètres de requête** typés et bornés (`Query(ge=…, le=…)` → 422), corps JSON validé par un **modèle Pydantic** (`pattern` ancré, `gt`/`le`, `Literal`, `extra="forbid"`), **201** et en-tête `Location`, **409** pour un doublon, **PATCH** partiel (`exclude_unset`, refuser `null`, tout ou rien), clé d'API dans un en-tête avec **`Depends`** (**401 contre 403**, contrôler l'accès avant l'existence, révocation), **idempotence** d'un `POST` avec l'en-tête `Idempotency-Key` (rejeu, panne → **503**, ne mémoriser qu'après succès) | 6, n° 74 à 79 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -97,6 +101,12 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > flottants avec `==`, recopie le texte exact d'un message ou exige un détail non promis échoue alors :
 > il bloquerait un refactoring. Le défi 72 lance votre test dans un dossier jetable et vérifie qu'il
 > n'écrit rien ailleurs.
+
+> 🌐 Dans la série 12, le correcteur appelle vos routes comme un vrai programme (`TestClient`), y compris
+> avec des requêtes fautives : client inconnu, champ mal orthographié, `null`, clé volée ou révoquée,
+> opérateur SMS en panne. Il vérifie le code HTTP ET l'état de la base après coup : une requête refusée
+> ne doit rien changer. Pour essayer vos routes en les écrivant : `essayer(routes_lecture(exemple_clients()))`
+> (voir le haut de `defis/serie_12.py`).
 
 > 💡 Les défis 🔴 réutilisent le code du projet (`churn.model.build_pipeline`) : vous
 > apprenez aussi à lire et réutiliser un code existant, compétence clé en entreprise.

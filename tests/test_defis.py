@@ -2611,3 +2611,406 @@ def test_serie_11_les_fonctions_fournies_sont_celles_du_correcteur():
     corrige.tester_repartir(eleve.repartir)
     with tempfile.TemporaryDirectory() as dossier:
         corrige.tester_exporter_rapport(eleve.exporter_rapport, Path(dossier))
+
+
+# --------------------------------------------------------------------------- Série 12 : construire une API web
+#
+# Chaque « mutant » ci-dessous est une version du corrigé avec UNE erreur classique. Le correcteur doit la
+# refuser (❌) avec un message qui nomme l'erreur et sa correction.
+
+from typing import Literal  # noqa: E402
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response  # noqa: E402
+from pydantic import BaseModel, ConfigDict, Field  # noqa: E402
+
+_Contrat12 = Literal["Mensuel", "Annuel", "Biannuel"]
+
+
+def _echec_12(nom, fonction, *mots):
+    resultat = _evaluer(nom, fonction)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+def _lecture(plante=False, null=False, code=404, detail=True, copie=False, retour=True):
+    def routes_lecture(clients):
+        base = dict(clients) if copie else clients
+        routeur = APIRouter()
+
+        @routeur.get("/clients/{client_id}")
+        def lire(client_id: str):
+            if plante:
+                return base[client_id]
+            if null:
+                return base.get(client_id)
+            if client_id not in base:
+                raise HTTPException(code, f"Client {client_id} introuvable" if detail else "Introuvable")
+            return base[client_id]
+
+        return routeur if retour else None
+    return routes_lecture
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_lecture(plante=True), ("500", "KeyError", "HTTPException(status_code=404")),
+    (_lecture(null=True), ("null",)),
+    (_lecture(code=400), ("400",)),
+    (_lecture(detail=False), ("citer l'identifiant",)),
+    (_lecture(copie=True), ("copie",)),
+    (_lecture(retour=False), ("return routeur",)),
+], ids=["keyerror", "null", "400", "detail_muet", "copie", "sans_return"])
+def test_serie_12_lecture_erreurs_classiques(mutant, mots):
+    _echec_12("routes_lecture", mutant, *mots)
+
+
+def test_serie_12_une_mauvaise_adresse_est_signalee():
+    def mauvais_chemin(clients):
+        routeur = APIRouter()
+
+        @routeur.get("/client/{client_id}")
+        def lire(client_id: str):
+            return clients[client_id]
+        return routeur
+
+    def mauvaise_methode(clients):
+        routeur = APIRouter()
+
+        @routeur.post("/clients/{client_id}")
+        def lire(client_id: str):
+            return clients[client_id]
+        return routeur
+
+    _echec_12("routes_lecture", mauvais_chemin, "introuvable", "/client/{client_id}")
+    _echec_12("routes_lecture", mauvaise_methode, "@routeur.get")
+
+
+def _recherche(trier=True, limite_defaut=20, strict=False, couper_avant=False, contrat_requis=False,
+               bornes=True, le_100=True, vide_404=False):
+    def routes_recherche(clients):
+        routeur = APIRouter()
+        q_appels = Query(0, ge=0) if bornes else 0
+        q_limite = Query(limite_defaut, ge=1, le=100) if le_100 else Query(limite_defaut, ge=1, lt=100)
+        if not bornes:
+            q_limite = limite_defaut
+
+        def chercher(contrat, min_appels, limite):
+            tous = sorted(clients.values(), key=lambda c: c["id"]) if trier else list(clients.values())
+            if couper_avant:
+                tous = tous[:limite]
+            trouves = [c for c in tous if (contrat is None or c["contrat"] == contrat)
+                       and (c["appels_support"] > min_appels if strict else c["appels_support"] >= min_appels)]
+            if vide_404 and not trouves:
+                raise HTTPException(404, "aucun client")
+            return trouves if couper_avant else trouves[:limite]
+
+        if contrat_requis:
+            @routeur.get("/clients")
+            def avec_contrat(contrat: str, min_appels: int = q_appels, limite: int = q_limite):
+                return chercher(contrat, min_appels, limite)
+        else:
+            @routeur.get("/clients")
+            def sans_contrat(contrat: str | None = None, min_appels: int = q_appels, limite: int = q_limite):
+                return chercher(contrat, min_appels, limite)
+        return routeur
+    return routes_recherche
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_recherche(trier=False), ("Triez",)),
+    (_recherche(limite_defaut=1000), ("20 par défaut",)),
+    (_recherche(strict=True), ("`>=`",)),
+    (_recherche(couper_avant=True), ("Filtrez d'abord",)),
+    (_recherche(contrat_requis=True), ("valeur par défaut",)),
+    (_recherche(bornes=False), ("ge=0",)),
+    (_recherche(le_100=False), ("le=100",)),
+    (_recherche(vide_404=True), ("pas une erreur",)),
+], ids=["non_trie", "sans_limite", "strict", "coupe_avant", "contrat_requis", "sans_bornes", "lt_100", "vide_404"])
+def test_serie_12_recherche_erreurs_classiques(mutant, mots):
+    _echec_12("routes_recherche", mutant, *mots)
+
+
+class _ClientJuste(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=r"^C\d{3}$")
+    anciennete_mois: int = Field(ge=0)
+    facture_mensuelle: float = Field(gt=0, le=500)
+    contrat: _Contrat12
+    appels_support: int = Field(default=0, ge=0)
+
+
+class _ClientSansAncre(_ClientJuste):
+    id: str = Field(pattern=r"C\d{3}")
+
+
+class _ClientGe0(_ClientJuste):
+    facture_mensuelle: float = Field(ge=0, le=500)
+
+
+class _ClientLt500(_ClientJuste):
+    facture_mensuelle: float = Field(gt=0, lt=500)
+
+
+class _ClientAppelsRequis(_ClientJuste):
+    appels_support: int = Field(ge=0)
+
+
+class _ClientExtrasIgnores(_ClientJuste):
+    model_config = ConfigDict(extra="ignore")
+
+
+def _creation(modele=_ClientJuste, code=201, location=True, ecrase=False, objet=False):
+    def routes_creation(clients):
+        routeur = APIRouter()
+
+        @routeur.post("/clients", status_code=code)
+        def creer(nouveau: modele, response: Response):
+            if nouveau.id in clients and not ecrase:
+                raise HTTPException(409, "existe déjà")
+            clients[nouveau.id] = nouveau if objet else nouveau.model_dump()
+            if location:
+                response.headers["Location"] = f"/clients/{nouveau.id}"
+            return nouveau.model_dump()
+        return routeur
+    return routes_creation
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_creation(code=200), ("201",)),
+    (_creation(location=False), ("Location",)),
+    (_creation(ecrase=True), ("ÉCRASÉ",)),
+    (_creation(objet=True), ("dictionnaire ordinaire",)),
+    (_creation(modele=_ClientSansAncre), ("C0420", "ancrez")),
+    (_creation(modele=_ClientGe0), ("gt=0",)),
+    (_creation(modele=_ClientLt500), ("le=500",)),
+    (_creation(modele=_ClientAppelsRequis), ("FACULTATIF",)),
+    (_creation(modele=_ClientExtrasIgnores), ("apels_support", "extra=")),
+], ids=["code_200", "sans_location", "ecrase", "objet_pydantic", "motif_sans_ancre", "ge_0", "lt_500",
+        "appels_requis", "extras_ignores"])
+def test_serie_12_creation_erreurs_classiques(mutant, mots):
+    _echec_12("routes_creation", mutant, *mots)
+
+
+class _ModifJuste(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    anciennete_mois: int = Field(default=None, ge=0)
+    facture_mensuelle: float = Field(default=None, gt=0, le=500)
+    contrat: _Contrat12 = None
+    appels_support: int = Field(default=None, ge=0)
+
+
+class _ModifOptionnel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    anciennete_mois: int | None = Field(default=None, ge=0)
+    facture_mensuelle: float | None = Field(default=None, gt=0, le=500)
+    contrat: _Contrat12 | None = None
+    appels_support: int | None = Field(default=None, ge=0)
+
+
+class _ModifExtrasIgnores(_ModifJuste):
+    model_config = ConfigDict(extra="ignore")
+
+
+def _modification(modele=_ModifJuste, mode="exclude_unset", plante_inconnu=False):
+    def routes_modification(clients):
+        routeur = APIRouter()
+
+        @routeur.patch("/clients/{client_id}")
+        def modifier(client_id: str, modification: modele):
+            if client_id not in clients and not plante_inconnu:
+                raise HTTPException(404, "introuvable")
+            client = clients[client_id]
+            if mode == "exclude_unset":
+                changements = modification.model_dump(exclude_unset=True)
+            elif mode == "tout":
+                changements = modification.model_dump()
+            elif mode == "si_vrai":
+                changements = {k: v for k, v in modification.model_dump().items() if v}
+            elif mode == "pas_none":
+                changements = {k: v for k, v in modification.model_dump().items() if v is not None}
+            clients[client_id] = {**client, **changements}
+            return clients[client_id]
+        return routeur
+    return routes_modification
+
+
+def _modification_champ_par_champ(clients):
+    """Valide « à la main », champ par champ, en écrivant au fur et à mesure : un refus arrive trop tard."""
+    routeur = APIRouter()
+
+    @routeur.patch("/clients/{client_id}")
+    def modifier(client_id: str, corps: dict):
+        if client_id not in clients:
+            raise HTTPException(404, "introuvable")
+        for champ, valeur in corps.items():
+            if champ not in ("anciennete_mois", "facture_mensuelle", "contrat", "appels_support") or valeur is None:
+                raise HTTPException(422, f"champ {champ} refusé")
+            if champ == "facture_mensuelle" and not 0 < valeur <= 500:
+                raise HTTPException(422, "facture invalide")
+            if champ in ("anciennete_mois", "appels_support") and valeur < 0:
+                raise HTTPException(422, f"{champ} négatif")
+            if champ == "contrat" and valeur not in ("Mensuel", "Annuel", "Biannuel"):
+                raise HTTPException(422, "contrat invalide")
+            clients[client_id][champ] = valeur
+        return clients[client_id]
+    return routeur
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_modification(mode="tout", modele=_ModifOptionnel), ("exclude_unset",)),
+    (_modification(mode="si_vrai"), ("0 est une VALEUR",)),
+    (_modification(mode="pas_none", modele=_ModifOptionnel), ("null",)),
+    (_modification(modele=_ModifOptionnel), ("null",)),
+    (_modification(modele=_ModifExtrasIgnores), ("id", "extra")),
+    (_modification(plante_inconnu=True), ("500", "404")),
+    (_modification_champ_par_champ, ("Tout ou rien",)),
+], ids=["model_dump_complet", "if_valeur", "ignore_null", "accepte_null", "extras_ignores", "inconnu_plante",
+        "champ_par_champ"])
+def test_serie_12_modification_erreurs_classiques(mutant, mots):
+    _echec_12("routes_modification", mutant, *mots)
+
+
+def _admin(proteger_delete=True, inverser=False, existence_avant=False, copier_cles=False, via_query=False,
+           code_delete=204):
+    def routes_admin(clients, cles_valides):
+        cles = set(cles_valides) if copier_cles else cles_valides
+
+        def controler(cle):
+            if cle is None:
+                raise HTTPException(403 if inverser else 401, "clé manquante")
+            if cle not in cles:
+                raise HTTPException(401 if inverser else 403, "accès refusé")
+
+        if via_query:
+            def verifier_cle(x_api_key: str | None = None):
+                controler(x_api_key)
+        else:
+            def verifier_cle(x_api_key: str | None = Header(default=None)):
+                controler(x_api_key)
+
+        routeur = APIRouter(prefix="/admin")
+
+        @routeur.get("/clients", dependencies=[Depends(verifier_cle)])
+        def tous():
+            return sorted(clients.values(), key=lambda c: c["id"])
+
+        @routeur.delete("/clients/{client_id}", status_code=code_delete)
+        def supprimer(client_id: str, x_api_key: str | None = Header(default=None)):
+            if existence_avant and client_id not in clients:
+                raise HTTPException(404, "introuvable")
+            if proteger_delete:
+                controler(x_api_key)
+            if client_id not in clients:
+                raise HTTPException(404, "introuvable")
+            del clients[client_id]
+        return routeur
+    return routes_admin
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_admin(proteger_delete=False), ("SUPPRIMÉ",)),
+    (_admin(inverser=True), ("inversés",)),
+    (_admin(existence_avant=True), ("intrus",)),
+    (_admin(copier_cles=True), ("RÉVOQUÉE",)),
+    (_admin(via_query=True), ("Header",)),
+    (_admin(code_delete=200), ("204",)),
+], ids=["delete_ouvert", "401_403_inverses", "existence_avant", "cles_copiees", "cle_dans_l_adresse", "delete_200"])
+def test_serie_12_admin_erreurs_classiques(mutant, mots):
+    _echec_12("routes_admin", mutant, *mots)
+
+
+class _Demande12(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    client_id: str
+    offre: Literal["remise_10", "mois_offert", "appel_conseiller"]
+
+
+_MEMOIRE_GLOBALE_12: dict = {}
+
+
+def _relances(memoriser=True, rejeu_409=False, comparer_corps=True, retenir_avant=False, attraper=True,
+              globale=False, cle_corps=False, meme_id=False, anti_doublon_contenu=False):
+    def routes_relances(clients, envoyer):
+        routeur = APIRouter()
+        deja_vu = _MEMOIRE_GLOBALE_12 if globale else {}
+        compteur = [0]
+
+        @routeur.post("/relances", status_code=201)
+        def relancer(demande: _Demande12, idempotency_key: str | None = Header(default=None)):
+            if not idempotency_key:
+                raise HTTPException(400, "Idempotency-Key obligatoire")
+            corps = demande.model_dump()
+            cle = str(sorted(corps.items())) if cle_corps else idempotency_key
+            if memoriser and cle in deja_vu:
+                ancien_corps, reponse = deja_vu[cle]
+                if rejeu_409:
+                    raise HTTPException(409, "déjà traitée")
+                if comparer_corps and corps != ancien_corps:
+                    raise HTTPException(422, "clé déjà utilisée")
+                return reponse
+            if anti_doublon_contenu:  # « par sécurité », une seule relance par contenu, quelle que soit la clé
+                for ancien_corps, reponse in deja_vu.values():
+                    if ancien_corps == corps:
+                        return reponse
+            if demande.client_id not in clients:
+                raise HTTPException(404, "client inconnu")
+            if retenir_avant:
+                deja_vu[cle] = (corps, None)
+            if attraper:
+                try:
+                    envoyer(demande.client_id, demande.offre)
+                except Exception:
+                    raise HTTPException(503, "réessayez") from None
+            else:
+                envoyer(demande.client_id, demande.offre)
+            compteur[0] += 1
+            reponse = {"relance_id": "R" if meme_id else f"R{compteur[0]}", **corps}
+            if memoriser:
+                deja_vu[cle] = (corps, reponse)
+            return reponse
+        return routeur
+    return routes_relances
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_relances(memoriser=False), ("DEUXIÈME SMS",)),
+    (_relances(rejeu_409=True), ("MÊME réponse",)),
+    (_relances(comparer_corps=False), ("corps différent",)),
+    (_relances(retenir_avant=True), ("AVANT l'envoi",)),
+    (_relances(attraper=False), ("503", "ConnectionError")),
+    (_relances(cle_corps=True), ("AUTRE offre",)),
+    (_relances(anti_doublon_contenu=True), ("que sur la clé",)),
+    (_relances(meme_id=True), ("identifiant unique",)),
+], ids=["sans_memoire", "rejeu_409", "corps_non_compare", "retenue_avant_envoi", "panne_non_attrapee",
+        "cle_ignoree", "anti_doublon_par_contenu", "meme_relance_id"])
+def test_serie_12_relances_erreurs_classiques(mutant, mots):
+    _echec_12("routes_relances", mutant, *mots)
+
+
+def test_serie_12_une_memoire_globale_est_detectee():
+    _MEMOIRE_GLOBALE_12.clear()
+    _echec_12("routes_relances", _relances(globale=True), "partagée", "DANS `routes_relances`")
+
+
+def test_serie_12_les_tests_du_corrige_passent():
+    """Les tests « comme dans tests/ » en fin de corrigé sont de vrais tests : ils doivent passer."""
+    import defis.corrige_serie_12 as corrige
+
+    tests = [f for nom, f in vars(corrige).items() if nom.startswith("test_")]
+    assert len(tests) >= 5
+    for test in tests:
+        test()
+
+
+def test_serie_12_les_outils_du_fichier_eleve_sont_ceux_du_correcteur():
+    """L'élève essaie ses routes sur exemple_clients() : la base doit être celle du correcteur, et neuve à chaque appel."""
+    import defis.checks_serie_12 as checks
+    import defis.serie_12 as eleve
+
+    assert eleve.exemple_clients() == checks._BASE
+    base = eleve.exemple_clients()
+    base["C001"]["contrat"] = "Annuel"
+    assert eleve.exemple_clients()["C001"]["contrat"] == "Mensuel"
+    assert eleve.CONTRATS == checks._CONTRATS
+    client = eleve.essayer(_lecture()(eleve.exemple_clients()))
+    assert client.get("/clients/C001").json()["id"] == "C001"
