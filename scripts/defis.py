@@ -39,7 +39,7 @@ def main() -> None:
         print(f"\n🧭 Série {serie.code} — {serie.titre}  ({ok}/{len(resultats)} réussis)  · {fichier.replace('.', '/')}.py\n")
         for r in resultats:
             d = r.defi
-            ligne = f"  {ICONES[r.statut]} {d.numero:>2} {d.niveau} {d.fonction:<{largeur}} Parcours {d.parcours}"
+            ligne = f"  {ICONES[r.statut]} {d.numero:>3} {d.niveau} {d.fonction:<{largeur}} Parcours {d.parcours}"
             print(ligne)
             if r.message:
                 print(f"        ↳ {r.message}")

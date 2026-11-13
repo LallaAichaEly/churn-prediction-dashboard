@@ -50,11 +50,16 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > exponentielle, envoi à 10 h heure de Paris sur un serveur en UTC (changement d'heure compris), fichier jamais laissé
 > à moitié écrit, disjoncteur qui coupe un service en panne. Elle ne demande que la série 00 et le défi 40 (et le défi
 > 48 pour le dernier).
-> Pour finir, la **série 15** (défis 92 à 97) : écrire dans une base de données partagée sans rien perdre. Une offre
+> Puis la **série 15** (défis 92 à 97) : écrire dans une base de données partagée sans rien perdre. Une offre
 > accordée en deux écritures (tout ou rien), la liste des clients page par page, 500 clients chargés en une requête au
 > lieu de 501, un schéma qui évolue par migrations, deux conseillers sur la même fiche, plusieurs travailleurs sur la
 > même file de SMS. Elle ne demande que la série 00, un peu de SQL (série 05 ou 10) et les requêtes paramétrées du
 > défi 80.
+> Pour finir, la **série 16** (défis 98 à 103) : faire plusieurs choses à la fois avec `asyncio`. Un programme passe l'essentiel
+> de son temps à attendre (un score, un SMS, une page d'API) : demander 8 scores en même temps, ne jamais attendre une
+> réponse plus d'une seconde, envoyer 500 SMS 10 par 10, un seul jeton d'accès pour 50 tâches pressées, garder la réponse
+> du serveur le plus rapide, et monter un lecteur de pages avec 4 travailleurs qui ne déborde jamais. Elle ne demande que
+> la série 00 et le défi 40 (et une classe, défi 48, pour le défi 101). C'est aussi la clé pour lire du code FastAPI.
 >
 > 🧠 **Vous préparez un entretien technique ?** La **série 09** (défis 56 à 61) reprend les classiques
 > de l'algorithmique sur des données de churn. Elle ne demande que les séries 00 et 07.
@@ -81,6 +86,7 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 | **13 — Écrire du code sûr** 🔐 | `defis/serie_13.py` | **injection SQL** : requête paramétrée (`?`, `(nom,)` avec la virgule, filtre facultatif sans `= NULL`), **secrets** masqués dans les journaux (noms normalisés, récursion dans les dictionnaires et les listes, copie sans toucher l'original), **traversée de répertoire** (`resolve()`, `is_relative_to` plutôt que `startswith`, chemin absolu, lien symbolique), **injection de formules** dans un export CSV pour Excel (texte seulement, nombres et valeurs manquantes intacts), **désérialisation** : empreinte SHA-256 vérifiée AVANT `pickle.loads`, une seule lecture (TOCTOU), **lien signé** avec HMAC (expiration signée, séparateur, `compare_digest`, toute entrée mal formée → ValueError) | 6, n° 80 à 85 (🟢×2 🟡×3 🔴×1) |
 | **14 — Tenir en production** 🚦 | `defis/serie_14.py` | **configuration** lue dans les variables d'environnement (`bool("false")` vaut True, NaN qui passe `seuil < 0 or seuil > 1`, toutes les erreurs d'un coup, ne lire que ce qu'on reçoit), **journalisation** avec `logging` (niveaux, `journal.exception` et sa traceback, un seul résumé INFO, pas de `print` ni de `basicConfig` dans une fonction, pas de données personnelles, `except Exception` pour laisser passer Ctrl+C), **reprises** avec attente exponentielle plafonnée (erreurs passagères seulement, `Retry-After`, relancer la dernière erreur, `dormir` injecté), **fuseaux horaires** avec `zoneinfo` (10 h à Paris en UTC, changement d'heure, `astimezone` contre `replace`, dates naïves refusées), **écriture atomique** (temporaire unique dans le même dossier, fermé puis `os.replace`, nettoyage et `raise` en cas de panne), **disjoncteur** (machine à états fermé/ouvert/semi-ouvert, horloge injectée, `@property`) | 6, n° 86 à 91 (🟢×2 🟡×3 🔴×1) |
 | **15 — Enregistrer sans rien perdre** 💾 | `defis/serie_15.py` | **transaction** « tout ou rien » (deux écritures, `with conn:`, `rollback` après N'IMPORTE QUELLE erreur, jamais de transaction laissée ouverte), **pagination par curseur** (`WHERE id > ? ORDER BY id LIMIT taille + 1`, pourquoi pas `OFFSET`), le problème des **requêtes N+1** (`IN (?, ?, …)` fabriqué sans coller de valeur, générateur lu une fois), **migrations** versionnées (`PRAGMA user_version`, `BEGIN` explicite car sqlite3 n'en ouvre pas avant un `CREATE TABLE`, le piège d'`executescript`, version écrite dans la même transaction), **verrou optimiste** (`WHERE id = ? AND version = ?`, `rowcount`, conflit contre client inconnu), **file de tâches** à plusieurs travailleurs (réclamer une tâche sans course, bail expiré, `RETURNING`) | 6, n° 92 à 97 (🟢×2 🟡×3 🔴×1) |
+| **16 — Faire plusieurs choses à la fois** ⚡ | `defis/serie_16.py` | **`asyncio.gather`** (lancer d'abord, attendre ensuite ; l'ordre des résultats ; doublons), **délai maximal** avec `wait_for` ou `asyncio.timeout` (l'appel lent est ANNULÉ ; seule la lenteur donne la valeur par défaut, pas une erreur ; un score de 0.0), **`Semaphore`** pour 10 envois à la fois (pas de paquets qui attendent le plus lent, `return_exceptions=True`, garder l'exception elle-même), **`Lock`** et double vérification (50 tâches, une seule demande de jeton ; expiration avec marge ; verrou rendu après une panne), **le premier qui répond** (`create_task`, `as_completed`, une erreur n'est pas une réponse, annuler les perdants), **producteur / travailleurs** (`Queue(maxsize=…)` et contre-pression, signal de fin, `TaskGroup` qui arrête tout à la première erreur au lieu d'un `join()` bloqué pour toujours) | 6, n° 98 à 103 (🟢×2 🟡×3 🔴×1) |
 
 ## Méthode conseillée
 
@@ -145,6 +151,14 @@ python scripts/defis.py --defi 5   # se concentrer sur un défi
 > d'une migration (défi 95), et surtout pour faire écrire un collègue ou un autre travailleur PILE entre votre SELECT et
 > votre UPDATE (défis 96 et 97). Après chaque appel, il regarde la base depuis une AUTRE connexion : c'est ce que verront
 > vos collègues. Une écriture sans `commit()` y est invisible, et une transaction laissée ouverte vous sera signalée.
+
+> ⚡ Dans la série 16, rien n'attend pour de vrai : le correcteur exécute vos coroutines sur une boucle asyncio à
+> **horloge virtuelle** (quand toutes les tâches attendent, l'horloge saute au prochain réveil). Il mesure ainsi exactement
+> la durée qu'aurait prise votre code, et ses faux services notent combien d'appels vous faites EN MÊME TEMPS et lesquels
+> vous annulez. Il regarde aussi ce qui tourne encore APRÈS votre retour (un appel lent jamais annulé, un travailleur
+> oublié), et il détecte l'**interblocage** : un programme où toutes les tâches attendent et que rien ne réveillera, qui
+> en vrai resterait figé sans un message. Pour voir tout ça en écrivant : `essayer(votre_coroutine(...))` affiche la
+> durée virtuelle, et prévient s'il reste des tâches oubliées.
 
 > 💡 Les défis 🔴 réutilisent le code du projet (`churn.model.build_pipeline`) : vous
 > apprenez aussi à lire et réutiliser un code existant, compétence clé en entreprise.

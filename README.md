@@ -69,7 +69,8 @@ Pour aller plus loin :
 | Écrire du code sûr : requêtes SQL paramétrées (injection SQL), secrets masqués dans les journaux, chemins d'export sans traversée de répertoire, export CSV sans injection de formules, modèle pickle chargé seulement si son empreinte SHA-256 est bonne, lien signé avec HMAC (`compare_digest`, expiration) | `defis/serie_13.py` (le correcteur joue l'attaquant) |
 | Tenir en production : configuration par variables d'environnement, journalisation avec `logging` (niveaux, traceback, pas de `print`), reprises avec attente exponentielle, fuseaux horaires et changement d'heure (`zoneinfo`), écriture atomique d'un fichier (`os.replace`), disjoncteur (machine à états, horloge injectée) | `defis/serie_14.py` (le correcteur simule une nuit de pannes) |
 | Enregistrer sans rien perdre : transactions (tout ou rien, `rollback`), pagination par curseur, requêtes N+1, migrations versionnées (`PRAGMA user_version`), verrou optimiste (`version`, `rowcount`), file de tâches à plusieurs travailleurs (bail, `RETURNING`) | `defis/serie_15.py` (SQLite ; le correcteur fait écrire un collègue entre votre SELECT et votre UPDATE) |
-| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_15.py` + `scripts/defis.py` |
+| Faire plusieurs choses à la fois avec `asyncio` : `gather`, délai maximal et annulation (`wait_for`), limite de concurrence (`Semaphore`), situation de compétition (`Lock`, double vérification), le premier qui répond (`as_completed`), producteur et travailleurs (`Queue` bornée, `TaskGroup`) | `defis/serie_16.py` (horloge virtuelle : le correcteur mesure vos durées et voit les interblocages) |
+| Entraînement corrigé automatiquement | `defis/serie_00.py` à `defis/serie_16.py` + `scripts/defis.py` |
 | Construire un programme complet : modules, CSV imparfaits, règles métier, budget, CLI, tests | `projets/retention/` (projet 2, 7 étapes) + `scripts/projet.py` |
 | Git en équipe : commit propre et `.gitignore`, branches, `stash`, conflits, `revert`, `bisect`, `reflog`, `rebase` et `push --force-with-lease` | `atelier_git/` (8 scénarios dans un bac à sable) + `scripts/atelier_git.py` |
 
@@ -166,6 +167,8 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── production.py       # Outils communs de la série 14 (Config, ErreurTemporaire, HorlogeFactice…)
 │   ├── serie_15.py         # 💾 Série 15 — enregistrer sans rien perdre : transaction, pages, N+1, migrations, verrou optimiste, file de tâches (6 défis)
 │   ├── persistance.py      # Outils communs de la série 15 (base_exemple, deux_connexions, afficher, ConflitDeVersion…)
+│   ├── serie_16.py         # ⚡ Série 16 — asyncio : gather, délais, Semaphore, Lock, premier qui répond, Queue et travailleurs (6 défis)
+│   ├── concurrence.py      # Outils communs de la série 16 (faux services, boucle à horloge virtuelle, essayer…)
 │   ├── donnees_sql.py      # La base SQLite de la série 10 (clients, factures, appels) + essayer()
 │   ├── corrige_serie_XX.py # Corrigés commentés (après avoir essayé !)
 │   └── checks_serie_XX.py  # Vérifications automatiques

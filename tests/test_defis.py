@@ -4844,3 +4844,637 @@ def test_serie_15_une_panne_ne_valide_pas_une_migration_qu_un_redemarrage_aurait
         return len(migrations) - version
 
     assert _evaluer("migrer", migrer_except_etroit).statut == REUSSI
+
+
+# --------------------------------------------------------------------------- Série 16 : asyncio
+
+import asyncio  # noqa: E402
+
+from defis.concurrence import (  # noqa: E402
+    SCORES_EXEMPLE,
+    Interblocage,
+    NumeroInvalide,
+    OperateurSMS,
+    Pages,
+    ServeurAuth,
+    ServiceIndisponible,
+    ServiceScores,
+    executer,
+)
+
+
+def _echec_16(nom, fonction, *mots):
+    resultat = _evaluer(nom, fonction)
+    assert resultat.statut == ECHEC, (resultat.statut, resultat.message)
+    for mot in mots:
+        assert mot in resultat.message, resultat.message
+
+
+# Défi 98 : gather
+
+
+def _paralleles(sequentiel=False, doublons=True, arrivee=False, sans_await=False, avale=False, dormir=False,
+                synchrone=False, asyncio_run=False):
+    async def scores_en_parallele(service, client_ids):
+        uniques = list(dict.fromkeys(client_ids)) if doublons else list(client_ids)
+        if dormir:
+            time.sleep(0.01)
+        if sans_await:
+            return {c: service.score(c) for c in uniques}
+        try:
+            if sequentiel:
+                return {c: await service.score(c) for c in uniques}
+            if arrivee:
+                async def avec_id(c):
+                    return c, await service.score(c)
+                return dict([await t for t in asyncio.as_completed([avec_id(c) for c in uniques])])
+            scores = await asyncio.gather(*(service.score(c) for c in uniques))
+            return dict(zip(uniques, scores))
+        except KeyError:
+            if avale:
+                return {}
+            raise
+
+    if synchrone:
+        def scores_synchrones(service, client_ids):
+            if asyncio_run:
+                return asyncio.run(scores_en_parallele(service, client_ids))
+            return {}
+        return scores_synchrones
+    return scores_en_parallele
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_paralleles(sequentiel=True), ("1,6 s", "l'un APRÈS l'autre", "gather")),
+    (_paralleles(doublons=False), ("C003 a été demandé 2 fois", "dict.fromkeys")),
+    (_paralleles(arrivee=True), ("dans l'ordre de la liste reçue", "as_completed")),
+    (_paralleles(sans_await=True), ("Il manque un `await`",)),
+    (_paralleles(avale=True), ("Laissez l'erreur remonter",)),
+    (_paralleles(dormir=True), ("time.sleep()", "BLOQUE toute la boucle", "asyncio.sleep")),
+    (_paralleles(synchrone=True), ("au lieu d'une coroutine", "async def")),
+    (_paralleles(synchrone=True, asyncio_run=True), ("n'appelez pas asyncio.run()",)),
+])
+def test_serie_16_gather_erreurs_classiques(mutant, mots):
+    _echec_16("scores_en_parallele", mutant, *mots)
+
+
+# Défi 99 : délai maximal
+
+
+def _delai(mode="wait_for", attrape=TimeoutError, ou=False, valide=True):
+    async def score_ou_defaut(service, client_id, delai, defaut=None):
+        if valide and not delai > 0:
+            raise ValueError("délai")
+        try:
+            if mode == "wait_for":
+                score = await asyncio.wait_for(service.score(client_id), timeout=delai)
+            elif mode == "timeout":
+                async with asyncio.timeout(delai):
+                    score = await service.score(client_id)
+            elif mode == "direct":
+                score = await service.score(client_id)
+            elif mode in ("wait", "wait_annule"):
+                tache = asyncio.create_task(service.score(client_id))
+                finies, _ = await asyncio.wait({tache}, timeout=delai)
+                if not finies:
+                    if mode == "wait_annule":
+                        tache.cancel()
+                    raise TimeoutError
+                score = tache.result()
+            elif mode == "dormir_puis_regarder":
+                tache = asyncio.create_task(service.score(client_id))
+                await asyncio.sleep(delai)
+                if not tache.done():
+                    tache.cancel()
+                    raise TimeoutError
+                score = tache.result()
+            return score or defaut if ou else score
+        except attrape:
+            return defaut
+
+    return score_ou_defaut
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_delai(mode="direct"), ("a attendu la réponse lente", "wait_for")),
+    (_delai(mode="wait"), ("tourne ENCORE en arrière-plan", "tache.cancel()")),
+    (_delai(mode="dormir_puis_regarder"), ("attend toujours la fin du délai",)),
+    (_delai(attrape=Exception), ("SEUL le dépassement du délai", "pas Exception")),
+    (_delai(attrape=KeyError), ("laisse remonter TimeoutError",)),
+    (_delai(ou=True), ("0.0 est un VRAI score", "score or defaut")),
+    (_delai(valide=False), ("delai=0", "ValueError")),
+])
+def test_serie_16_delai_erreurs_classiques(mutant, mots):
+    _echec_16("score_ou_defaut", mutant, *mots)
+
+
+def test_serie_16_delai_autres_ecritures_justes_acceptees():
+    for juste in (_delai(mode="timeout"), _delai(mode="wait_annule"), _delai(attrape=asyncio.TimeoutError)):
+        assert _evaluer("score_ou_defaut", juste).statut == REUSSI
+
+
+def test_serie_16_le_vrai_sleep_est_restaure():
+    vrai = time.sleep
+    _evaluer("scores_en_parallele", _paralleles(dormir=True))
+    assert time.sleep is vrai
+
+
+# Défi 100 : Semaphore
+
+
+def _campagne(limite="semaphore", erreurs="return_exceptions", dedoublonner=True, garder="exception", valide=True,
+              ordre=True):
+    async def envoyer_campagne(operateur, clients, texte, max_simultanes=10):
+        if valide and max_simultanes < 1:
+            raise ValueError("max_simultanes")
+        uniques = list(dict.fromkeys(clients)) if dedoublonner else list(clients)
+        places = asyncio.Semaphore(10 if limite == "dix" else max(max_simultanes, 0))
+        envoyes, echecs = {}, {}
+
+        def noter(client_id, resultat):
+            if isinstance(resultat, Exception):
+                echecs[client_id] = resultat if garder == "exception" else str(resultat)
+            else:
+                envoyes[client_id] = resultat
+
+        async def envoyer_un(client_id):
+            if limite is None:
+                resultat = await operateur.envoyer(client_id, texte)
+            else:
+                async with places:
+                    resultat = await operateur.envoyer(client_id, texte)
+            return resultat
+
+        async def envoyer_et_noter(client_id):
+            try:
+                noter(client_id, await envoyer_un(client_id))
+            except Exception as exc:
+                noter(client_id, exc)
+
+        if limite == "sequentiel":
+            resultats = []
+            for client_id in uniques:
+                try:
+                    resultats.append(await operateur.envoyer(client_id, texte))
+                except Exception as exc:
+                    resultats.append(exc)
+        elif limite == "paquets":
+            resultats = []
+            for i in range(0, len(uniques), max_simultanes):
+                paquet = uniques[i:i + max_simultanes]
+                resultats += await asyncio.gather(*(operateur.envoyer(c, texte) for c in paquet),
+                                                  return_exceptions=True)
+        elif not ordre:
+            await asyncio.gather(*(envoyer_et_noter(c) for c in uniques))
+            return envoyes, echecs
+        else:
+            resultats = await asyncio.gather(*(envoyer_un(c) for c in uniques),
+                                             return_exceptions=erreurs == "return_exceptions")
+        for client_id, resultat in zip(uniques, resultats):
+            noter(client_id, resultat)
+        return envoyes, echecs
+
+    return envoyer_campagne
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_campagne(limite=None), ("refusé", "Surcharge", "asyncio.Semaphore(max_simultanes)")),
+    (_campagne(limite="sequentiel"), ("un par un",)),
+    (_campagne(limite="paquets"), ("PAQUETS", "le plus lent")),
+    (_campagne(limite="dix"), ("max_simultanes=3", "Respectez le paramètre")),
+    (_campagne(erreurs="propager"), ("arrêté TOUTE la campagne", "return_exceptions=True")),
+    (_campagne(dedoublonner=False), ("C001 a reçu 2 SMS", "dict.fromkeys")),
+    (_campagne(garder="texte"), ("Gardez l'EXCEPTION",)),
+    (_campagne(ordre=False), ("dans l'ordre de la liste `clients`",)),
+    (_campagne(valide=False), ("max_simultanes=0", "ValueError")),
+])
+def test_serie_16_campagne_erreurs_classiques(mutant, mots):
+    _echec_16("envoyer_campagne", mutant, *mots)
+
+
+# Défi 101 : Lock
+
+
+def _cache(verrou=True, double=True, marge_fixe=None, horloge="boucle", verrou_de_classe=False, sans_finally=False,
+           avec_marge=True, garder=True, couple=False, avale=False, expiration_avant=False, synchrone=False):
+    def maintenant():
+        return asyncio.get_running_loop().time() if horloge == "boucle" else time.monotonic()
+
+    class CacheJeton:
+        _verrou_commun = asyncio.Lock() if verrou_de_classe else None
+
+        def __init__(self, serveur, marge=60.0):
+            self.serveur = serveur
+            self.marge = marge if marge_fixe is None else marge_fixe
+            self._jeton, self._expire_a = None, float("-inf")
+            self._verrou = self._verrou_commun if verrou_de_classe else asyncio.Lock()
+
+        def _valable(self):
+            limite = self._expire_a - (self.marge if avec_marge else 0.0)
+            if expiration_avant:
+                return maintenant() < limite
+            return garder and self._jeton is not None and maintenant() < limite
+
+        async def _renouveler(self):
+            debut = maintenant()
+            if expiration_avant:
+                self._expire_a = debut + 3600.0
+            try:
+                jeton, duree = await self.serveur.nouveau_jeton()
+            except ServiceIndisponible:
+                if avale:
+                    return None
+                raise
+            self._jeton, self._expire_a = (jeton, duree) if couple else jeton, debut + duree
+
+        async def _jeton_async(self):
+            if self._valable():
+                return self._jeton
+            if not verrou:
+                await self._renouveler()
+                return self._jeton
+            if sans_finally:
+                await self._verrou.acquire()
+                if not double or not self._valable():
+                    await self._renouveler()
+                self._verrou.release()
+                return self._jeton
+            async with self._verrou:
+                if not double or not self._valable():
+                    await self._renouveler()
+                return self._jeton
+
+        if synchrone:
+            def jeton(self):
+                return "jeton-1"
+        else:
+            async def jeton(self):
+                return await self._jeton_async()
+
+    return CacheJeton
+
+
+def _cache_tache_partagee():
+    """Toutes les tâches attendent la MÊME demande (une tâche partagée)… qui reste en échec pour toujours."""
+
+    class CacheJeton:
+        def __init__(self, serveur, marge=60.0):
+            self.serveur, self.marge = serveur, marge
+            self._demande, self._expire_a = None, float("-inf")
+
+        async def _demander(self):
+            debut = asyncio.get_running_loop().time()
+            jeton, duree = await self.serveur.nouveau_jeton()
+            self._expire_a = debut + duree
+            return jeton
+
+        async def jeton(self):
+            perime = asyncio.get_running_loop().time() >= self._expire_a - self.marge
+            if self._demande is None or (perime and self._demande.done() and self._demande.exception() is None):
+                self._demande = asyncio.ensure_future(self._demander())
+            return await asyncio.shield(self._demande)
+
+    return CacheJeton
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_cache(verrou=False), ("demandes au lieu d'une", "asyncio.Lock()")),
+    (_cache(double=False), ("l'une APRÈS l'autre", "double vérification")),
+    (_cache(marge_fixe=60.0), ("pas 60 écrit en dur",)),
+    (_cache(horloge="monotonic"), ("t = 3700 s", "asyncio.get_running_loop().time()")),
+    (_cache(verrou_de_classe=True), ("CLASSE",)),
+    (_cache(sans_finally=True), ("le verrou n'a jamais été rendu", "async with")),
+    (_cache(avec_marge=False), ("t = 3550 s", "MAINTENANT")),
+    (_cache(garder=False), ("demandes",)),
+    (_cache(couple=True), ("ne renvoyez que le jeton",)),
+    (_cache(avale=True), ("Laissez l'erreur remonter",)),
+    (_cache(expiration_avant=True), ("49 appels ont reçu None", "AVANT d'avoir la réponse")),
+    (_cache_tache_partagee(), ("rien ne doit rester en cache", "Future")),
+    (_cache(synchrone=True), ("async def jeton(self)",)),
+])
+def test_serie_16_jeton_erreurs_classiques(mutant, mots):
+    _echec_16("CacheJeton", mutant, *mots)
+
+
+# Défi 102 : le premier qui répond
+
+
+def _premier(mode="as_completed", annuler=True, tous_echouent="relancer", valide=True):
+    async def premier_qui_repond(serveurs, client_id):
+        if valide and not serveurs:
+            raise ValueError("aucun serveur")
+        if mode == "sequentiel":
+            derniere = None
+            for serveur in serveurs:
+                try:
+                    return await serveur.score(client_id)
+                except Exception as exc:
+                    derniere = exc
+            raise derniere
+        if mode == "gather":
+            resultats = await asyncio.gather(*(s.score(client_id) for s in serveurs), return_exceptions=True)
+            bons = [r for r in resultats if not isinstance(r, Exception)]
+            if bons:
+                return bons[0]
+            raise resultats[0]
+        if mode == "wait_coroutines":
+            finies, _ = await asyncio.wait([s.score(client_id) for s in serveurs],
+                                           return_when=asyncio.FIRST_COMPLETED)
+            return finies.pop().result()
+        taches = [asyncio.create_task(s.score(client_id)) for s in serveurs]
+        try:
+            if mode == "liste":
+                derniere = None
+                for tache in taches:
+                    try:
+                        return await tache
+                    except Exception as exc:
+                        derniere = exc
+                raise derniere
+            if mode == "premiere_finie":
+                finies, _ = await asyncio.wait(taches, return_when=asyncio.FIRST_COMPLETED)
+                return finies.pop().result()
+            if mode == "wait_boucle":
+                en_attente, derniere = set(taches), None
+                while en_attente:
+                    finies, en_attente = await asyncio.wait(en_attente, return_when=asyncio.FIRST_COMPLETED)
+                    for tache in finies:
+                        if tache.exception() is None:
+                            return tache.result()
+                        derniere = tache.exception()
+                raise derniere
+            derniere = None
+            for prochaine in asyncio.as_completed(taches):
+                try:
+                    return await prochaine
+                except Exception as exc:
+                    derniere = exc
+            if tous_echouent == "none":
+                return None
+            if tous_echouent == "autre":
+                raise RuntimeError("tous les serveurs sont en panne")
+            raise derniere
+        finally:
+            if annuler:
+                for tache in taches:
+                    tache.cancel()
+
+    return premier_qui_repond
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_premier(mode="gather"), ("attend les 3 réponses", "as_completed")),
+    (_premier(mode="sequentiel"), ("n'ont pas été interrogés", "en même temps")),
+    (_premier(mode="liste"), ("premier serveur DE LA LISTE",)),
+    (_premier(annuler=False), ("travaille encore pour rien", "tache.cancel()")),
+    (_premier(mode="premiere_finie"), ("Une erreur n'est pas une réponse",)),
+    (_premier(tous_echouent="none"), ("Levez une erreur",)),
+    (_premier(tous_echouent="autre"), ("Levez l'une des erreurs reçues",)),
+    (_premier(valide=False), ("liste de serveurs vide", "ValueError")),
+    (_premier(mode="wait_coroutines"), ("TÂCHES", "asyncio.create_task")),
+])
+def test_serie_16_premier_erreurs_classiques(mutant, mots):
+    _echec_16("premier_qui_repond", mutant, *mots)
+
+
+def test_serie_16_premier_variante_asyncio_wait_acceptee():
+    assert _evaluer("premier_qui_repond", _premier(mode="wait_boucle")).statut == REUSSI
+
+
+# Défi 103 : Queue et travailleurs
+
+
+def _scorer(mode="taskgroup", borne=True, fin="sentinelles", travailleurs_en_plus=0, valide=True):
+    async def scorer_tout(pages, service, nb_travailleurs=4, max_en_attente=20):
+        if valide and (nb_travailleurs < 1 or max_en_attente < 1):
+            raise ValueError("paramètres")
+        scores = {}
+        if mode == "tout_lire":
+            ids = [c async for page in pages for c in page]
+            places = asyncio.Semaphore(nb_travailleurs)
+
+            async def un(c):
+                async with places:
+                    scores[c] = await service.score(c)
+            async with asyncio.TaskGroup() as groupe:
+                for c in ids:
+                    groupe.create_task(un(c))
+            return scores
+        if mode == "paquets":
+            async for page in pages:
+                for i in range(0, len(page), nb_travailleurs):
+                    paquet = page[i:i + nb_travailleurs]
+                    for c, s in zip(paquet, await asyncio.gather(*(service.score(c) for c in paquet))):
+                        scores[c] = s
+            return scores
+        if mode == "semaphore_en_lisant":  # une autre écriture juste : une place obtenue AVANT de prendre le client
+            places = asyncio.Semaphore(nb_travailleurs)
+
+            async def un(c):
+                try:
+                    scores[c] = await service.score(c)
+                finally:
+                    places.release()
+            async with asyncio.TaskGroup() as groupe:
+                async for page in pages:
+                    for c in page:
+                        await places.acquire()
+                        groupe.create_task(un(c))
+            return scores
+        file = asyncio.Queue(maxsize=max_en_attente if borne else 0)
+        FIN = object()
+        n = nb_travailleurs + travailleurs_en_plus
+
+        async def lire(sentinelles=fin == "sentinelles"):
+            async for page in pages:
+                for c in page:
+                    await file.put(c)
+            if sentinelles:
+                for _ in range(n):
+                    await file.put(FIN)
+
+        async def travailleur():
+            while True:
+                c = await file.get()
+                try:
+                    if c is FIN:
+                        return
+                    scores[c] = await service.score(c)
+                finally:
+                    file.task_done()
+
+        if mode == "taskgroup":
+            async with asyncio.TaskGroup() as groupe:
+                groupe.create_task(lire())
+                for _ in range(n):
+                    groupe.create_task(travailleur())
+            return scores
+        if mode == "join":
+            async def travailleur_join():  # task_done() seulement après un succès : le piège
+                while True:
+                    c = await file.get()
+                    scores[c] = await service.score(c)
+                    file.task_done()
+            taches = [asyncio.create_task(travailleur_join()) for _ in range(n)]
+            await lire(sentinelles=False)
+            await file.join()
+            for tache in taches:
+                tache.cancel()
+            return scores
+        if mode == "join_dans_taskgroup":
+            async with asyncio.TaskGroup() as groupe:
+                taches = [groupe.create_task(travailleur()) for _ in range(n)]
+                await lire(sentinelles=False)
+                await file.join()
+                for tache in taches:
+                    tache.cancel()
+            return scores
+        if mode == "gather":
+            await asyncio.gather(lire(), *(travailleur() for _ in range(n)))
+            return scores
+
+    return scorer_tout
+
+
+@pytest.mark.parametrize("mutant,mots", [
+    (_scorer(borne=False), ("clients déjà lus attendaient", "maxsize")),
+    (_scorer(mode="tout_lire"), ("clients déjà lus attendaient",)),
+    (_scorer(mode="paquets"), ("Des travailleurs restent sans rien faire",)),
+    (_scorer(fin="aucune"), ("ne se termine JAMAIS", "signal de fin")),
+    (_scorer(mode="join"), ("Quand le service lève ServiceIndisponible pour C013", "ne se termine JAMAIS", "TaskGroup")),
+    (_scorer(mode="gather"), ("tournent encore derrière vous", "TaskGroup")),
+    (_scorer(travailleurs_en_plus=1), ("jusqu'à 5 appels", "nb_travailleurs=4")),
+    (_scorer(valide=False), ("nb_travailleurs=0", "ValueError")),
+])
+def test_serie_16_scorer_tout_erreurs_classiques(mutant, mots):
+    _echec_16("scorer_tout", mutant, *mots)
+
+
+def test_serie_16_scorer_tout_autres_ecritures_justes_acceptees():
+    for mode in ("semaphore_en_lisant", "join_dans_taskgroup"):
+        resultat = _evaluer("scorer_tout", _scorer(mode=mode))
+        assert resultat.statut == REUSSI, (mode, resultat.message)
+
+
+@pytest.mark.parametrize("nom,fabrique", [("scores_en_parallele", _paralleles), ("score_ou_defaut", _delai),
+                                          ("envoyer_campagne", _campagne), ("CacheJeton", _cache),
+                                          ("premier_qui_repond", _premier), ("scorer_tout", _scorer)])
+def test_serie_16_sans_defaut_les_fabriques_de_mutants_sont_justes(nom, fabrique):
+    """Garde-fou : chaque version boguée ci-dessus ne diffère du juste que par le défaut qu'on teste."""
+    resultat = _evaluer(nom, fabrique())
+    assert resultat.statut == REUSSI, resultat.message
+
+
+def test_serie_16_les_tests_du_corrige_passent():
+    import defis.corrige_serie_16 as corrige
+
+    tests = [f for nom, f in vars(corrige).items() if nom.startswith("test_")]
+    assert len(tests) >= 6
+    for test in tests:
+        test()
+
+
+def test_serie_16_le_fichier_eleve_reexporte_les_outils_communs():
+    import defis.concurrence as concurrence
+    import defis.serie_16 as eleve
+
+    for nom in ("SCORES_EXEMPLE", "Interblocage", "NumeroInvalide", "OperateurSMS", "Pages", "ServeurAuth",
+                "ServiceIndisponible", "ServiceScores", "Surcharge", "essayer", "service_exemple"):
+        assert getattr(eleve, nom) is getattr(concurrence, nom), nom
+
+
+def test_serie_16_les_exemples_des_docstrings_sont_justes(capsys):
+    """Les exemples de defis/serie_16.py et de defis/concurrence.py, rejoués avec le corrigé."""
+    from defis.corrige_serie_16 import (CacheJeton, envoyer_campagne, essayer, premier_qui_repond, score_ou_defaut,
+                                        scorer_tout, scores_en_parallele, service_exemple)
+
+    duree = "⏱️  {} s (horloge virtuelle : rien n'a vraiment attendu)"
+
+    def affiche(*durees):
+        assert capsys.readouterr().out.splitlines() == [duree.format(d) for d in durees]
+
+    service = service_exemple()
+    assert essayer(service.score("C001")) == 0.82
+    assert essayer(scores_en_parallele(service, ["C001", "C002", "C003"])) == {"C001": 0.82, "C002": 0.15,
+                                                                               "C003": 0.47}
+    affiche("0,2", "0,2")
+    assert essayer(ServiceScores(latence=0.2).score("C005")) == 0.0
+    affiche("0,2")
+
+    service = service_exemple()
+    assert essayer(scores_en_parallele(service, ["C001", "C004", "C001"])) == {"C001": 0.82, "C004": 0.91}
+    assert (len(service.appels), service.max_en_cours) == (2, 2)
+    assert essayer(score_ou_defaut(service_exemple(latence=0.2), "C001", delai=1.0)) == 0.82
+    assert essayer(score_ou_defaut(service_exemple(latence=30.0), "C001", delai=1.0, defaut=0.5)) == 0.5
+    affiche("0,2", "0,2", "1")
+
+    operateur = OperateurSMS(max_simultanes=3, invalides={"C002"})
+    envoyes, echecs = essayer(envoyer_campagne(operateur, list(SCORES_EXEMPLE), "Offre fidélité", 3))
+    assert repr(echecs) == "{'C002': NumeroInvalide('numéro de téléphone invalide pour C002')}"
+    assert (len(envoyes), operateur.max_en_cours, operateur.refus) == (7, 3, [])
+    affiche("0,6")
+
+    serveur = ServeurAuth(latence=0.5)
+
+    async def cinquante_appels():
+        cache = CacheJeton(serveur)
+        return await asyncio.gather(*(cache.jeton() for _ in range(50)))
+
+    assert set(essayer(cinquante_appels())) == {"jeton-1"} and len(serveur.demandes) == 1
+    affiche("0,5")
+
+    paris = ServiceScores(latence=0.3, nom="paris")
+    francfort = ServiceScores(latence=0.1, nom="francfort")
+    dublin = ServiceScores(latence=0.5, nom="dublin")
+    assert essayer(premier_qui_repond([paris, francfort, dublin], "C004")) == 0.91
+    affiche("0,1")
+
+    ids = [f"C{n:03d}" for n in range(1, 21)]
+    service = ServiceScores({c: 0.5 for c in ids}, latence=0.2)
+    pages = Pages(ids, taille=5, service=service)
+    scores = essayer(scorer_tout(pages, service, nb_travailleurs=4, max_en_attente=5))
+    assert (len(scores), service.max_en_cours, max(avance for _, avance in pages.demandes)) == (20, 4, 5)
+    affiche("1,1")
+
+    pages = Pages(["C001", "C002", "C003", "C004", "C005"], taille=2)
+
+    async def tout_lire():
+        return [page async for page in pages]
+
+    assert essayer(tout_lire()) == [["C001", "C002"], ["C003", "C004"], ["C005"]]
+    affiche("0,4")
+
+
+def test_serie_16_essayer_signale_les_taches_oubliees_et_les_interblocages(capsys):
+    from defis.concurrence import essayer
+
+    lent = ServiceScores(latence=5.0)
+
+    async def oublie_une_tache():
+        asyncio.create_task(lent.score("C001"))
+        await asyncio.sleep(0.1)
+        return "fini"
+
+    assert essayer(oublie_une_tache()) == "fini"
+    sortie = capsys.readouterr().out
+    assert "0,1 s" in sortie and "1 tâche(s) tournaient encore" in sortie
+    assert lent.annules == ["C001"]
+
+    async def attend_pour_toujours():
+        await asyncio.Queue().get()
+
+    with pytest.raises(Interblocage):
+        essayer(attend_pour_toujours())
+    assert "Interblocage" in capsys.readouterr().out
+
+
+def test_serie_16_l_horloge_virtuelle_ne_touche_pas_a_la_boucle_courante():
+    """Le correcteur crée ses propres boucles : il ne doit ni en laisser une ouverte, ni en installer une."""
+    for mutant in (_paralleles(sans_await=True), _paralleles(synchrone=True, asyncio_run=True)):
+        _evaluer("scores_en_parallele", mutant)
+    _evaluer("scorer_tout", _scorer(mode="gather"))
+    _evaluer("scorer_tout", _scorer(mode="join"))
+    with pytest.raises(RuntimeError):
+        asyncio.get_running_loop()
+    resultat, duree = executer(asyncio.sleep(3600, result="ok"))
+    assert (resultat, duree) == ("ok", 3600.0)

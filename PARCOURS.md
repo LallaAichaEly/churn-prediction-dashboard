@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 97 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_15.py`, corrigés par
+> [défis](defis/README.md) : 103 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_16.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -64,11 +64,17 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > cette nuit ? » : configuration lue dans l'environnement, journal plutôt que `print`, reprises avec attente
 > exponentielle, envoi à 10 h heure de Paris sur un serveur en UTC, fichier de scores jamais laissé à moitié écrit,
 > disjoncteur. Faites-la avant l'exercice 6.4 : une API en production a besoin de tout cela dès le premier jour.
-> Pour finir, la série 15 (`defis/serie_15.py`, défis 92 à 97) vous fait ÉCRIRE dans une base partagée, là où la
+> Puis la série 15 (`defis/serie_15.py`, défis 92 à 97) vous fait ÉCRIRE dans une base partagée, là où la
 > série 10 la lisait : transaction tout ou rien, pages de clients par curseur, factures de 500 clients en une
 > requête, migrations du schéma, deux conseillers sur la même fiche (verrou optimiste) et plusieurs travailleurs sur
 > la même file de SMS. Faites-la avant de donner une vraie base à l'API de l'exercice 6.4 : c'est là que vivent les
 > bogues qui n'apparaissent qu'à plusieurs.
+> Pour finir, la série 16 (`defis/serie_16.py`, défis 98 à 103) vous apprend à faire plusieurs choses à la fois avec `asyncio` :
+> 8 scores demandés ensemble (`gather`), une réponse jamais attendue plus d'une seconde (et l'appel lent annulé), 500 SMS
+> envoyés 10 par 10 (`Semaphore`), un seul jeton d'accès pour 50 tâches (`Lock`), le plus rapide de 3 serveurs, et un
+> lecteur de pages avec 4 travailleurs qui ne déborde jamais (`Queue`, `TaskGroup`). Le correcteur mesure vos durées sur
+> une horloge virtuelle et repère les tâches oubliées et les programmes figés. Faites-la avant l'exercice 6.4 : FastAPI
+> est un programme asyncio, et une route `async def` qui appelle un autre service, c'est exactement ça.
 
 ---
 
