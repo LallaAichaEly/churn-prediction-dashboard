@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 145 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_23.py`, corrigés par
+> [défis](defis/README.md) : 151 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_24.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -113,13 +113,19 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > sur des probabilités hors pli. Les défis 134 et 138 sont la forme « industrielle » de l'exercice 2.5 (une fuite
 > qu'un Pipeline empêche… si la brique respecte le contrat), le défi 135 prépare l'exercice 3.5, et les défis 136 et
 > 139 font de l'exercice 4.3 un vrai réglage de modèle.
-> Enfin, la série 23 (`defis/serie_23.py`, défis 140 à 145) ouvre la boîte noire : vous recodez avec NumPy la
+> Puis la série 23 (`defis/serie_23.py`, défis 140 à 145) ouvre la boîte noire : vous recodez avec NumPy la
 > régression logistique (une sigmoïde qui ne déborde jamais, la perte calculée à partir des scores, le gradient vérifié
 > par différences finies, la descente de gradient) puis l'arbre de décision (la meilleure coupure de Gini en
 > O(n log n), la récursion). Vos coefficients doivent être ceux de `LogisticRegression`, vos arbres ceux de
 > `DecisionTreeClassifier`. Faites-la avant l'exercice 3.3 : quand on a écrit soi-même les deux modèles, on voit
 > pourquoi le modèle linéaire gagne sur des données générées par une formule linéaire. Le défi 141 éclaire aussi
 > l'exercice 4.2 (la log-loss punit un modèle sûr de lui et faux, l'accuracy ne le voit pas).
+> Enfin, la série 24 (`defis/serie_24.py`, défis 146 à 151) organise ce que `scripts/train.py` fait d'un bloc en
+> un traitement de nuit à plusieurs étapes, comme Airflow ou `make` : dans quel ordre les lancer, quoi relancer après
+> une correction (seulement ce qui en dépend), où est le cycle qui bloque tout, comment
+> continuer quand une étape plante, et combien de temps dure la nuit sur une ou plusieurs machines. Faites-la avant le
+> [projet 5](projets/README.md#projet-5--réentraîner-le-modèle-sans-casser-la-production) : son réentraînement
+> mensuel est exactement un tel enchaînement d'étapes.
 
 ---
 
