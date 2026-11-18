@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 187 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_30.py`, corrigés par
+> [défis](defis/README.md) : 193 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_31.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -165,11 +165,20 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > table produite n'a pas changé, sans se laisser tromper par un NaN, un 0.1 + 0.2 ou un ordre de lignes différent, et
 > en voyant le code postal « 01000 » devenu 1000. Le défi 181 fusionne deux versions de la configuration du modèle
 > (le seuil d'Inès, les variables de Malik) clé par clé.
-> Enfin, la série 30 (`defis/serie_30.py`, défis 182 à 187) ouvre une source que le modèle n'utilise pas encore : les
+> Puis la série 30 (`defis/serie_30.py`, défis 182 à 187) ouvre une source que le modèle n'utilise pas encore : les
 > notes libres des conseillers. Vous y écrivez une barre de recherche complète (index inversé, recherche qui ne lit
 > presque rien, autocomplétion, surlignage, classement BM25, meilleur extrait). Elle prolonge l'exercice 5.1 (lire les
 > notes des clients à risque pour comprendre POURQUOI ils partent, au-delà des variables du modèle) et l'exercice 6.4 :
 > une route `GET /notes/recherche?q=…` qui appelle `rechercher` puis `classer` est une bonne extension de l'API.
+> Enfin, la série 31 (`defis/serie_31.py`, défis 188 à 193) transforme le modèle en ACTION. Dans `_churn_logit`, chaque
+> produit en plus retire 0,25 au logit du churn : proposer la bonne option à un client à risque est une action de
+> rétention. Vous y écrivez un moteur de recommandation complet (cooccurrences, règles d'association, recommandation
+> avec plan B, découpage dans le temps, précision@k / rappel@k / NDCG@k, diversification). Elle répond en partie à
+> l'auto-évaluation du module 5 (« quelles actions de rétention proposeriez-vous ? ») : une colonne « offre à
+> proposer » dans l'onglet « Clients à risque » est une bonne extension du tableau de bord, et une route
+> `GET /clients/{id}/offres` qui appelle `recommander`, une bonne extension de l'API (exercice 6.4). Son défi 192 reprend
+> l'auto-évaluation du module 4 : « rappel de 63 % » ne veut rien dire si l'on a oublié les clients pour qui on n'a
+> rien proposé.
 
 ---
 
