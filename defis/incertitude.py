@@ -173,10 +173,14 @@ def puissance_simulee(n: int, p_temoin: float, p_offre: float, alpha: float = 0.
     deux proportions (bilatéral, variance commune) au niveau `alpha`. C'est la PUISSANCE : la chance de
     conclure « l'offre marche » quand elle marche vraiment (de p_temoin à p_offre).
 
-        >>> round(puissance_simulee(1251, 0.30, 0.25), 2)
-        0.8
-        >>> round(puissance_simulee(300, 0.30, 0.25), 2)    # 4 fois moins de clients : un test sur quatre voit l'effet
-        0.28
+        >>> 0.78 < puissance_simulee(1251, 0.30, 0.25) < 0.82   # ≈ 0,80
+        True
+        >>> 0.26 < puissance_simulee(300, 0.30, 0.25) < 0.30    # 4 fois moins de clients : un test sur quatre voit l'effet
+        True
+
+    Le résultat exact (0,8035 ou 0,8058…) dépend de la version de NumPy : à graine égale, NumPy ne
+    garantit pas les mêmes tirages d'une version à l'autre. On vérifie donc un intervalle (± 3 écarts-types
+    de la simulation, √(0,8 × 0,2 / 4 000) ≈ 0,006), jamais une valeur arrondie à 2 décimales.
     """
     rng = np.random.default_rng(graine)
     departs_t = rng.binomial(n, p_temoin, n_experiences)

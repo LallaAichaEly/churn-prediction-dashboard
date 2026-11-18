@@ -198,8 +198,8 @@ def taille_echantillon(p_temoin: float, baisse: float, alpha: float = 0.05, puis
         1251
         >>> taille_echantillon(0.30, 0.10)            # un effet 2 fois plus grand : 4 fois moins de clients
         294
-        >>> round(puissance_simulee(1251, 0.30, 0.25), 2)   # vérifié sur 4 000 expériences simulées
-        0.8
+        >>> 0.78 < puissance_simulee(1251, 0.30, 0.25) < 0.82   # vérifié sur 4 000 expériences simulées : ≈ 0,80
+        True
 
     Les règles :
 
