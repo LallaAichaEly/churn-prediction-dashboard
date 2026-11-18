@@ -654,7 +654,7 @@ def test_le_fichier_eleve_est_a_faire_et_le_corrige_reussit():
     assert [r.statut for r in evaluer(SERIE)] == [A_FAIRE] * 6
     assert [r.statut for r in evaluer(SERIE, corrige=True)] == [REUSSI] * 6
     assert [d.numero for d in SERIE.defis] == list(range(200, 206))
-    assert series()[-1] is SERIE
+    assert any(s is SERIE for s in series())            # enregistrée dans defis/verif.py
 
 
 def test_les_exemples_des_docstrings_sont_justes(monkeypatch):

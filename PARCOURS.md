@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 205 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_33.py`, corrigés par
+> [défis](defis/README.md) : 211 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_34.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -186,7 +186,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > Elle prolonge l'exercice 5.4 (un filtre par segment plutôt que par contrat dans la barre latérale) et l'auto-évaluation
 > du module 5 : trois actions de rétention, une par segment, chiffres à l'appui (`decrire_segments` donne la taille,
 > le taux de churn et ce qui distingue chaque segment, dans les unités du métier).
-> Enfin, la série 33 (`defis/serie_33.py`, défis 200 à 205) passe de QUI va partir à COMBIEN, et quand : le centre
+> Puis la série 33 (`defis/serie_33.py`, défis 200 à 205) passe de QUI va partir à COMBIEN, et quand : le centre
 > d'appels doit recruter ses conseillers trois mois à l'avance. Vous y écrivez une prévision qu'on peut défendre (la
 > référence naïve « comme l'an dernier », quatre mesures d'erreur, le lissage exponentiel et Holt, la validation à
 > origine glissante, une marge tirée des erreurs passées). Son défi 201 prolonge l'exercice 4.2 (une seule mesure
@@ -195,6 +195,14 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > qu'avec le passé), et son défi 205 l'exercice 4.3 (passer d'un chiffre à une décision chiffrée : combien de
 > conseillers, avec quelle marge). Pour aller plus loin : une page « Prévisions » dans le tableau de bord, qui trace
 > les départs mensuels, la prévision et sa borne.
+> Enfin, la série 34 (`defis/serie_34.py`, défis 206 à 211) pose la question qu'on oublie avant de partager ces
+> données : quelqu'un peut-il remettre un nom sur une ligne ? Vous y écrivez l'export minimal et pseudonymisé,
+> l'attaque par recoupement (13 clients sur 20 retrouvés sans nom ni identifiant), l'audit du k-anonymat et de la
+> l-diversité, la généralisation la moins coûteuse, le secret statistique d'un tableau et un budget de
+> confidentialité différentielle. Son défi 208 prolonge l'exercice 1.2 : un `groupby` jette par défaut les lignes où
+> une valeur manque, et ce sont souvent les plus faciles à reconnaître. Pour aller plus loin : l'exercice 1.5 (le vrai
+> jeu Telco) se fait sur des données publiques ; avant de faire la même chose avec celles d'une entreprise, passez
+> l'export par `preparer_export` et `audit`, et notez le k et le l obtenus dans JOURNAL.md.
 
 ---
 
