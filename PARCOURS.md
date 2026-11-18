@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 211 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_34.py`, corrigés par
+> [défis](defis/README.md) : 217 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_35.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -195,7 +195,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > qu'avec le passé), et son défi 205 l'exercice 4.3 (passer d'un chiffre à une décision chiffrée : combien de
 > conseillers, avec quelle marge). Pour aller plus loin : une page « Prévisions » dans le tableau de bord, qui trace
 > les départs mensuels, la prévision et sa borne.
-> Enfin, la série 34 (`defis/serie_34.py`, défis 206 à 211) pose la question qu'on oublie avant de partager ces
+> Puis la série 34 (`defis/serie_34.py`, défis 206 à 211) pose la question qu'on oublie avant de partager ces
 > données : quelqu'un peut-il remettre un nom sur une ligne ? Vous y écrivez l'export minimal et pseudonymisé,
 > l'attaque par recoupement (13 clients sur 20 retrouvés sans nom ni identifiant), l'audit du k-anonymat et de la
 > l-diversité, la généralisation la moins coûteuse, le secret statistique d'un tableau et un budget de
@@ -203,6 +203,15 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > une valeur manque, et ce sont souvent les plus faciles à reconnaître. Pour aller plus loin : l'exercice 1.5 (le vrai
 > jeu Telco) se fait sur des données publiques ; avant de faire la même chose avec celles d'une entreprise, passez
 > l'export par `preparer_export` et `audit`, et notez le k et le l obtenus dans JOURNAL.md.
+> Enfin, la série 35 (`defis/serie_35.py`, défis 212 à 217) revient à la question de départ, mais posée autrement :
+> le modèle dit QUI va partir, pas QUI un appel peut retenir. Vous y écrivez l'effet de l'offre segment par segment,
+> le T-learner, l'issue transformée (une campagne tirée selon le score), la courbe de Qini, le plan de contact en
+> euros et la validation croisée à la main. Son défi 212 prolonge l'exercice 1.2 (un taux par groupe, mais ici la
+> DIFFÉRENCE de deux taux), son défi 215 l'exercice 4.4 (une courbe tirée d'un classement, ex aequo compris), son
+> défi 216 l'exercice 4.3 (le seuil n'est plus une probabilité de départ mais un gain en euros) et son défi 217
+> l'exercice 3.4 (le modèle jugé sur ses propres clients bat la vérité elle-même). Pour aller plus loin : un onglet
+> « Qui appeler ? » dans le tableau de bord, qui trace la courbe de Qini du score et celle du T-learner, et répond à
+> l'auto-évaluation du module 5 (trois actions de rétention) avec les départs évités, pas les départs prédits.
 
 ---
 
