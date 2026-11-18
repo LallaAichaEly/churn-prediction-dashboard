@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 193 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_31.py`, corrigés par
+> [défis](defis/README.md) : 199 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_32.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -170,7 +170,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > presque rien, autocomplétion, surlignage, classement BM25, meilleur extrait). Elle prolonge l'exercice 5.1 (lire les
 > notes des clients à risque pour comprendre POURQUOI ils partent, au-delà des variables du modèle) et l'exercice 6.4 :
 > une route `GET /notes/recherche?q=…` qui appelle `rechercher` puis `classer` est une bonne extension de l'API.
-> Enfin, la série 31 (`defis/serie_31.py`, défis 188 à 193) transforme le modèle en ACTION. Dans `_churn_logit`, chaque
+> Puis la série 31 (`defis/serie_31.py`, défis 188 à 193) transforme le modèle en ACTION. Dans `_churn_logit`, chaque
 > produit en plus retire 0,25 au logit du churn : proposer la bonne option à un client à risque est une action de
 > rétention. Vous y écrivez un moteur de recommandation complet (cooccurrences, règles d'association, recommandation
 > avec plan B, découpage dans le temps, précision@k / rappel@k / NDCG@k, diversification). Elle répond en partie à
@@ -179,6 +179,13 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `GET /clients/{id}/offres` qui appelle `recommander`, une bonne extension de l'API (exercice 6.4). Son défi 192 reprend
 > l'auto-évaluation du module 4 : « rappel de 63 % » ne veut rien dire si l'on a oublié les clients pour qui on n'a
 > rien proposé.
+> Enfin, la série 32 (`defis/serie_32.py`, défis 194 à 199) répond à la question qui suit : on ne peut pas écrire une
+> campagne par client, ni la même pour tous. Vous y écrivez une segmentation complète (standardiser, affecter,
+> k-means, k-means++, silhouette, fiche de chaque segment). Son défi 194 prépare l'exercice 2.1 : on y VOIT ce que fait
+> `StandardScaler`, et pourquoi k-means sans lui range un client récent qui appelle six fois avec les grosses factures.
+> Elle prolonge l'exercice 5.4 (un filtre par segment plutôt que par contrat dans la barre latérale) et l'auto-évaluation
+> du module 5 : trois actions de rétention, une par segment, chiffres à l'appui (`decrire_segments` donne la taille,
+> le taux de churn et ce qui distingue chaque segment, dans les unités du métier).
 
 ---
 
