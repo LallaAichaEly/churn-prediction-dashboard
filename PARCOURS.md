@@ -85,15 +85,22 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 ---
 
-## Module 6 — Industrialiser (`tests/`, déploiement)
+## Module 6 — Industrialiser (`src/churn/api.py`, `tests/`, `.github/`)
 
-**Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
+**Objectifs** : qualité logicielle, reproductibilité, mise en service.
 
-- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
-- [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
-- [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
-- [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
+La base est en place (API, sauvegarde testée, CI). Vos exercices partent de ce code existant :
+c'est la situation la plus courante en entreprise.
+
+- [ ] 🟢 6.1 — Lancez `pytest -q`. Ouvrez les 3 fichiers de `tests/` et dites, pour chaque test, quelle erreur il empêche.
+- [ ] 🟢 6.2 — Lancez l'API (`uvicorn churn.api:app --app-dir src --reload`), ouvrez http://localhost:8000/docs et testez `POST /predict`. Envoyez `"contract": "mensuel"` : que répond l'API, et pourquoi est-ce une bonne chose ?
+- [ ] 🟢 6.3 — Sur GitHub, onglet **Actions** : trouvez la dernière exécution des tests. Sur une branche, cassez volontairement un test, poussez, et observez la CI échouer.
+- [ ] 🟡 6.4 — Relancez `python scripts/train.py --cost-fn 100 --cost-fp 100`, puis l'API : le seuil de `/health` a changé. Expliquez pourquoi, puis lisez `tune_threshold` : pourquoi ne choisit-on pas le seuil sur le jeu de test ?
+- [ ] 🟡 6.5 — Ajoutez une route `GET /model-info` qui renvoie toutes les métriques enregistrées (précision, rappel…). Écrivez son test dans `tests/test_api.py`.
+- [ ] 🟡 6.6 — Ajoutez le linter `ruff` à la CI (`pip install ruff` puis une étape `ruff check .`). Corrigez ce qu'il signale.
+- [ ] 🔴 6.7 — Écrivez un `Dockerfile` qui lance l'API, puis `docker build` et `docker run -p 8000:8000`.
+- [ ] 🔴 6.8 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
+- [ ] 🔴 6.9 — *Data drift* : écrivez `drift_report(reference, current)` qui compare la distribution de chaque variable (ex. test de Kolmogorov-Smirnov avec `scipy.stats.ks_2samp`). Testez-la avec `generate_customers(seed=1)` contre des données dont vous avez modifié les prix.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
 
@@ -109,4 +116,5 @@ ou un entretien.
 
 - Documentation scikit-learn — *User Guide* (pipelines, métriques, inspection)
 - Documentation Streamlit — *Get started*
+- Documentation FastAPI — *Tutorial - User Guide* (excellente, en partie traduite en français)
 - *Hands-On Machine Learning* (A. Géron) — chapitres 2 et 3

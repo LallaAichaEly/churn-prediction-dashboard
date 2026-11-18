@@ -1,0 +1,28 @@
+# Intégration continue : à chaque push et pull request, GitHub installe le projet sur une
+# machine neuve, entraîne les modèles et lance tous les tests. Une croix rouge dans l'onglet
+# « Actions » = quelque chose est cassé, avant même que quelqu'un l'utilise.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+      - name: Entraîner les modèles
+        run: python scripts/train.py
+      - name: Lancer les tests
+        run: pytest -q

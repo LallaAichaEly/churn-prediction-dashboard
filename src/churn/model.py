@@ -29,7 +29,7 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, cross_val_predict, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 
@@ -116,7 +116,21 @@ def best_threshold_by_cost(y_true, proba, cost_fn: float, cost_fp: float) -> flo
     for t in grid:
         m = evaluate(y_true, proba, t)
         costs.append(m.fn * cost_fn + m.fp * cost_fp)
-    return float(grid[int(np.argmin(costs))])
+    return round(float(grid[int(np.argmin(costs))]), 2)  # 0.07 plutôt que 0.06999999999999999
+
+
+def tune_threshold(
+    pipeline: Pipeline, X_train, y_train, cost_fn: float, cost_fp: float, cv: int = 5, seed: int = 42
+) -> float:
+    """Choisit le seuil SANS regarder le jeu de test.
+
+    On obtient des probabilités « hors échantillon » sur le jeu d'entraînement par validation
+    croisée, puis on y cherche le seuil le moins coûteux. Choisir le seuil directement sur le
+    jeu de test donnerait une estimation trop optimiste : le test servirait deux fois.
+    """
+    folds = StratifiedKFold(n_splits=cv, shuffle=True, random_state=seed)
+    oof = cross_val_predict(pipeline, X_train, y_train, cv=folds, method="predict_proba")[:, 1]
+    return best_threshold_by_cost(y_train, oof, cost_fn, cost_fp)
 
 
 def feature_importance(pipeline: Pipeline, X_test, y_test, seed: int = 42) -> pd.DataFrame:
@@ -136,23 +150,52 @@ def feature_importance(pipeline: Pipeline, X_test, y_test, seed: int = 42) -> pd
     )
 
 
-def train(df: pd.DataFrame, model_name: str = "logistic", use_engineered: bool = False, seed: int = 42):
-    """Entraîne et évalue. Retourne (pipeline, X_test, y_test, proba_test, metrics)."""
+def train(
+    df: pd.DataFrame,
+    model_name: str = "logistic",
+    use_engineered: bool = False,
+    seed: int = 42,
+    costs: tuple[float, float] | None = None,
+):
+    """Entraîne et évalue. Retourne (pipeline, X_test, y_test, proba_test, metrics).
+
+    Sans `costs`, les métriques sont calculées au seuil 0,5. Avec `costs=(coût_FN, coût_FP)`,
+    le seuil est d'abord choisi par `tune_threshold` sur le jeu d'entraînement, puis les
+    métriques du jeu de test sont calculées à ce seuil (évaluation honnête).
+    """
     X_train, X_test, y_train, y_test = split(df, seed=seed)
     pipeline = build_pipeline(model_name, use_engineered, seed)
+    threshold = 0.5
+    if costs is not None:
+        threshold = tune_threshold(pipeline, X_train, y_train, *costs, seed=seed)
     pipeline.fit(X_train, y_train)
     proba = pipeline.predict_proba(X_test)[:, 1]
-    return pipeline, X_test, y_test, proba, evaluate(y_test, proba)
+    return pipeline, X_test, y_test, proba, evaluate(y_test, proba, threshold)
+
+
+def metrics_path(model_path: str | Path) -> Path:
+    """`models/churn_model.joblib` → `models/churn_model_metrics.json`."""
+    model_path = Path(model_path)
+    return model_path.with_name(f"{model_path.stem}_metrics.json")
 
 
 def save(pipeline: Pipeline, metrics: Metrics, model_dir: str | Path = "models", name: str = "churn_model") -> Path:
+    """Enregistre le pipeline complet (préparation + modèle) et ses métriques, dont le seuil."""
     model_dir = Path(model_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
     path = model_dir / f"{name}.joblib"
     joblib.dump(pipeline, path)
-    (model_dir / f"{name}_metrics.json").write_text(json.dumps(asdict(metrics), indent=2))
+    metrics_path(path).write_text(json.dumps(asdict(metrics), indent=2))
     return path
 
 
 def load(path: str | Path = "models/churn_model.joblib") -> Pipeline:
     return joblib.load(path)
+
+
+def load_metrics(path: str | Path = "models/churn_model.joblib") -> Metrics | None:
+    """Relit les métriques enregistrées à côté du modèle (None si le fichier n'existe pas)."""
+    mpath = metrics_path(path)
+    if not mpath.exists():
+        return None
+    return Metrics(**json.loads(mpath.read_text()))

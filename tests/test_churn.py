@@ -1,17 +1,21 @@
 """Module 6 — Les tests. Un code de data science non testé est un code qui casse en silence."""
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from churn.data import FEATURES, TARGET, generate_customers, validate  # noqa: E402
-from churn.features import add_engineered_features  # noqa: E402
-from churn.model import best_threshold_by_cost, build_pipeline, evaluate, train  # noqa: E402
+from churn.data import FEATURES, TARGET, generate_customers, validate
+from churn.features import add_engineered_features
+from churn.model import (
+    best_threshold_by_cost,
+    build_pipeline,
+    evaluate,
+    load,
+    load_metrics,
+    save,
+    train,
+    tune_threshold,
+)
 
 
 @pytest.fixture(scope="module")
@@ -86,3 +90,34 @@ def test_unknown_category_is_ignored(df):
     row = X_test.iloc[[0]].copy()
     row["payment_method"] = "Crypto"
     assert 0 <= pipeline.predict_proba(row[FEATURES])[0, 1] <= 1
+
+
+@pytest.mark.parametrize("engineered", [False, True])
+def test_saved_model_gives_identical_predictions(df, tmp_path, engineered):
+    """Ce qu'on déploie doit être EXACTEMENT ce qu'on a évalué (exercice 6.2)."""
+    pipeline, X_test, _, proba, metrics = train(df, "gboost", engineered)
+    path = save(pipeline, metrics, model_dir=tmp_path)
+    np.testing.assert_array_equal(load(path).predict_proba(X_test)[:, 1], proba)
+    assert load_metrics(path) == metrics
+
+
+def test_load_metrics_missing_file_returns_none(tmp_path):
+    assert load_metrics(tmp_path / "absent.joblib") is None
+
+
+def test_tuned_threshold_follows_costs(df):
+    """Le seuil est choisi sur le jeu d'entraînement : il suit la logique des coûts."""
+    pipeline = build_pipeline()
+    X, y = df[FEATURES], df[TARGET]
+    low = tune_threshold(pipeline, X, y, cost_fn=1000, cost_fp=10)
+    high = tune_threshold(pipeline, X, y, cost_fn=10, cost_fp=1000)
+    assert 0 < low < high < 1
+
+
+def test_train_with_costs_reports_metrics_at_tuned_threshold(df):
+    *_, default = train(df)
+    *_, tuned = train(df, costs=(500, 50))
+    assert default.threshold == 0.5
+    assert tuned.threshold < 0.5  # rater un client coûte cher → on abaisse le seuil
+    assert tuned.recall > default.recall
+    assert tuned.roc_auc == default.roc_auc  # l'AUC ne dépend pas du seuil
