@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 199 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_32.py`, corrigés par
+> [défis](defis/README.md) : 205 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_33.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -179,13 +179,22 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `GET /clients/{id}/offres` qui appelle `recommander`, une bonne extension de l'API (exercice 6.4). Son défi 192 reprend
 > l'auto-évaluation du module 4 : « rappel de 63 % » ne veut rien dire si l'on a oublié les clients pour qui on n'a
 > rien proposé.
-> Enfin, la série 32 (`defis/serie_32.py`, défis 194 à 199) répond à la question qui suit : on ne peut pas écrire une
+> Puis la série 32 (`defis/serie_32.py`, défis 194 à 199) répond à la question qui suit : on ne peut pas écrire une
 > campagne par client, ni la même pour tous. Vous y écrivez une segmentation complète (standardiser, affecter,
 > k-means, k-means++, silhouette, fiche de chaque segment). Son défi 194 prépare l'exercice 2.1 : on y VOIT ce que fait
 > `StandardScaler`, et pourquoi k-means sans lui range un client récent qui appelle six fois avec les grosses factures.
 > Elle prolonge l'exercice 5.4 (un filtre par segment plutôt que par contrat dans la barre latérale) et l'auto-évaluation
 > du module 5 : trois actions de rétention, une par segment, chiffres à l'appui (`decrire_segments` donne la taille,
 > le taux de churn et ce qui distingue chaque segment, dans les unités du métier).
+> Enfin, la série 33 (`defis/serie_33.py`, défis 200 à 205) passe de QUI va partir à COMBIEN, et quand : le centre
+> d'appels doit recruter ses conseillers trois mois à l'avance. Vous y écrivez une prévision qu'on peut défendre (la
+> référence naïve « comme l'an dernier », quatre mesures d'erreur, le lissage exponentiel et Holt, la validation à
+> origine glissante, une marge tirée des erreurs passées). Son défi 201 prolonge l'exercice 4.2 (une seule mesure
+> cache toujours quelque chose : ici, la méthode à la plus petite MAE se trompe TOUJOURS dans le même sens), son défi
+> 204 l'exercice 3.4 (une validation croisée qui mélange les mois laisse le modèle voir l'avenir : on ne rejoue
+> qu'avec le passé), et son défi 205 l'exercice 4.3 (passer d'un chiffre à une décision chiffrée : combien de
+> conseillers, avec quelle marge). Pour aller plus loin : une page « Prévisions » dans le tableau de bord, qui trace
+> les départs mensuels, la prévision et sa borne.
 
 ---
 
