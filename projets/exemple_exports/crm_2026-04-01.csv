@@ -1,0 +1,56 @@
+﻿client;debut;fin;contrat;paiement;internet;assistance;senior;produits;mensualite;maj
+C00132;16/01/2022;16/03/2026;Mensuel;Prélèvement;Fibre;Oui;Non;2;85,63;2026-03-08T08:27:00
+C00154;05/05/2022;05/04/2026;Mensuel;Prélèvement;ADSL;Non;Non;1;52,92;2026-03-24T18:27:00
+C00225;05/03/2023;05/04/2026;Mensuel;Chèque;Fibre;Non;Oui;1;54,64;2026-03-16T15:11:00
+C00237;17/05/2023;17/03/2026;Mensuel;Virement;Aucun;Non;Non;1;21,29;2026-03-09T14:42:00
+C00305;30/12/2023;;Mensuel;Prélèvement;Aucun;Oui;Non;2;49,36;2026-03-07T15:49:00
+C00309;23/01/2024;23/03/2026;Mensuel;Carte bancaire;Fibre;Non;Non;1;72,28;2026-03-08T17:30:00
+C00391;18/08/2024;18/03/2026;Biannuel;Chèque;Fibre;Non;Non;4;109,40;2026-03-14T17:45:00
+C00596;04/07/2025;04/04/2026;Mensuel;Virement;ADSL;Non;Non;2;57,01;2026-03-27T19:11:00
+C00735;30/12/2025;;Annuel;Virement;ADSL;Oui;Oui;3;51,12;2026-03-12T11:32:00
+C00760;30/01/2026;;Mensuel;Carte bancaire;Fibre;Non;Non;3;89,64;2026-03-08T09:23:00
+TEST01;05/03/2023;05/04/2026;Mensuel;Chèque;Fibre;Non;Oui;1;54,64;2026-03-16T15:11:00
+C00790;22/02/2026;22/03/2026;Mensuel;Chèque;Fibre;Oui;Non;1;85,50;2026-03-06T16:10:00
+C00804;28/02/2026;;Mensuel;Carte bancaire;ADSL;Oui;Non;4;24,55;2026-03-19T18:36:00
+C00832;16/03/2026;;Mensuel;Chèque;ADSL;Non;Non;3;70,81;2026-03-16T15:12:00
+C00833;17/03/2026;17/04/2026;Mensuel;Chèque;Fibre;Non;Oui;2;98,81;2026-03-30T17:32:00
+C00834;18/03/2026;;Annuel;Carte bancaire;ADSL;Non;Non;2;72,83;2026-03-18T12:49:00
+C00835;30/03/2026;;Mensuel;Virement;Fibre;Oui;Non;4;73,53;2026-03-30T08:05:00
+C00836;30/03/2026;;Biannuel;Prélèvement;Aucun;Oui;Non;4;31,44;2026-03-30T08:30:00
+C00837;30/03/2026;;Mensuel;Prélèvement;ADSL;Non;Non;1;56,24;2026-03-30T08:32:00
+C00838;30/03/2026;;Mensuel;Prélèvement;ADSL;Oui;Non;4;79,93;2026-03-30T08:57:00
+C00839;30/03/2026;;Biannuel;Chèque;ADSL;Oui;Non;4;42,51;2026-03-30T10:01:00
+C00840;30/03/2026;;Annuel;Prélèvement;ADSL;Oui;Non;3;37,58;2026-03-30T10:27:00
+C00841;30/03/2026;;Mensuel;Carte bancaire;Aucun;Oui;Non;4;17,58;2026-03-30T10:28:00
+C00842;30/03/2026;;Mensuel;Virement;Fibre;Oui;Non;2;92,35;2026-03-30T10:39:00
+C00843;30/03/2026;;Annuel;Chèque;ADSL;Non;Non;3;56,81;2026-03-30T10:48:00
+C00844;30/03/2026;;Mensuel;Virement;ADSL;Non;Oui;4;55,90;2026-03-30T11:37:00
+C00845;30/03/2026;;Mensuel;Prélèvement;Aucun;Non;Non;2;28,83;2026-03-30T11:44:00
+C00846;30/03/2026;;Mensuel;Carte bancaire;ADSL;Oui;Non;4;48,85;2026-03-30T12:25:00
+C00847;30/03/2026;;Mensuel;Carte bancaire;ADSL;Non;Oui;4;66,51;2026-03-30T12:28:00
+C00848;30/03/2026;;Annuel;Chèque;ADSL;Oui;Non;1;60,50;2026-03-30T12:30:00
+C00849;30/03/2026;;Mensuel;Carte bancaire;ADSL;Oui;Non;3;66,82;2026-03-30T12:43:00
+C00850;30/03/2026;;Mensuel;Prélèvement;Aucun;Non;Non;2;21,44;2026-03-30T13:18:00
+C00856;30/03/2026;;Mensuel;Virement;Aucun;Non;Non;3;27,33
+C00851;30/03/2026;;Mensuel;Virement;Fibre;Non;Non;4;71,06;2026-03-30T13:22:00
+C00852;30/03/2026;;Mensuel;Prélèvement;Aucun;Oui;Oui;2;15,00;2026-03-30T13:23:00
+C00853;30/03/2026;;Mensuel;Prélèvement;Aucun;Oui;Oui;2;28,66;2026-03-30T14:24:00
+C00854;30/03/2026;;Mensuel;Prélèvement;Aucun;Oui;Non;3;34,32;2026-03-30T14:35:00
+C00855;30/03/2026;;Mensuel;Prélèvement;ADSL;Oui;Non;4;36,17;2026-03-30T14:59:00
+C00856;30/03/2026;;Mensuel;Virement;Aucun;Non;Non;3;27,33;2026-03-30T15:14:00
+C00857;30/03/2026;;Mensuel;Virement;Aucun;Non;Non;3;28,16;2026-03-30T16:24:00
+C00852;30/03/2026;;Mensuel;Prélèvement;Aucun;Oui;Oui;2;N/A;2026-03-30T13:23:00
+C00858;30/03/2026;;Mensuel;Virement;Fibre;Non;Oui;4;95,83;2026-03-30T16:41:00
+C00859;30/03/2026;;Annuel;Virement;Fibre;Non;Non;2;63,25;2026-03-30T16:43:00
+C00860;30/03/2026;;Annuel;Virement;Fibre;Non;Non;4;82,86;2026-03-30T16:49:00
+C00861;30/03/2026;;Annuel;Chèque;Fibre;Non;Oui;3;80,42;2026-03-30T17:08:00
+C00862;30/03/2026;;Annuel;Virement;Aucun;Non;Non;2;15,00;2026-03-30T17:13:00
+C00863;30/03/2026;;Mensuel;Carte bancaire;ADSL;Non;Non;4;79,30;2026-03-30T17:24:00
+C00864;30/03/2026;;Mensuel;Prélèvement;ADSL;Oui;Non;4;74,49;2026-03-30T18:00:00
+C00865;30/03/2026;;Biannuel;Carte bancaire;Aucun;Non;Oui;2;39,55;2026-03-30T18:12:00
+C00866;30/03/2026;;Mensuel;Carte bancaire;Aucun;Non;Non;3;23,38;2026-03-30T18:24:00
+C00867;30/03/2026;;Biannuel;Virement;Aucun;Non;Non;3;22,66;2026-03-30T18:44:00
+C00868;30/03/2026;;Annuel;Prélèvement;Aucun;Oui;Non;4;35,55;2026-03-30T19:31:00
+C00869;30/03/2026;;Mensuel;Prélèvement;ADSL;Oui;Non;1;43,65;2026-03-30T19:50:00
+C00870;30/03/2026;;Mensuel;Carte bancaire;ADSL;Non;Non;4;33,63;2026-03-30T19:58:00
+

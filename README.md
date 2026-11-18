@@ -26,9 +26,9 @@ Ensuite, faites **un défi par séance**, dans l'ordre qui correspond à votre o
 | Votre objectif | Commencez par | Puis |
 |---|---|---|
 | Je débute, ou je ne me sens pas encore « à niveau » | série 00 (défis 30 à 37) | série 01, puis le module 1 de [`PARCOURS.md`](PARCOURS.md) |
-| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 11 (tests) → 07 → 08 → 12 (API web) → 13 (sécurité) → 14 (production) → 15 (base de données) → 16 (asyncio) → 17 (concevoir ses types) → 18 (rendre le code rapide) → 19 (faire évoluer du code existant) → 20 (le texte et l'Unicode) → 23 (recoder `fit` avec NumPy) → 24 (orchestrer un traitement de nuit) → 25 (écrire un petit langage : analyseur, interpréteur, compilateur vers SQL) → 27 (retrouver le même client dans trois fichiers : programmation dynamique, union-find, blocage) → 28 (résumer un flux qui ne tient pas en mémoire : Welford, deux tas, réservoir, fusion de résumés), puis les [projets guidés](projets/README.md) 2, 3 et 4 (le 4 assemble les séries 12 à 15 en un vrai service web) |
+| Je veux développer : écrire du code fiable, en équipe | série 00, puis l'[atelier Git](atelier_git/README.md) | séries 06 → 11 (tests) → 07 → 08 → 12 (API web) → 13 (sécurité) → 14 (production) → 15 (base de données) → 16 (asyncio) → 17 (concevoir ses types) → 18 (rendre le code rapide) → 19 (faire évoluer du code existant) → 20 (le texte et l'Unicode) → 23 (recoder `fit` avec NumPy) → 24 (orchestrer un traitement de nuit) → 25 (écrire un petit langage : analyseur, interpréteur, compilateur vers SQL) → 27 (retrouver le même client dans trois fichiers : programmation dynamique, union-find, blocage) → 28 (résumer un flux qui ne tient pas en mémoire : Welford, deux tas, réservoir, fusion de résumés), puis les [projets guidés](projets/README.md) 2, 3, 4 et 6 (le 4 assemble les séries 12 à 15 en un vrai service web ; le 6 assemble les séries 08, 10, 15 et 21 en un ETL qu'on relance sans crainte) |
 | Je prépare un entretien technique | séries 00 et 07 | série 09 (algorithmique), puis séries 05 et 10 (SQL), la série 23 (« codez une régression logistique sans scikit-learn »), la série 24 (graphes : « course schedule », détecter un cycle), la série 25 (« évaluez une expression » : découper, priorités, récursion bornée), la série 26 (les questions de statistique des entretiens data : p-valeur, puissance, tests multiples) la série 27 (« edit distance » en programmation dynamique, « union-find », « accounts merge ») et la série 28 (« find median from data stream » avec deux tas, « reservoir sampling », la variance en une passe) |
-| Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05, la série 21 (dates, cohortes, validation dans le temps, revenu mensuel) la série 22 (écrire ses propres briques scikit-learn), la série 23 (recoder la régression logistique et l'arbre de décision) la série 26 (bootstrap, test de permutation, puissance, tests multiples, comparer deux modèles, CUPED) la série 27 (dédoublonner les clients AVANT de modéliser : un client compté trois fois fausse le churn et l'ancienneté) et la série 28 (des statistiques et des variables calculées sur un flux : variance stable, alerte CUSUM, score d'activité à demi-vie, échantillon uniforme), puis le [projet 3](projets/README.md#projet-3--mesurer-leffet-de-la-campagne) (test A/B de bout en bout) et le [projet 5](projets/README.md#projet-5--réentraîner-le-modèle-sans-casser-la-production) (réentraîner chaque mois : champion, challenger, registre des modèles) |
+| Je vise un poste en data science | séries 00 et 01 | les modules 1 à 7 de [`PARCOURS.md`](PARCOURS.md), avec les séries 02 à 05, la série 21 (dates, cohortes, validation dans le temps, revenu mensuel) la série 22 (écrire ses propres briques scikit-learn), la série 23 (recoder la régression logistique et l'arbre de décision) la série 26 (bootstrap, test de permutation, puissance, tests multiples, comparer deux modèles, CUPED) la série 27 (dédoublonner les clients AVANT de modéliser : un client compté trois fois fausse le churn et l'ancienneté) et la série 28 (des statistiques et des variables calculées sur un flux : variance stable, alerte CUSUM, score d'activité à demi-vie, échantillon uniforme), puis le [projet 3](projets/README.md#projet-3--mesurer-leffet-de-la-campagne) (test A/B de bout en bout) le [projet 5](projets/README.md#projet-5--réentraîner-le-modèle-sans-casser-la-production) (réentraîner chaque mois : champion, challenger, registre des modèles) et le [projet 6](projets/README.md#projet-6--lentrepôt-des-clients) (fabriquer la table d'entraînement à une date, sans fuite du futur ni étiquettes pas encore mûres) |
 
 Pour aller plus loin :
 
@@ -38,13 +38,15 @@ Pour aller plus loin :
 - [`CORRIGES.md`](CORRIGES.md) donne un indice puis la solution de chaque exercice. Ouvrez-le
   **après** avoir cherché.
 - [`projets/README.md`](projets/README.md) décrit les projets guidés, corrigés par `python scripts/projet.py` :
-  quatre vrais programmes à construire en 7 étapes chacun. Le projet 2 va du CSV imparfait au plan de
+  cinq vrais programmes à construire en 7 étapes chacun. Le projet 2 va du CSV imparfait au plan de
   rétention ; le projet 3 mesure, avec un groupe témoin et une base SQLite, si ce plan a vraiment évité
   des départs ; le projet 4 est le service web que les conseillers utilisent pour appeler les clients :
   configuration, clés d'accès, pagination, deux écritures simultanées, et des tests jugés sur 8 versions
   boguées de l'API ; le projet 5 réentraîne le modèle chaque mois sans casser la production : lots abîmés
   refusés, validation dans le temps, champion contre challenger sur le même mois, registre des versions
-  vérifié par SHA-256, et retour en arrière en une commande.
+  vérifié par SHA-256, et retour en arrière en une commande ; le projet 6 fabrique chaque nuit la table
+  du projet 1 à partir des exports bruts du CRM et du support : CSV d'Excel, JSON Lines, upsert SQLite,
+  chargement rejouable et tout-ou-rien, et une table « à date » sans aucune information du futur.
 - [`atelier_git/README.md`](atelier_git/README.md) décrit l'atelier Git, corrigé par
   `python scripts/atelier_git.py` : 8 situations d'équipe à résoudre dans un bac à sable, du premier
   commit propre au conflit de fusion, au `git bisect` et à la branche prête pour la revue.
@@ -93,6 +95,7 @@ Pour aller plus loin :
 | Mesurer l'effet d'une action (test A/B) : groupe témoin reproductible (`hashlib`), base SQLite (transactions, UPSERT, clés étrangères, `GROUP BY` + `LEFT JOIN`), intervalle de confiance, CLI à sous-commandes | `projets/campagne/` (projet 3, 7 étapes) + `scripts/projet.py --projet 3` |
 | Livrer un service web utilisé par une équipe : configuration par l'environnement sans fuite de secret, répartition équitable sans requêtes N+1, pagination par curseur, verrou optimiste et transaction sur deux tables, FastAPI (`Depends`, une connexion par requête, clés comparées avec `compare_digest`, 401/403/404/409/422), CLI qui démarre le serveur, tests d'API avec `TestClient` | `projets/service/` (projet 4, 7 étapes) + `scripts/projet.py --projet 4` |
 | Réentraîner un modèle sans casser la production : valider un lot avant d'entraîner, validation dans le temps (`pd.Period`), AUC et coût en euros sur le même mois pour le champion et le challenger, règle de promotion (comparer des flottants), registre de modèles (écriture atomique, SHA-256 vérifiée avant `joblib.load`, retour en arrière) | `projets/reentrainement/` (projet 5, 7 étapes) + `scripts/projet.py --projet 5` |
+| Fabriquer la table d'entraînement à partir d'exports bruts (ETL) : CSV d'Excel (BOM, `;`, virgule décimale, dates françaises), JSON Lines, lignes abîmées mises en quarantaine, upsert SQLite où la version la plus récente gagne, chargement idempotent (empreinte SHA-256) et tout-ou-rien (transaction), table « à date » sans fuite du futur (`LEFT JOIN`, `COUNT(colonne)`, dates rangées en texte, étiquettes mûres) | `projets/entrepot/` (projet 6, 7 étapes) + `scripts/projet.py --projet 6` |
 | Git en équipe : commit propre et `.gitignore`, branches, `stash`, conflits, `revert`, `bisect`, `reflog`, `rebase` et `push --force-with-lease` | `atelier_git/` (8 scénarios dans un bac à sable) + `scripts/atelier_git.py` |
 
 ## Démarrage rapide
@@ -167,7 +170,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── scripts/train.py        # Entraînement + comparaison en ligne de commande
 ├── scripts/progression.py  # 🧭 Coach : vérifie vos exercices, propose la suite
 ├── scripts/defis.py        # ⚡ Correction automatique des défis
-├── scripts/projet.py       # 🏗️ Correction automatique des projets guidés (--projet 2, 3, 4 ou 5)
+├── scripts/projet.py       # 🏗️ Correction automatique des projets guidés (--projet 2 à 6)
 ├── scripts/atelier_git.py  # 🌿 Atelier Git : prépare et corrige les 8 scénarios
 ├── defis/
 │   ├── serie_00.py         # 👋 Série 00 — remise à niveau Python & pandas (8 défis, à faire en premier)
@@ -233,12 +236,17 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── reentrainement/     # Projet 5 — VOTRE code : 7 étapes (lots.py … cli.py, mes_tests.py)
 │   ├── reentrainement_corrige/ # Projet 5 terminé : le corrigé, et la référence du correcteur
 │   ├── checks_reentrainement.py # Vérifications des 7 étapes (lots piégés, faux modèles, disque plein, fichier piégé, 11 règles boguées)
+│   ├── entrepot/           # Projet 6 — VOTRE code : 7 étapes (contrats.py … cli.py, mes_tests.py)
+│   ├── entrepot_corrige/   # Projet 6 terminé : le corrigé, et la référence du correcteur
+│   ├── checks_entrepot.py  # Vérifications des 7 étapes (exports piégés, disque plein, tickets aux frontières, 13 tables boguées)
+│   ├── exemples_entrepot.py # Le générateur des exports d'exemple du projet 6 (reproductibles octet par octet)
 │   ├── verif.py            # Moteur de correction des projets
 │   ├── exemple_clients.csv # 200 clients scorés par le modèle (format de l'export du tableau de bord)
 │   ├── exemple_plan.csv    # 2 000 clients ciblés (format du plan du projet 2) : entrée du projet 3
 │   ├── exemple_resultats.csv # Qui est parti un mois plus tard (export du CRM, imparfait)
 │   ├── exemple_contacts.csv # Les 1 612 clients à appeler (écrits par `preparer`, projet 3) : entrée du projet 4
-│   └── exemple_lots.csv    # 12 photos mensuelles de 300 clients, avec une dérive à partir d'avril 2026 : entrée du projet 5
+│   ├── exemple_lots.csv    # 12 photos mensuelles de 300 clients, avec une dérive à partir d'avril 2026 : entrée du projet 5
+│   └── exemple_exports/    # 20 exports bruts du CRM (CSV) et du support (JSON Lines), janvier à octobre 2026 : entrée du projet 6
 ├── src/churn/
 │   ├── data.py             # Données synthétiques + validation
 │   ├── features.py         # Préparation des variables
@@ -256,6 +264,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── test_projet_campagne.py # Le projet 3 : corrigé, bout en bout, 40 erreurs classiques, autres solutions justes acceptées
 │   ├── test_projet_service.py  # Le projet 4 : corrigé, vrai serveur uvicorn, 56 erreurs classiques reçoivent le bon message
 │   ├── test_projet_reentrainement.py # Le projet 5 : corrigé, bout en bout, 55 erreurs classiques et 11 règles boguées reçoivent le bon message
+│   ├── test_projet_entrepot.py # Le projet 6 : corrigé, exports reproductibles, bout en bout jusqu'au modèle, 73 erreurs classiques reçoivent le bon message, 3 autres solutions justes acceptées
 │   ├── test_atelier_git.py # L'atelier Git : chaque solution réussit, les erreurs classiques sont expliquées
 │   └── test_solutions.py   # Les affirmations des corrigés restent vraies
 ├── .github/workflows/      # Intégration continue (pytest à chaque push)

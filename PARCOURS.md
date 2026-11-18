@@ -333,6 +333,22 @@ promeut que s'il est vraiment meilleur, et garde chaque version pour pouvoir rev
 `python scripts/projet.py --projet 5` corrige chaque étape. Dans votre rapport final (module 7), remplacez
 « il faudrait réentraîner » par l'historique du registre : quel modèle était en production chaque mois, et pourquoi.
 
+Le **projet 6** remonte à la source : *« d'où vient `data/customers.csv` ? »*. Un programme qui, chaque
+nuit, charge les exports bruts du CRM (CSV d'Excel) et du support (JSON Lines) dans une base SQLite, sans
+jamais charger deux fois le même fichier ni laisser la base à moitié remplie, puis fabrique la table du
+projet 1 telle qu'on la connaissait à une date donnée, sans rien du futur.
+
+- [ ] 🟢 Étape 1 — lire l'export du CRM : BOM, `;`, virgule décimale, dates françaises, lignes abîmées mises
+  de côté
+- [ ] 🟡 Étapes 2, 3 et 6 — le JSON Lines du support, l'upsert où la version la plus récente gagne, le
+  programme `charger` / `exporter`
+- [ ] 🔴 Étapes 4, 5 et 7 — le chargement rejouable et tout-ou-rien, la table « à date » (fenêtre de
+  tickets, horizon, étiquettes mûres), et le test qui attrape 13 versions boguées de la requête
+
+`python scripts/projet.py --projet 6` corrige chaque étape. Dans votre rapport final, ajoutez
+la ligne « d'où viennent les données » : quels fichiers, à quelle date, combien de lignes écartées, et
+pourquoi la photo ne peut pas être plus récente que l'horizon.
+
 ## 📚 Ressources
 
 - Documentation scikit-learn — *User Guide* (pipelines, métriques, inspection)

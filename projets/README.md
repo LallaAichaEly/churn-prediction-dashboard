@@ -13,12 +13,12 @@ projets guidés entraînent.
 
 ```bash
 python scripts/projet.py                       # ✅ / ❌ / ⬜ pour chaque étape de chaque projet
-python scripts/projet.py --projet 3            # un seul projet, et l'étape suivante à faire
+python scripts/projet.py --projet 6            # un seul projet, et l'étape suivante à faire
 python scripts/projet.py --projet 3 --etape 4  # le détail d'une étape
 ```
 
-Les cinq projets forment une boucle complète, celle qu'on retrouve dans toute équipe data :
-**prédire → décider → agir → vérifier que ça a marché → réapprendre**.
+Les six projets forment une boucle complète, celle qu'on retrouve dans toute équipe data :
+**collecter → prédire → décider → agir → vérifier que ça a marché → réapprendre**.
 
 | | Projet | Ce que vous construisez | Où |
 |---|---|---|---|
@@ -27,6 +27,7 @@ Les cinq projets forment une boucle complète, celle qu'on retrouve dans toute �
 | **3** | **Mesurer l'effet de la campagne** | **Le programme qui prouve (ou non) que le plan a évité des départs** | `projets/campagne/` |
 | **4** | **Le service des conseillers** | **Le service web avec lequel l'équipe appelle les clients du plan, à plusieurs en même temps** | `projets/service/` |
 | **5** | **Réentraîner le modèle sans casser la production** | **Le programme qui, chaque mois, remplace le modèle du projet 1 seulement s'il fait mieux, et sait revenir en arrière** | `projets/reentrainement/` |
+| **6** | **L'entrepôt des clients** | **Le programme qui, chaque nuit, charge les exports bruts du CRM et du support dans une base, et fabrique la table qu'entraîne le projet 1** | `projets/entrepot/` |
 
 Dans le temps, le projet 4 se place au milieu du projet 3 : `preparer` tire le groupe témoin et écrit la
 liste des clients à appeler, les conseillers les appellent avec le service du projet 4, puis `bilan`
@@ -34,6 +35,9 @@ mesure l'effet un mois plus tard. Les projets 2 et 3 entraînent surtout la donn
 projet 4 entraîne le métier de développeur·se : un programme qui tourne en continu et que d'autres utilisent.
 Le projet 5 referme la boucle : les clients changent, le modèle du projet 1 vieillit, et il faut le
 remplacer sans jamais mettre en production un modèle pire que l'ancien.
+Le projet 6 est le maillon qu'on oublie, en amont de tout : `data/customers.csv` ne tombe pas du ciel. Il
+faut le fabriquer, chaque nuit, à partir d'exports imparfaits, sans jamais charger deux fois le même
+fichier ni laisser passer une information du futur. Il se fait à n'importe quel moment après le projet 3.
 
 ---
 
@@ -532,3 +536,142 @@ lot est refusé sans que rien ne change dans le registre. Puis comparez votre co
 - **Planifier.** Un `cron` (ou une GitHub Action planifiée) qui lance `entrainer` le 2 de chaque mois, et
   vous envoie un message quand un challenger est refusé trois mois de suite : c'est le signe que la
   recette elle-même doit changer.
+
+---
+
+## Projet 6 — L'entrepôt des clients
+
+### Le besoin
+
+Depuis le début, le projet 1 entraîne son modèle sur `data/customers.csv` : un fichier propre, une ligne par
+client, toutes les colonnes remplies. Dans une vraie entreprise, ce fichier n'existe pas. Quelqu'un doit le
+fabriquer, chaque nuit, à partir de ce que déposent les autres équipes :
+
+- le **CRM** dépose chaque mois `crm_AAAA-MM-JJ.csv`, écrit pour Excel : séparateur `;`, une BOM au début,
+  des virgules décimales, des dates JJ/MM/AAAA. Le premier fichier contient tous les contrats, les suivants
+  seulement ceux qui ont été créés ou modifiés depuis ;
+- le **support** dépose `support_AAAA-MM-JJ.jsonl` : un ticket par ligne en JSON, renvoyé à chaque mise
+  à jour.
+
+Le responsable data vous explique : *« Jusqu'ici, un stagiaire ouvrait les fichiers dans Excel et faisait
+des copier-coller. Le mois où il a chargé deux fois le même export, le nombre d'appels au support a doublé
+et le modèle a cru que tout le monde allait partir. Un autre mois, un export coupé au milieu a fait
+planter le script de la nuit. Il me faut un programme qu'on peut relancer sans crainte, qui met de côté
+les lignes abîmées au lieu de tout arrêter, et qui fabrique la table du projet 1 telle qu'on la
+connaissait à une date donnée : sans rien du futur. »*
+
+C'est un **ETL** (*extract, transform, load*), le travail de tous les jours d'un·e data engineer.
+`projets/exemple_exports/` contient 20 exports (janvier à octobre 2026) avec les défauts qu'on rencontre
+en vrai : un compte de test, une ligne coupée, une date du 31 juin, « Mensual », un export du support coupé
+au milieu d'une ligne.
+
+```console
+$ python -m projets.entrepot charger --dossier projets/exemple_exports --base entrepot.db
+✅ crm_2026-01-05.csv        chargé : 757 ligne(s) en base, 0 rejet(s)
+✅ crm_2026-02-02.csv        chargé : 44 ligne(s) en base, 0 rejet(s)
+✅ crm_2026-03-02.csv        chargé : 51 ligne(s) en base, 0 rejet(s)
+⚠️  crm_2026-04-01.csv        chargé : 51 ligne(s) en base, 3 rejet(s)
+…
+⚠️  support_2026-08-03.jsonl  chargé : 253 ligne(s) en base, 2 rejet(s)
+✅ support_2026-09-01.jsonl  chargé : 139 ligne(s) en base, 0 rejet(s)
+✅ support_2026-10-01.jsonl  chargé : 69 ligne(s) en base, 0 rejet(s)
+
+20 fichier(s) : 20 chargé(s), 0 déjà chargé(s), 0 refusé(s)
+Base entrepot.db : 1026 contrats, 2053 tickets
+8 ligne(s) écartée(s), détail dans rejets.csv
+
+$ head -3 rejets.csv
+fichier,ligne,raison
+crm_2026-04-01.csv,12,client : identifiant illisible 'TEST01'
+crm_2026-04-01.csv,34,10 champs au lieu de 11
+
+$ python -m projets.entrepot charger --dossier projets/exemple_exports --base entrepot.db
+⏭️  crm_2026-01-05.csv        déjà chargé
+…
+20 fichier(s) : 0 chargé(s), 20 déjà chargé(s), 0 refusé(s)
+
+$ python -m projets.entrepot exporter --base entrepot.db --photo 2026-06-30 --sortie data/customers.csv
+800 clients au 2026-06-30, départs dans les 90 jours : 34,9 %
+Table écrite dans data/customers.csv
+
+$ python -m projets.entrepot exporter --base entrepot.db --photo 2026-07-15 --sortie data/customers.csv
+Export impossible : photo trop récente : il faut connaître les départs jusqu'au 2026-10-13, mais la base ne va que jusqu'au 2026-09-29
+
+$ python scripts/train.py         # le modèle du projet 1, entraîné sur VOTRE table
+```
+
+Regardez la dernière commande `exporter` : au 15 juillet, on ne sait pas encore qui partira avant le
+13 octobre. Exporter quand même, ce serait compter comme « restés » des clients qui vont partir, et le
+modèle apprendrait de fausses étiquettes.
+
+### L'architecture
+
+```
+exemple_exports/crm_*.csv ───► contrats.py (étape 1) : lire, typer, mettre de côté les lignes abîmées
+exemple_exports/support_*.jsonl ► tickets.py (étape 2) : une ligne JSON par ticket, la version la plus récente
+                                         │
+                                         ▼
+                 chargement.py (étape 3) : upsert dans SQLite, la version la plus récente gagne
+                                         ▼
+                 fichier.py (étape 4) : un fichier une seule fois (empreinte), tout ou rien (transaction),
+                                        refusé au-delà de 10 % de lignes abîmées
+                                         ▼
+                 table.py (étape 5) : la table du projet 1 au jour de la photo, sans rien du futur
+                                         ▼
+                                  data/customers.csv ──► python scripts/train.py (projet 1)
+
+cli.py (étape 6) : les commandes charger et exporter ; mes_tests.py (étape 7) protège construire_table.
+modeles.py est fourni : les formats, le schéma SQLite, empreinte() et mois_entre(). À lire, pas à modifier.
+```
+
+### Les étapes
+
+| # | Fichier | Niveau | Vous construisez | Vous apprenez |
+|---|---|---|---|---|
+| 1 | `contrats.py` | 🟢 | La lecture de l'export du CRM | Un vrai CSV d'Excel : BOM (`utf-8-sig`), `;`, virgule décimale, dates JJ/MM/AAAA, `float("nan")` qui ne lève pas d'erreur ; mettre une ligne en quarantaine au lieu de tout arrêter |
+| 2 | `tickets.py` | 🟡 | La lecture de l'export du support | JSON Lines (`json.loads` ligne par ligne), une ligne coupée, vérifier le TYPE avant `re.fullmatch`, garder la version la plus récente (pas la dernière lue) |
+| 3 | `chargement.py` | 🟡 | Le rangement dans la base | L'upsert `ON CONFLICT … DO UPDATE … WHERE excluded.maj > …`, pourquoi pas `INSERT OR REPLACE`, `executemany`, les dates en texte ISO, `total_changes`, à qui appartient la transaction |
+| 4 | `fichier.py` | 🔴 | Le chargement d'un fichier | L'idempotence par empreinte SHA-256, une transaction qui fait tout ou rien (`with connexion:`), un seuil de qualité, l'ordre des opérations quand chaque ligne peut échouer |
+| 5 | `table.py` | 🔴 | La table du projet 1 à une date | La validité « à date » (point-in-time) et la fuite par le futur, `LEFT JOIN` et conditions dans le `ON`, `COUNT(colonne)` contre `COUNT(*)`, comparer des dates rangées en texte, une étiquette « mûre » |
+| 6 | `cli.py` | 🟡 | Le programme `charger` / `exporter` | Un programme qu'on relance sans crainte, parcourir un dossier, ne pas créer de base vide par effet de bord, le fichier des rejets, stderr et codes de sortie |
+| 7 | `mes_tests.py` | 🔴 | Le test de `construire_table` | Tester une requête sur une base en mémoire, viser les frontières (le jour même, le lendemain, 365 jours pile), attraper 13 versions boguées plausibles |
+
+**Prérequis** : le projet 3 (sa base SQLite et ses transactions), et les défis des séries 08 (assembler les
+données), 10 (SQL pour l'analyse), 15 (enregistrer sans rien perdre) et 21 (le temps qui passe), que ce
+projet assemble. La série 27 (retrouver le même client) est le complément naturel : ici les identifiants
+sont propres, en vrai ils le sont rarement.
+
+### Comment travailler
+
+Comme pour les projets précédents : une branche (`git checkout -b projet-entrepot`), la docstring de chaque
+étape comme cahier des charges, `python scripts/projet.py --projet 6 --etape N` après chaque essai, et un
+commit à chaque ✅. Le correcteur écrit ses propres exports avec un piège à la fois (une BOM, des fins de
+ligne Windows, un 31 février, un « nan », une ligne JSON coupée, le client `42` écrit sans guillemets, une
+mise à jour arrivée avant la version qu'elle remplace), recharge un vieux fichier par-dessus un récent,
+simule un disque plein au milieu d'un chargement, place des tickets PILE sur les frontières de la fenêtre,
+et rejoue 13 versions boguées de `construire_table` pour vous dire laquelle vous avez écrite.
+
+Une fois les 7 étapes réussies, rejouez la scène du besoin : `charger` deux fois (rien ne change la
+seconde fois), `exporter` au 30 juin, puis `python scripts/train.py` entraîne le modèle du projet 1 sur
+votre table (pour revenir aux 5 000 clients synthétiques du projet 1, supprimez `data/customers.csv` : il
+sera régénéré au prochain lancement). Comparez ensuite votre code au corrigé, `projets/entrepot_corrige/`, et notez dans
+`JOURNAL.md` ce que vous feriez autrement.
+
+### Pour aller plus loin (sans correcteur : c'est votre projet)
+
+- **Mesurer la fuite.** Retirez la borne `date(t.ouvert) <= photo` et réentraînez : sur les exports
+  d'exemple, l'AUC moyenne (5 découpages) passe de 0,80 à 0,84, parce que les clients qui vont partir
+  appellent davantage le support APRÈS la photo. Le modèle paraît meilleur… avec des informations qu'il
+  n'aura jamais en production. Écrivez ce chiffre dans votre rapport : c'est une question d'entretien.
+- **Historiser au lieu d'écraser.** Ici, la version la plus récente d'un contrat remplace l'ancienne. Si un
+  client passe de « Mensuel » à « Annuel » APRÈS la photo, la table du 30 juin le voit déjà « Annuel » : une
+  fuite plus discrète. Gardez toutes les versions (`valide_du`, `valide_au` : une « dimension à évolution
+  lente » de type 2) et lisez l'état à la date de la photo.
+- **Plusieurs photos.** Empilez les tables de fin janvier à fin juin : six fois plus de lignes pour
+  entraîner, et une validation dans le temps (série 21) au lieu d'un découpage au hasard.
+- **Dédoublonner à l'entrée.** Branchez la série 27 entre la lecture et le rangement : les boutiques
+  créent parfois un deuxième identifiant pour un client qui en a déjà un.
+- **Relier au projet 5.** Remplacez `projets/exemple_lots.csv` par des photos mensuelles exportées de votre
+  base : la chaîne complète tourne alors sur des données que vous avez fabriquées de bout en bout.
+- **Planifier.** Un `cron` (ou une GitHub Action planifiée) qui lance `charger` chaque nuit et vous écrit si
+  un fichier est refusé ou si le fichier des rejets dépasse 1 % des lignes.
