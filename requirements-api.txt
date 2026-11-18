@@ -1,0 +1,8 @@
+# Le strict nécessaire pour SERVIR le modèle avec api.py : c'est ce qu'installe le Dockerfile.
+# (requirements.txt installe tout le dépôt : tableau de bord, défis, tests…)
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+joblib>=1.3
+fastapi>=0.110
+uvicorn>=0.29

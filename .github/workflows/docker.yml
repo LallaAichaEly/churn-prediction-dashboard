@@ -1,0 +1,54 @@
+# Construit l'image Docker de l'API puis l'interroge pour de vrai : si le conteneur ne démarre pas
+# ou répond mal, la CI échoue. Ne se lance que si un fichier utilisé par l'image a changé.
+name: Docker
+
+on:
+  push:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - requirements-api.txt
+      - api.py
+      - src/churn/**
+      - scripts/train.py
+      - .github/workflows/docker.yml
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - requirements-api.txt
+      - api.py
+      - src/churn/**
+      - scripts/train.py
+      - .github/workflows/docker.yml
+
+jobs:
+  image:
+    name: Image de l'API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Construire l'image
+        run: docker build -t churn-api .
+
+      - name: Démarrer le conteneur
+        run: |
+          docker run -d --name api -p 8000:8000 churn-api
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health > /dev/null && exit 0; sleep 1; done
+          echo "L'API n'a pas répondu en 30 secondes" && exit 1
+
+      - name: Interroger l'API
+        run: |
+          curl -sf http://localhost:8000/health
+          curl -sf -X POST http://localhost:8000/predict -H "Content-Type: application/json" \
+            -d '{"tenure_months": 5, "monthly_charges": 95.0, "total_charges": 475.0, "support_calls": 4,
+                 "num_products": 1, "contract": "Mensuel", "payment_method": "Chèque",
+                 "internet_service": "Fibre", "tech_support": "Non", "senior": "Non"}'
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" -d '{"contract": "Hebdomadaire"}')
+          test "$code" = 422 || { echo "Entrée invalide : 422 attendu, reçu $code"; exit 1; }
+
+      - name: Journaux du conteneur (en cas d'échec)
+        if: failure()
+        run: docker logs api

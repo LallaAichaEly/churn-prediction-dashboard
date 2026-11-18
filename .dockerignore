@@ -1,0 +1,8 @@
+# Liste blanche : on refuse tout, puis on n'autorise que ce dont l'API a besoin.
+# Image plus petite, construction plus rapide, et aucun fichier oublié (données, secrets, .git)
+# ne finit par erreur dans l'image.
+*
+!api.py
+!requirements-api.txt
+!scripts/train.py
+!src/churn/*.py

@@ -237,8 +237,8 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
 
-Le dépôt contient déjà une version de référence : test de sauvegarde, intégration continue et
-API. Lisez-la, puis **étendez-la**.
+Le dépôt contient déjà une version de référence : test de sauvegarde, intégration continue,
+API et image Docker de l'API (`Dockerfile`, voir le README). Lisez-la, puis **étendez-la**.
 
 - [ ] 🟢 6.1 ⚡ — Lancez `pytest -q`. Lisez chaque test (`tests/`) et dites ce qu'il protège.
 - [ ] 🟡 6.2 ⚡ — Lisez `test_saved_model_gives_identical_predictions`. Enregistrez la version de scikit-learn dans `*_metrics.json` et affichez un avertissement au chargement si elle diffère de la version installée. Pourquoi est-ce un vrai risque en production ?

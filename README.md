@@ -62,6 +62,7 @@ Pour aller plus loin :
 | Interprétabilité (importance par permutation) | `src/churn/model.py` |
 | Tableau de bord interactif | `app.py` (Streamlit + Plotly) |
 | Mise en production : API REST | `api.py` (FastAPI) |
+| Conteneuriser l'API | `Dockerfile`, `.dockerignore`, `.github/workflows/docker.yml` |
 | Surveillance en production : dérive des données (PSI) | `src/churn/monitoring.py` |
 | Tests automatisés (modèle, API, tableau de bord, corrigés) | `tests/` (pytest + `streamlit.testing`) |
 | Intégration continue | `.github/workflows/tests.yml` (GitHub Actions) |
@@ -151,6 +152,20 @@ curl -X POST "http://localhost:8000/predict?threshold=0.4" -H "Content-Type: app
 Les entrées sont validées : une faute de frappe (`"contract": "Mensual"`) renvoie une erreur 422.
 Le modèle est lu dans `models/churn_model.joblib` (ou `$CHURN_MODEL_PATH`) et entraîné
 automatiquement s'il n'existe pas encore.
+
+### Dans un conteneur (Docker)
+
+```bash
+docker build -t churn-api .
+docker run --rm -p 8000:8000 churn-api      # → http://localhost:8000/docs
+```
+
+Le `Dockerfile` n'installe que `requirements-api.txt` (pas Streamlit ni les défis), entraîne le modèle
+pendant la construction (il est figé dans l'image), lance le serveur avec un utilisateur non-root et
+déclare un `HEALTHCHECK` sur `/health`. Le `.dockerignore` est une liste blanche : seuls `api.py`,
+`src/churn/` et `scripts/train.py` entrent dans l'image. À chaque push qui touche ces fichiers,
+`.github/workflows/docker.yml` construit l'image, démarre le conteneur et l'interroge (`/health`,
+`/predict`, et une entrée invalide qui doit renvoyer 422).
 
 ## Résultats de référence
 
@@ -256,6 +271,7 @@ gboost      0.807     0.746      0.655   0.596  0.624
 ├── tests/
 │   ├── test_churn.py       # Données, variables et modèles
 │   ├── test_api.py         # API
+│   ├── test_docker.py      # L'image Docker ne manque d'aucune dépendance ni d'aucun fichier
 │   ├── test_app.py         # Tableau de bord (sans navigateur)
 │   ├── test_monitoring.py  # Surveillance de la dérive
 │   ├── test_progression.py # Le coach juge correctement les exercices
@@ -267,7 +283,8 @@ gboost      0.807     0.746      0.655   0.596  0.624
 │   ├── test_projet_entrepot.py # Le projet 6 : corrigé, exports reproductibles, bout en bout jusqu'au modèle, 73 erreurs classiques reçoivent le bon message, 3 autres solutions justes acceptées
 │   ├── test_atelier_git.py # L'atelier Git : chaque solution réussit, les erreurs classiques sont expliquées
 │   └── test_solutions.py   # Les affirmations des corrigés restent vraies
-├── .github/workflows/      # Intégration continue (pytest à chaque push)
+├── .github/workflows/      # Intégration continue : pytest à chaque push, image Docker de l'API
+├── Dockerfile              # L'API dans un conteneur (+ .dockerignore, requirements-api.txt)
 ├── PARCOURS.md             # 🧭 Parcours de compétences et exercices
 ├── CORRIGES.md             # ✅ Indices, solutions et exemple de rapport final
 ├── JOURNAL.md              # 📓 Votre journal de progression
