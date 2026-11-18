@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 175 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_28.py`, corrigés par
+> [défis](defis/README.md) : 181 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_29.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -150,7 +150,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > client = une ligne »), l'exercice 2.3 (le défi 168 garde l'inscription la PLUS ANCIENNE : sinon une cliente de
 > 2016 devient une « nouvelle cliente » et `is_new_customer` ment) et l'exercice 4.1 (précision et rappel, sur des
 > fusions au lieu de prédictions). Faites-la avant l'exercice 1.5 : un vrai fichier clients a des doublons.
-> Enfin, la série 28 (`defis/serie_28.py`, défis 170 à 175) prépare le jour où les données arrivent en continu et ne
+> Puis la série 28 (`defis/serie_28.py`, défis 170 à 175) prépare le jour où les données arrivent en continu et ne
 > tiennent plus en mémoire. Le défi 170 calcule la moyenne et la variance en une passe, comme
 > `StandardScaler.partial_fit` (exercice 2.1), sans la formule du manuel qui perd tous ses chiffres sur des
 > horodatages. Le défi 171 (CUSUM)
@@ -159,6 +159,12 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > données arrivées en retard sans jamais utiliser le futur. Puis la médiane courante (deux tas), l'échantillon
 > uniforme tiré dans un flux de longueur inconnue (pour les lots de l'exercice 7.3) et la fusion de résumés calculés
 > sur plusieurs machines.
+> Enfin, la série 29 (`defis/serie_29.py`, défis 176 à 181) sert dès que vous travaillez à plusieurs sur ce dépôt : vous
+> y écrivez `git diff`, `git apply` et `git merge`, pour lire un conflit au lieu de le subir. Son défi 180 accompagne
+> l'exercice 6.2 : avant de remplacer le code de préparation des données (ou de recharger un modèle), on PROUVE que la
+> table produite n'a pas changé, sans se laisser tromper par un NaN, un 0.1 + 0.2 ou un ordre de lignes différent, et
+> en voyant le code postal « 01000 » devenu 1000. Le défi 181 fusionne deux versions de la configuration du modèle
+> (le seuil d'Inès, les variables de Malik) clé par clé.
 
 ---
 
