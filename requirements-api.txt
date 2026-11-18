@@ -1,0 +1,8 @@
+# Dépendances minimales pour SERVIR le modèle (utilisées par le Dockerfile).
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+joblib>=1.3
+pydantic>=2.6
+fastapi>=0.110
+uvicorn>=0.30

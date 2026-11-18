@@ -1,0 +1,49 @@
+# Projet 2 — Intégration continue : à chaque push / pull request, GitHub vérifie que tout marche.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+      - name: Entraîner les modèles
+        run: python scripts/train.py
+      - name: Lancer les tests
+        run: pytest -q
+
+  docker:
+    name: Image Docker de l'API
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v5
+      - name: Construire l'image
+        run: docker build -t churn-api .
+      - name: Démarrer l'API et l'interroger
+        run: |
+          docker run -d --name api -p 8000:8000 churn-api
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 1; done
+          curl -sf http://localhost:8000/model
+          curl -sf -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d '{"tenure_months": 3, "monthly_charges": 89.9, "support_calls": 4, "num_products": 1,
+                 "contract": "Mensuel", "payment_method": "Chèque", "internet_service": "Fibre",
+                 "tech_support": "Non", "senior": "Non"}'
+      - name: Journaux du conteneur (en cas d'échec)
+        if: failure()
+        run: docker logs api

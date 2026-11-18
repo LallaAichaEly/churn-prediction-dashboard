@@ -1,6 +1,14 @@
 # 🧭 Parcours de compétences — Data Science appliquée au churn
 
-Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
+Ce parcours transforme ce dépôt en terrain d'entraînement. Il suit les projets de la
+feuille de route du [README](README.md) :
+
+| Projet | Modules |
+|---|---|
+| 1 — Modèle + tableau de bord | 1 à 6 |
+| 2 — Mise en production (API, Docker, CI) | 7 |
+
+Chaque module :
 **lire → comprendre → modifier → vérifier**. Comptez 2 à 4 heures par module.
 
 **Comment progresser efficacement**
@@ -89,13 +97,33 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 **Objectifs** : qualité logicielle, reproductibilité, mise en ligne.
 
-- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test et dites ce qu'il protège.
+- [ ] 🟢 6.1 — Lancez `pytest -q`. Lisez chaque test de `tests/test_churn.py` et dites ce qu'il protège.
 - [ ] 🟡 6.2 — Écrivez un test qui vérifie que le modèle sauvegardé (`models/churn_model.joblib`) donne les mêmes prédictions une fois rechargé.
-- [ ] 🟡 6.3 — Ajoutez une GitHub Action qui lance les tests à chaque push.
-- [ ] 🔴 6.4 — Exposez le modèle via une API FastAPI (`POST /predict`).
+- [ ] 🟢 6.3 — Ouvrez l'onglet *Actions* du dépôt GitHub. Cassez volontairement un test, poussez, observez la CI échouer, puis réparez.
+- [ ] 🟡 6.4 — Mesurez la couverture des tests : `pip install pytest-cov` puis `pytest --cov=src --cov=api`. Quelle partie du code n'est jamais testée ? Ajoutez un test pour la couvrir.
 - [ ] 🔴 6.5 — Déployez le tableau de bord sur Streamlit Community Cloud et ajoutez le lien au README.
 
 **Auto-évaluation** : Si les données changent dans 6 mois (*data drift*), comment le détecteriez-vous ?
+
+---
+
+## Module 7 — Projet 2 : servir le modèle (`api/`, `Dockerfile`, `.github/workflows/ci.yml`)
+
+**Objectifs** : transformer un modèle de notebook en service fiable — API, validation, configuration,
+conteneur, intégration continue.
+
+- [ ] 🟢 7.1 — Lancez `uvicorn api.main:app --reload`, ouvrez http://localhost:8000/docs et envoyez le client d'exemple. Remplacez `contract` par `"Hebdomadaire"` : lisez l'erreur 422. Qui l'a produite, le modèle ou Pydantic ?
+- [ ] 🟢 7.2 — Relancez avec `CHURN_THRESHOLD=0.3 uvicorn api.main:app`. Qu'est-ce qui change dans les réponses ? Pourquoi le seuil est-il une *configuration* et pas du code ?
+- [ ] 🟢 7.3 — Lisez `test_api_matches_the_trained_pipeline`. Expliquez le *training-serving skew* et pourquoi garder le préprocessing DANS le pipeline l'évite.
+- [ ] 🟡 7.4 — Ajoutez une route `GET /customers/{customer_id}/risk` qui lit `data/customers.csv` et renvoie le score du client (erreur 404 s'il est inconnu). Écrivez les deux tests.
+- [ ] 🟡 7.5 — Protégez `/predict` par une clé d'API : en-tête `X-API-Key` comparé à une variable d'environnement, sinon 401 (indice : `fastapi.security.APIKeyHeader` + `Depends`).
+- [ ] 🟡 7.6 — Ajoutez une étape `ruff check .` à la CI. Corrigez ce qu'elle signale.
+- [ ] 🔴 7.7 — L'image Docker pèse environ 670 Mo. Réduisez-la (build multi-étapes, `--no-compile`, image de base) et mesurez avec `docker images`.
+- [ ] 🔴 7.8 — Journalisez chaque prédiction (entrées, score, horodatage) dans un fichier JSONL. Ce journal sera la matière première du Projet 4 (*data drift*).
+- [ ] 🔴 7.9 — Déployez l'image sur un hébergeur gratuit (Render, Fly.io, Railway…) et ajoutez l'URL au README.
+
+**Auto-évaluation** : Le modèle est entraîné pendant `docker build`. Avantages ? Inconvénients ?
+Quand préféreriez-vous charger le modèle depuis un stockage externe au démarrage ?
 
 ---
 
