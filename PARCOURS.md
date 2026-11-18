@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 157 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_25.py`, corrigés par
+> [défis](defis/README.md) : 163 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_26.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -126,13 +126,22 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > continuer quand une étape plante, et combien de temps dure la nuit sur une ou plusieurs machines. Faites-la avant le
 > [projet 5](projets/README.md#projet-5--réentraîner-le-modèle-sans-casser-la-production) : son réentraînement
 > mensuel est exactement un tel enchaînement d'étapes.
-> Enfin, la série 25 (`defis/serie_25.py`, défis 152 à 157) donne au marketing de quoi écrire ses propres règles de
+> Puis la série 25 (`defis/serie_25.py`, défis 152 à 157) donne au marketing de quoi écrire ses propres règles de
 > ciblage (`contrat = "mensuel" et anciennete < 6`) au lieu de demander une liste au data scientist : vous écrivez
 > l'analyseur (sans `eval`), l'interpréteur qui dit si un client est ciblé — vrai, faux ou INCONNU quand une donnée
 > manque, comme NULL en SQL —, le vérificateur qui trouve toutes les fautes avant la campagne, et le compilateur qui
 > fait filtrer la base par une requête paramétrée. Elle prolonge l'onglet « Clients à risque » du module 5 (une
 > liste filtrée par une règle plutôt que par un seul seuil) et l'exercice 6.4 (une API qui accepte une règle
 > envoyée par quelqu'un d'autre doit la refuser proprement, jamais planter).
+> Enfin, la série 26 (`defis/serie_26.py`, défis 158 à 163) répond à la question qui suit chaque chiffre de ce
+> parcours : « c'est significatif ? ». Vous écrivez l'intervalle bootstrap (de n'importe quelle statistique : une
+> médiane, une AUC), le test de permutation, le calcul du nombre de clients nécessaire AVANT un test A/B, la
+> correction de Benjamini-Hochberg quand on teste 20 segments à la fois, la comparaison APPARIÉE de deux modèles
+> (le défi 162 répond à l'exercice 3.4 : un écart d'AUC entre deux modèles est-il plus grand que le hasard ?), et
+> CUPED, qui rend un test A/B plus précis grâce au score que le modèle avait calculé la veille. Faites-la avant le
+> [projet 3](projets/README.md#projet-3--mesurer-leffet-de-la-campagne) (ses extensions « Combien de clients
+> faut-il ? » et « Comparer les offres entre elles » sont les défis 160 et 161) et avant de présenter vos résultats
+> à quelqu'un qui décidera avec.
 
 ---
 
