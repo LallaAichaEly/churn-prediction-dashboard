@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 169 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_27.py`, corrigés par
+> [défis](defis/README.md) : 175 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_28.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -142,7 +142,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > [projet 3](projets/README.md#projet-3--mesurer-leffet-de-la-campagne) (ses extensions « Combien de clients
 > faut-il ? » et « Comparer les offres entre elles » sont les défis 160 et 161) et avant de présenter vos résultats
 > à quelqu'un qui décidera avec.
-> Enfin, la série 27 (`defis/serie_27.py`, défis 164 à 169) se place AVANT tout le reste dans la vraie vie : le même
+> Puis la série 27 (`defis/serie_27.py`, défis 164 à 169) se place AVANT tout le reste dans la vraie vie : le même
 > client apparaît deux ou trois fois quand on réunit le site, les boutiques et le support. Vous écrivez la distance
 > d'édition (« Dupont » / « Dupond »), le regroupement transitif (union-find), le blocage qui évite de comparer
 > 300 000 fiches à 300 000 fiches, le score qui distingue accord, désaccord et valeur absente, la fiche de référence
@@ -150,6 +150,15 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > client = une ligne »), l'exercice 2.3 (le défi 168 garde l'inscription la PLUS ANCIENNE : sinon une cliente de
 > 2016 devient une « nouvelle cliente » et `is_new_customer` ment) et l'exercice 4.1 (précision et rappel, sur des
 > fusions au lieu de prédictions). Faites-la avant l'exercice 1.5 : un vrai fichier clients a des doublons.
+> Enfin, la série 28 (`defis/serie_28.py`, défis 170 à 175) prépare le jour où les données arrivent en continu et ne
+> tiennent plus en mémoire. Le défi 170 calcule la moyenne et la variance en une passe, comme
+> `StandardScaler.partial_fit` (exercice 2.1), sans la formule du manuel qui perd tous ses chiffres sur des
+> horodatages. Le défi 171 (CUSUM)
+> est l'alerte qui manque au script de l'exercice 7.6 : il sonne quand le taux de churn monte DURABLEMENT, pas au
+> premier pic. Le défi 172 fabrique une variable « activité récente » à demi-vie (exercice 2.3) qui accepte les
+> données arrivées en retard sans jamais utiliser le futur. Puis la médiane courante (deux tas), l'échantillon
+> uniforme tiré dans un flux de longueur inconnue (pour les lots de l'exercice 7.3) et la fusion de résumés calculés
+> sur plusieurs machines.
 
 ---
 
