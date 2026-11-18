@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 151 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_24.py`, corrigés par
+> [défis](defis/README.md) : 157 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_25.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -120,12 +120,19 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `DecisionTreeClassifier`. Faites-la avant l'exercice 3.3 : quand on a écrit soi-même les deux modèles, on voit
 > pourquoi le modèle linéaire gagne sur des données générées par une formule linéaire. Le défi 141 éclaire aussi
 > l'exercice 4.2 (la log-loss punit un modèle sûr de lui et faux, l'accuracy ne le voit pas).
-> Enfin, la série 24 (`defis/serie_24.py`, défis 146 à 151) organise ce que `scripts/train.py` fait d'un bloc en
+> Puis la série 24 (`defis/serie_24.py`, défis 146 à 151) organise ce que `scripts/train.py` fait d'un bloc en
 > un traitement de nuit à plusieurs étapes, comme Airflow ou `make` : dans quel ordre les lancer, quoi relancer après
 > une correction (seulement ce qui en dépend), où est le cycle qui bloque tout, comment
 > continuer quand une étape plante, et combien de temps dure la nuit sur une ou plusieurs machines. Faites-la avant le
 > [projet 5](projets/README.md#projet-5--réentraîner-le-modèle-sans-casser-la-production) : son réentraînement
 > mensuel est exactement un tel enchaînement d'étapes.
+> Enfin, la série 25 (`defis/serie_25.py`, défis 152 à 157) donne au marketing de quoi écrire ses propres règles de
+> ciblage (`contrat = "mensuel" et anciennete < 6`) au lieu de demander une liste au data scientist : vous écrivez
+> l'analyseur (sans `eval`), l'interpréteur qui dit si un client est ciblé — vrai, faux ou INCONNU quand une donnée
+> manque, comme NULL en SQL —, le vérificateur qui trouve toutes les fautes avant la campagne, et le compilateur qui
+> fait filtrer la base par une requête paramétrée. Elle prolonge l'onglet « Clients à risque » du module 5 (une
+> liste filtrée par une règle plutôt que par un seul seuil) et l'exercice 6.4 (une API qui accepte une règle
+> envoyée par quelqu'un d'autre doit la refuser proprement, jamais planter).
 
 ---
 
