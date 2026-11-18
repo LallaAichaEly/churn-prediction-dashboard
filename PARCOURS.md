@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 163 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_26.py`, corrigés par
+> [défis](defis/README.md) : 169 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_27.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -133,7 +133,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > fait filtrer la base par une requête paramétrée. Elle prolonge l'onglet « Clients à risque » du module 5 (une
 > liste filtrée par une règle plutôt que par un seul seuil) et l'exercice 6.4 (une API qui accepte une règle
 > envoyée par quelqu'un d'autre doit la refuser proprement, jamais planter).
-> Enfin, la série 26 (`defis/serie_26.py`, défis 158 à 163) répond à la question qui suit chaque chiffre de ce
+> Puis la série 26 (`defis/serie_26.py`, défis 158 à 163) répond à la question qui suit chaque chiffre de ce
 > parcours : « c'est significatif ? ». Vous écrivez l'intervalle bootstrap (de n'importe quelle statistique : une
 > médiane, une AUC), le test de permutation, le calcul du nombre de clients nécessaire AVANT un test A/B, la
 > correction de Benjamini-Hochberg quand on teste 20 segments à la fois, la comparaison APPARIÉE de deux modèles
@@ -142,6 +142,14 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > [projet 3](projets/README.md#projet-3--mesurer-leffet-de-la-campagne) (ses extensions « Combien de clients
 > faut-il ? » et « Comparer les offres entre elles » sont les défis 160 et 161) et avant de présenter vos résultats
 > à quelqu'un qui décidera avec.
+> Enfin, la série 27 (`defis/serie_27.py`, défis 164 à 169) se place AVANT tout le reste dans la vraie vie : le même
+> client apparaît deux ou trois fois quand on réunit le site, les boutiques et le support. Vous écrivez la distance
+> d'édition (« Dupont » / « Dupond »), le regroupement transitif (union-find), le blocage qui évite de comparer
+> 300 000 fiches à 300 000 fiches, le score qui distingue accord, désaccord et valeur absente, la fiche de référence
+> et la mesure de la qualité en paires. Elle éclaire l'exercice 1.3 (une règle de qualité des données : ici, « un
+> client = une ligne »), l'exercice 2.3 (le défi 168 garde l'inscription la PLUS ANCIENNE : sinon une cliente de
+> 2016 devient une « nouvelle cliente » et `is_new_customer` ment) et l'exercice 4.1 (précision et rappel, sur des
+> fusions au lieu de prédictions). Faites-la avant l'exercice 1.5 : un vrai fichier clients a des doublons.
 
 ---
 
