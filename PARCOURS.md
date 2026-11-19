@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 241 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_39.py`, corrigés par
+> [défis](defis/README.md) : 247 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_40.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -239,7 +239,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `senior` (`src/churn/data.py`) ; mesurez `taux_par_groupe` sur le jeu de test par `senior`, réentraînez SANS cette
 > colonne, mesurez avec `proxies` ce que les autres colonnes en disent encore, et notez dans JOURNAL.md ce que l'écart
 > de rappel est devenu (et ce que l'AUC a coûté).
-> Enfin, la série 39 (`defis/serie_39.py`, défis 236 à 241) s'occupe de ce qui arrive APRÈS le code : la livraison. Le
+> Puis la série 39 (`defis/serie_39.py`, défis 236 à 241) s'occupe de ce qui arrive APRÈS le code : la livraison. Le
 > script de déploiement a pris 2.9.4 pour la dernière version (`max` sur du texte), et le nouveau score, activé pour
 > tout le monde d'un coup, a rendu le centre d'appels aveugle une matinée. Vous y écrivez la comparaison de versions
 > SemVer, le numéro de la prochaine version déduit des messages de commit (Conventional Commits), les contraintes `^`
@@ -250,6 +250,18 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `prochaine_version`, et sort en erreur si une version installée (`importlib.metadata.version`) ne respecte pas la
 > contrainte « >= » de `requirements.txt` (complétez « 1.26 » en « 1.26.0 ») ; branchez-le dans
 > `.github/workflows/tests.yml`, et notez dans JOURNAL.md le numéro que votre dernier lot de commits aurait dû porter.
+> Enfin, la série 40 (`defis/serie_40.py`, défis 242 à 247) vous prépare au jour où vos données ne tiendront plus en
+> mémoire. Le `set` des 40 millions de numéros déjà contactés a fait tomber le service d'envoi, le tableau de bord
+> additionne des visiteurs « uniques », et passer de 4 à 5 serveurs avec `% n` a déplacé 80 % des clients. Vous y
+> écrivez le dimensionnement et le filtre de Bloom, les éléments fréquents de Misra-Gries, le Count-Min, HyperLogLog
+> et le hachage cohérent : des réponses approchées, avec une erreur connue à l'avance, dans quelques kilo-octets. Pour
+> aller plus loin (module 7, la surveillance) : générez trois lots de 2 000, 5 000 et 9 000 clients avec
+> `generate_customers` (leurs `customer_id` vont de C00001 à Cn : ils se recouvrent), comptez les identifiants de
+> chaque lot avec un `HyperLogLog(12)`, fusionnez les trois, comparez à `nunique()` sur la concaténation (9 000, et
+> non 16 000 comme le dirait l'addition), et notez dans JOURNAL.md l'erreur obtenue face à la promesse de
+> 1,04 / √4096 ≈ 1,6 % ; puis remplissez un `FiltreBloom` avec les valeurs des colonnes catégorielles du train, et
+> alertez quand une valeur jamais vue apparaît dans un lot du jour : c'est une dérive que
+> `handle_unknown="ignore"` (exercice 2.4) rendrait silencieuse.
 
 ---
 
