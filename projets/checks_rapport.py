@@ -19,11 +19,13 @@ import inspect
 import math
 import os
 import re
+import sys
 import tempfile
 import textwrap
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import fields
+from decimal import Decimal
 from datetime import date, datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
@@ -462,7 +464,8 @@ def _comparer_format(fonction, nom: str, args: tuple, attendu: str, conseil: str
 def verifier_formats(module: ModuleType) -> None:
     arrondi = ("arrondissez à la moitié SUPÉRIEURE le nombre tel qu'il s'écrit : "
                "`Decimal(str(x)).quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)`. `round()` arrondit au pair "
-               "(0,125 → 0,12), et `Decimal(x)` ou `f\"{x:.2f}\"` voient la valeur binaire du float (2,675 → 2,67).")
+               "(0,125 → 0,12), et `Decimal(x)` ou `f\"{x:.2f}\"` voient la valeur binaire du float : Decimal(2.675) "
+               "vaut 2.67499999999999982236…, d'où 2,67.")
     for montant, conseil in ((1234.5, ""), (0, ""), (12.0, ""), (7821.59, ""), (0.125, arrondi), (2.675, arrondi),
                              (1.005, arrondi), (999.995, "arrondissez AVANT de séparer les milliers : 999,995 € fait "
                                                          "1 000,00 €."),
@@ -470,8 +473,9 @@ def verifier_formats(module: ModuleType) -> None:
                              (-0.001, ""), (None, "")):
         _comparer_format(module.euros, "euros", (montant,), ref_formats.euros(montant), conseil)
 
-    pour_cent = ("multipliez par 100 en Decimal (`Decimal(str(part)) * 100`) : en float, 0.0295 * 100 vaut "
-                 "2.9499999999999997, et l'on écrirait « 2,9 % » au lieu de « 3,0 % ».")
+    pour_cent = ("passez par `Decimal(str(part))` AVANT de multiplier par 100 : en float, 0.0295 * 100 vaut "
+                 "2.9499999999999997, et Decimal(0.0295) vaut 0.02949999999999999844… (la valeur binaire du float) : "
+                 "on écrirait « 2,9 % » au lieu de « 3,0 % ».")
     for args, conseil in (((0.1234,), ""), ((0.03,), ""), ((1,), ""), ((0,), ""), ((0.0295,), pour_cent),
                           ((0.0185,), pour_cent), ((0.12345, 2), pour_cent), ((0.5, 0), "avec 0 décimale, pas de "
                                                                                        "virgule : « 50 % »."),
@@ -480,8 +484,9 @@ def verifier_formats(module: ModuleType) -> None:
                           ((None,), "")):
         _comparer_format(module.pourcentage, "pourcentage", args, ref_formats.pourcentage(*args), conseil)
 
-    en_decimal = ("calculez l'écart en Decimal à partir des taux exacts : en float, 0.1135 - 0.1 vaut "
-                  "0.013499999999999998, et l'on écrirait +1,3 pt au lieu de +1,4 pt.")
+    en_decimal = ("calculez l'écart avec `Decimal(str(apres)) - Decimal(str(avant))` : en float, 0.1135 - 0.1 vaut "
+                  "0.013499999999999998, et Decimal(0.1135) - Decimal(0.1) vaut 0.01349999999999999811… (les valeurs "
+                  "binaires des floats) : on écrirait +1,3 pt au lieu de +1,4 pt.")
     for args, conseil in (((0.02, 0.03), "c'est un écart en POINTS : (3 % - 2 %) × 100 = +1,0 pt. Pas la variation "
                                          "relative (+50 %)."),
                           ((0.020, 0.032), ""), ((0.032, 0.020), "un écart négatif s'écrit avec « - »."),
@@ -632,8 +637,8 @@ def _verifier_un_dessin(module: ModuleType, etiquettes, valeurs, titre: str, lar
             texte = f"{etiquettes[i]} : {pourcentage(valeurs[i])}"
             if titre_point is None or _texte_xml(titre_point) != texte:
                 lu = None if titre_point is None else _texte_xml(titre_point)
-                raise AssertionError(f"{quoi} : le point de {etiquettes[i]!r} doit contenir <title>{texte}</title> "
-                                     f"(l'infobulle), pas {lu!r}.")
+                raise AssertionError(f"{quoi} : l'infobulle du point de {etiquettes[i]!r} (son <title>) doit être "
+                                     f"{texte!r}, pas {lu!r}.")
             continue
         bas = hauteur - MARGE_BAS
         if abs(xy[0] - xs[i]) <= 0.11 and abs(xy[1] - (MARGE_HAUT + (bas - ys[i]))) <= 0.11:
@@ -666,7 +671,13 @@ def _verifier_un_dessin(module: ModuleType, etiquettes, valeurs, titre: str, lar
                              f"connus consécutifs, avec les mêmes coordonnées que les cercles).")
 
     textes = [_texte_xml(t) for t in racine.iter(f"{ns}text")]
-    graduations = [pourcentage(v) for v in (0.0, haut / 2, haut)]
+    graduations = [pourcentage(v, max(1, -(Decimal(str(v)) * 100).normalize().as_tuple().exponent))
+                   for v in (0.0, haut / 2, haut)]
+    for v, attendu in zip((0.0, haut / 2, haut), graduations):
+        if attendu not in textes and pourcentage(v) in textes:
+            raise AssertionError(f"{quoi} : la graduation {v!r} est écrite {pourcentage(v)!r} au lieu de {attendu!r}. "
+                                 f"Un libellé arrondi ment sur la position de la ligne : prenez le plus petit nombre de "
+                                 f"décimales (au moins 1) qui écrit la valeur EXACTEMENT.")
     for attendu in [*etiquettes, *graduations]:
         if attendu not in textes:
             raise AssertionError(f"{quoi} : aucun <text> ne contient {attendu!r}. Il faut une étiquette par mois et les "
@@ -690,7 +701,7 @@ def verifier_graphique(module: ModuleType) -> None:
     _verifier_un_dessin(module, etiquettes[:5], [0.2, 0.25, 0.1, 0.45, 0.3], "Cinq mois", 400, 200,
                         quoi="courbe_svg(..., largeur=400, hauteur=200)")
     try:
-        _verifier_un_dessin(module, ["oct. 26"], [0.03], "Un seul mois", quoi="courbe_svg (un seul mois)")
+        _verifier_un_dessin(module, ["oct. 26"], [0.023], "Un seul mois", quoi="courbe_svg (un seul mois)")
         _verifier_un_dessin(module, ["a", "b", "c"], [None, None, None], "Rien de connu",
                             quoi="courbe_svg (aucune valeur connue)")
         _verifier_un_dessin(module, ["a", "b"], [0.0, 0.0], "Que des zéros", quoi="courbe_svg (que des zéros)")
@@ -735,6 +746,8 @@ class _Lecteur(HTMLParser):
         self.texte: list[str] = []
         self._tableau: str | None = None
         self._cellule: list[str] | None = None
+        self._pied = False
+        self._entetes: dict[int, int] = {}  # id(ligne) → nombre de <th> dans la ligne
 
     def handle_decl(self, decl):
         self.doctype = self.doctype or decl
@@ -745,11 +758,16 @@ class _Lecteur(HTMLParser):
         if tag == "table" and "data-tableau" in a:
             self._tableau = a["data-tableau"]
             self.tableaux.setdefault(self._tableau, [])
-        elif self._tableau is not None and tag == "tr":
+        elif self._tableau is not None and tag == "tfoot":
+            self._pied = True  # une ligne de total : permise, et ignorée
+        elif self._tableau is not None and tag == "tr" and not self._pied:
             self.tableaux[self._tableau].append([])
-        elif self._tableau is not None and tag == "td" and self.tableaux[self._tableau]:
+        elif self._tableau is not None and tag in ("td", "th") and not self._pied and self.tableaux[self._tableau]:
             self._cellule = []
-            self.tableaux[self._tableau][-1].append(self._cellule)
+            ligne = self.tableaux[self._tableau][-1]
+            ligne.append(self._cellule)
+            if tag == "th":
+                self._entetes[id(ligne)] = self._entetes.get(id(ligne), 0) + 1
         if tag not in _VIDES:
             self.pile.append([tag, a, [] if "data-indicateur" in a else None])
 
@@ -757,10 +775,12 @@ class _Lecteur(HTMLParser):
         self.balises.append((tag, {k: (v or "") for k, v in attrs}))
 
     def handle_endtag(self, tag):
-        if tag == "td":
+        if tag in ("td", "th"):
             self._cellule = None
+        if tag == "tfoot":
+            self._pied = False
         if tag == "table":
-            self._tableau = None
+            self._tableau, self._pied = None, False
         for i in range(len(self.pile) - 1, -1, -1):
             if self.pile[i][0] == tag:
                 for _, a, morceaux in self.pile[i:]:
@@ -785,7 +805,9 @@ class _Lecteur(HTMLParser):
             self.style.append(data)
 
     def lignes(self, tableau: str) -> list[list[str]]:
-        return [[_propre("".join(c)) for c in ligne] for ligne in self.tableaux.get(tableau, []) if ligne]
+        """Les lignes de données : ni la ligne des titres (que des <th>), ni le <tfoot>."""
+        return [[_propre("".join(c)) for c in ligne] for ligne in self.tableaux.get(tableau, [])
+                if ligne and self._entetes.get(id(ligne), 0) < len(ligne)]
 
 
 def _lire_page(page, quoi: str) -> _Lecteur:
@@ -920,7 +942,7 @@ def _verifier_une_page(module: ModuleType, rapport, quoi: str) -> None:
             raise AssertionError(f"{quoi} : le segment {en_clair[0]!r} n'est pas échappé : ses balises <i> sont "
                                  f"devenues de la mise en forme. `html.escape` sur tout texte qui vient des données.")
         raise AssertionError(f"{quoi} : le tableau des segments contient {lignes} au lieu de {attendus['segments']} "
-                             f"(une ligne de <td> par segment ; les en-têtes en <th>).")
+                             f"(une ligne de 4 cellules par segment ; les titres des colonnes en <th>, un total éventuel dans un <tfoot>).")
 
     if rapport.departs:
         if "departs" not in lecteur.tableaux:
@@ -1081,8 +1103,16 @@ def _sans_encodage(module: ModuleType) -> list[str]:
 
 
 def _executer(main, argv: list[str], quoi: str) -> tuple[int, str, str]:
+    def comme_python(argv):
+        try:
+            return main(argv)
+        except SystemExit as exc:  # sys.exit("message") : Python écrit le message sur stderr et sort avec 1
+            if isinstance(exc.code, str):
+                print(exc.code, file=sys.stderr)
+                return 1
+            raise
     try:
-        return _lancer(main, argv)
+        return _lancer(comme_python, argv)
     except (NotImplementedError, AssertionError):
         raise
     except Exception as exc:  # noqa: BLE001

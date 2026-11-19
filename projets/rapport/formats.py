@@ -54,9 +54,10 @@ def ecart_points(avant: float | None, apres: float | None) -> str:
     Le taux de churn passe de 2,0 % à 3,2 % : c'est +1,2 point (une différence de pourcentages), et
     non « +60 % » (une variation relative, qui fait peur ou rassure selon ce qu'on veut montrer).
 
-    - l'écart est (apres - avant) × 100, calculé en Decimal à partir des taux EXACTS, puis arrondi à
-      1 décimale à la moitié supérieure : (0.1, 0.1135) donne +1,4 pt ; en float, 0.1135 - 0.1 vaut
-      0.013499999999999998, et l'on écrirait +1,3 pt ;
+    - l'écart est (apres - avant) × 100, calculé en Decimal à partir des taux tels qu'ils s'écrivent
+      (`Decimal(str(x))`, comme partout dans ce fichier), puis arrondi à 1 décimale à la moitié
+      supérieure : (0.1, 0.1135) donne +1,4 pt. En float, 0.1135 - 0.1 vaut 0.013499999999999998, et
+      Decimal(0.1135) - Decimal(0.1) vaut 0.01349999999999999811… : on écrirait +1,3 pt ;
     - « + » devant un écart positif, « - » devant un écart négatif, rien devant un écart nul APRÈS
       arrondi : (0.05, 0.0499) → « 0,0 pt », ni « +0,0 pt » ni « -0,0 pt » (`f"{x:+.1f}"` écrit les deux) ;
     - ESPACE_UNITE avant « pt », qui ne prend pas de « s » ;

@@ -31,6 +31,12 @@ def _n(x: float) -> str:
     return f"{x:.1f}"
 
 
+def _graduation(v: float) -> str:
+    """Le libellé EXACT d'une graduation : 1,25 % (et non 1,3 %, qui mentirait sur la position de la ligne)."""
+    decimales = -(Decimal(str(v)) * 100).normalize().as_tuple().exponent
+    return pourcentage(v, max(1, decimales))
+
+
 def courbe_svg(etiquettes: Sequence[str], valeurs: Sequence[float | None], titre: str,
                largeur: int = LARGEUR, hauteur: int = HAUTEUR) -> str:
     if len(etiquettes) != len(valeurs):
@@ -52,7 +58,7 @@ def courbe_svg(etiquettes: Sequence[str], valeurs: Sequence[float | None], titre
     for v in (0.0, haut / 2, haut):
         morceaux.append(f'<line x1="{gauche}" y1="{_n(y(v))}" x2="{droite}" y2="{_n(y(v))}" stroke="#d0d4da"/>')
         morceaux.append(f'<text x="{gauche - 8}" y="{_n(y(v) + 4)}" text-anchor="end" fill="#5b6270">'
-                        f"{e(pourcentage(v))}</text>")
+                        f"{e(_graduation(v))}</text>")
     for i, etiquette in enumerate(etiquettes):
         morceaux.append(f'<text x="{_n(x(i))}" y="{bas + 22}" text-anchor="middle" fill="#5b6270">{e(etiquette)}</text>')
 

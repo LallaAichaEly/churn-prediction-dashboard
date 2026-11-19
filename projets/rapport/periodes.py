@@ -15,7 +15,7 @@ from .modeles import MOIS_FR  # noqa: F401
 def lire_mois(texte: str) -> date:
     """« 2026-10 » → `date(2026, 10, 1)` : le 1er du mois écrit AAAA-MM.
 
-    Les espaces autour sont tolérés (« 2026-10 » tapé avec une espace en trop). Tout le reste lève
+    Les espaces autour sont tolérés (`" 2026-10 "`, tapé avec une espace avant ou après). Tout le reste lève
     une `ValueError` avec un message qui dit ce qui est attendu :
     - « 2026-1 » : il faut DEUX chiffres pour le mois. Les rapports s'appellent `rapport_2026-01.html` :
       avec « 2026-1 », `rapport_2026-1.html` se rangerait APRÈS `rapport_2026-10.html` ;

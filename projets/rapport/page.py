@@ -38,13 +38,15 @@ def page_html(rapport: Rapport) -> str:
        septembre 2026 ») va HORS de ces éléments. L'attribut sert au correcteur, et à quiconque voudra
        un jour relire vos rapports avec un programme.
 
-    3. Un `<table data-tableau="segments">` : une ligne `<tr>` de cellules `<td>` par segment, dans
-       l'ordre de `rapport.segments`, avec 4 cellules : le segment, nombre(actifs_debut, "client"),
-       nombre(departs, "départ") et pourcentage(taux_churn). Les en-têtes sont des `<th>`.
+    3. Un `<table data-tableau="segments">` : une ligne `<tr>` par segment, dans l'ordre de
+       `rapport.segments`, avec 4 cellules : le segment, nombre(actifs_debut, "client"),
+       nombre(departs, "départ") et pourcentage(taux_churn). Les cellules sont des `<td>` ; la première
+       peut être un en-tête de ligne `<th scope="row">`. La ligne des titres de colonnes est faite de
+       `<th>` (dans un `<thead>`), et une ligne de total, si vous en voulez une, va dans un `<tfoot>`.
 
     4. Si `rapport.departs` n'est pas vide, un `<table data-tableau="departs">` : une ligne par départ,
-       dans l'ordre reçu, avec 5 cellules `<td>` : client, nom, segment, euros(mensualite) et le dernier
-       jour au format JJ/MM/AAAA (`f"{d.fin:%d/%m/%Y}"`). S'il est vide, pas de tableau : la phrase
+       dans l'ordre reçu, avec 5 cellules (mêmes règles qu'au point 3) : client, nom, segment,
+       euros(mensualite) et le dernier jour au format JJ/MM/AAAA (`f"{d.fin:%d/%m/%Y}"`). S'il est vide, pas de tableau : la phrase
        « Aucun départ ce mois-ci. ».
 
     5. La courbe des mois de `rapport.historique`, insérée TELLE QUELLE dans la page :

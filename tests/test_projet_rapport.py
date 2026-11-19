@@ -250,7 +250,7 @@ ERREURS_CLASSIQUES = [
     ("formats.py", [("    return abs(resultat) if resultat == 0 else resultat", "    return resultat")], "sans signe"),
     ("formats.py", [('signe = "+" if ecart > 0 else ""', 'signe = "+" if ecart >= 0 else ""')], "sans signe"),
     ("formats.py", [("    ecart = _arrondi((_decimal(apres) - _decimal(avant)) * 100, 1)",
-                     "    ecart = _arrondi(_decimal((apres - avant) * 100), 1)")], "en Decimal"),
+                     "    ecart = _arrondi(_decimal((apres - avant) * 100), 1)")], "0.013499999999999998"),
     ("formats.py", [("    ecart = _arrondi((_decimal(apres) - _decimal(avant)) * 100, 1)",
                      "    ecart = _arrondi((_decimal(apres) - _decimal(avant)) / _decimal(avant) * 100, 1)")], "POINTS"),
     ("formats.py", [("_arrondi(_decimal(part) * 100, decimales)", "_arrondi(_decimal(part * 100), decimales)")],
@@ -259,6 +259,10 @@ ERREURS_CLASSIQUES = [
     ("formats.py", [("pluriel = mot if n < 2 or", "pluriel = mot if n == 1 or")], "SINGULIER"),
     ("formats.py", [(' or mot.endswith(("s", "x", "z"))', "")], "s, x ou z"),
     ("formats.py", [("    if montant is None:\n        return TIRET\n", "")], "euros\\(None\\)"),
+    ("formats.py", [("    ecart = _arrondi((_decimal(apres) - _decimal(avant)) * 100, 1)",
+                     "    ecart = _arrondi((Decimal(apres) - Decimal(avant)) * 100, 1)")], "Decimal\\(str\\(apres\\)\\)"),
+    ("formats.py", [("_arrondi(_decimal(part) * 100, decimales)", "_arrondi(Decimal(part) * 100, decimales)")],
+     "AVANT de multiplier"),
     ("formats.py", [('.replace(",", ESPACE_MILLIERS).replace(".", ",")', '.replace(".", ",").replace(",", ESPACE_MILLIERS)')],
      None),
     # Étape 4 — graphique.py
@@ -291,6 +295,7 @@ ERREURS_CLASSIQUES = [
      "default"),
     ("graphique.py", [("<title>{e(etiquettes[i])} : {e(pourcentage(v))}</title>", "")], "infobulle"),
     ("graphique.py", [("    if len(etiquettes) != len(valeurs):\n", "    if False:\n")], "ValueError"),
+    ("graphique.py", [("    return pourcentage(v, max(1, decimales))", "    return pourcentage(v)")], "ment sur la position"),
     # Étape 5 — page.py
     ("page.py", [("<td>{e(d.nom)}</td>", "<td>{d.nom}</td>")], "XSS"),
     ("page.py", [("<td>{e(d.nom)}</td>", "<td>{e(e(d.nom))}</td>")], "DEUX fois"),
@@ -352,6 +357,20 @@ def test_chaque_erreur_classique_recoit_le_bon_message(tmp_path, monkeypatch, fi
     assert resultat.statut in (ECHEC, ERREUR), f"erreur non détectée : {remplacements}"
     if motif is not None:
         assert re.search(motif, resultat.message), resultat.message
+
+
+@pytest.mark.parametrize("fichier, remplacements", [
+    ("page.py", [("<tr><td>{e(segment)}</td>", '<tr><th scope="row">{e(segment)}</th>'),
+                 ("<tr><td>{e(d.client)}</td>", '<tr><th scope="row">{e(d.client)}</th>')]),
+    ("page.py", [("\n</tbody>\n</table></div>\n<h2>Les plus gros départs</h2>",
+                  "\n</tbody>\n<tfoot><tr><td>Total</td><td>{e(nombre(a.actifs_debut, 'client'))}</td><td></td><td></td></tr>"
+                  "</tfoot>\n</table></div>\n<h2>Les plus gros départs</h2>")]),
+    ("cli.py", [('    print(f"Erreur : {message}", file=sys.stderr)\n    return 1\n', '    sys.exit(f"Erreur : {message}")\n')]),
+], ids=["th-en-tete-de-ligne", "ligne-de-total", "sys.exit"])
+def test_d_autres_ecritures_justes_sont_acceptees(tmp_path, monkeypatch, fichier, remplacements):
+    """Un en-tête de ligne <th scope="row">, une ligne de total dans <tfoot>, sys.exit("message") : c'est juste."""
+    resultat = _variante(tmp_path, monkeypatch, fichier, remplacements)
+    assert resultat.statut == REUSSI, resultat.message
 
 
 def test_un_lien_cliquable_n_est_pas_une_ressource_exterieure(tmp_path, monkeypatch):

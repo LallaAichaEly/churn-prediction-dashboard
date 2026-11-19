@@ -65,7 +65,10 @@ def courbe_svg(etiquettes: Sequence[str], valeurs: Sequence[float | None], titre
        Un mois inconnu (None) COUPE la courbe en deux polylines : le relier à zéro inventerait un mois
        sans aucun départ. Une suite d'un seul point n'a pas de polyline (son cercle suffit).
     6. Pour chaque étiquette, un `<text>` sous l'axe ; et pour 0, haut / 2 et haut, une ligne
-       horizontale `<line .../>` et un `<text>` qui affiche `pourcentage(v)` (« 0,0 % », « 2,5 % », « 5,0 % »).
+       horizontale `<line .../>` et un `<text>` qui affiche `pourcentage(v, d)`, avec `d` le plus petit
+       nombre de décimales (au moins 1) qui écrit v EXACTEMENT : « 0,0 % », « 2,5 % », « 5,0 % » quand
+       haut vaut 5 %, mais « 1,25 % » au milieu quand haut vaut 2,5 %. « 1,3 % » mentirait sur la position
+       de la ligne. Indice : `(Decimal(str(v)) * 100).normalize().as_tuple().exponent` vaut -2 pour 1,25.
     7. Les coordonnées avec UNE décimale au plus (`f"{x:.1f}"`) : 102.36363636363636 alourdit le fichier
        pour rien. Le correcteur tolère 0,1 pixel d'écart.
     8. Tout texte venu de l'extérieur (`titre`, `etiquettes`) passe par `html.escape` : un « & » nu ou un
