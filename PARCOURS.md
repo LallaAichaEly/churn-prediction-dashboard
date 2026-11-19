@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 253 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_41.py`, corrigés par
+> [défis](defis/README.md) : 259 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_42.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -262,7 +262,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > 1,04 / √4096 ≈ 1,6 % ; puis remplissez un `FiltreBloom` avec les valeurs des colonnes catégorielles du train, et
 > alertez quand une valeur jamais vue apparaît dans un lot du jour : c'est une dérive que
 > `handle_unknown="ignore"` (exercice 2.4) rendrait silencieuse.
-> Enfin, la série 41 (`defis/serie_41.py`, défis 248 à 253) ouvre la boîte de Parquet. L'instantané des clients part
+> Puis la série 41 (`defis/serie_41.py`, défis 248 à 253) ouvre la boîte de Parquet. L'instantané des clients part
 > chaque nuit en CSV (1,9 Go), le journal des événements n'arrive plus des zones rurales, et le fichier tronqué du
 > partenaire a arrêté la chaîne de nuit sur un `IndexError` à 3 h du matin. Vous y écrivez le codage par plages et par
 > dictionnaire (sans confondre `True` et `1`, avec tous les NaN ensemble), les bits collés de Parquet, les écarts, le
@@ -274,6 +274,20 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > et comparez la somme à `len(df.to_csv(index=False).encode())` ; essayez `plages` sur `contract` avant et après le
 > tri. Notez dans JOURNAL.md le gain colonne par colonne, et laquelle résiste (et pourquoi) ; si `pyarrow` est
 > installé, comparez avec la taille de `df.to_parquet()`.
+> Enfin, la série 42 (`defis/serie_42.py`, défis 254 à 259) répond à la question que pose tout modèle de churn : « combien
+> peut-on dépenser pour garder ce client ? ». Le tableur dit 734 € pour tout le monde (marge / taux de churn) ; vous y
+> estimez une matrice de transition entre états (« Fidèle », « Actif », « À risque », « Parti ») à partir de relevés
+> mensuels en désordre (décembre et janvier se suivent, un mois perdu ne fait pas de passage), vous projetez une
+> cohorte (un vecteur ligne fois la matrice), vous calculez la durée de vie par un système linéaire, la valeur
+> actualisée à rebours (1 013 €, 657 € ou 378 € selon l'état) et le délai de rentabilité d'un client recruté, et vous
+> lissez les petits segments pour ne pas croire à des clients éternels. Elle prolonge l'exercice 4.3 (le seuil selon
+> les coûts métier) : le « coût d'un client perdu » n'est plus un chiffre au hasard. Pour aller plus loin : découpez
+> `predict_proba` du modèle en trois tranches (« Fidèle » sous 0,15, « À risque » au-dessus de 0,5, « Actif » entre
+> les deux), simulez deux relevés mensuels avec `generate_customers(5000, seed=…)` en faisant vieillir les clients, et
+> comparez la matrice obtenue à `matrice_exemple()` ; puis, avec `valeur_client`, remplacez dans
+> `best_threshold_by_cost` le coût fixe d'un client perdu par sa valeur selon son état, et notez dans JOURNAL.md de
+> combien le seuil optimal bouge (et pourquoi la remise de 120 € n'est rentable que si elle convainc plus de 43 % des
+> clients à risque).
 
 ---
 
