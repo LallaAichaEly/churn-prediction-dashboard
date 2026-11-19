@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 223 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_36.py`, corrigés par
+> [défis](defis/README.md) : 229 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_37.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -212,7 +212,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > l'exercice 3.4 (le modèle jugé sur ses propres clients bat la vérité elle-même). Pour aller plus loin : un onglet
 > « Qui appeler ? » dans le tableau de bord, qui trace la courbe de Qini du score et celle du T-learner, et répond à
 > l'auto-évaluation du module 5 (trois actions de rétention) avec les départs évités, pas les départs prédits.
-> Enfin, la série 36 (`defis/serie_36.py`, défis 218 à 223) surveille l'API que les conseillers utilisent pour de vrai :
+> Puis la série 36 (`defis/serie_36.py`, défis 218 à 223) surveille l'API que les conseillers utilisent pour de vrai :
 > un tableau de bord tout vert (« temps moyen : 150 ms ») pendant qu'une requête sur cent attend plus de 4 secondes.
 > Vous y écrivez la lecture d'un journal d'accès (par route, les 5xx seulement, sans planter sur une ligne abîmée), le
 > quantile d'un histogramme comme Prometheus (et pourquoi la moyenne des p99 ment), l'augmentation d'un compteur qui
@@ -222,6 +222,13 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > loin : ajoutez à `api.py` un intergiciel (`@app.middleware("http")`) qui écrit une ligne de journal par requête au
 > format du défi 218, et une route `/metrics` qui expose l'histogramme des durées ; branchez-y vos fonctions et notez
 > dans JOURNAL.md le p99 de `/predict` mesuré pendant les tests.
+> Enfin, la série 37 (`defis/serie_37.py`, défis 224 à 229) regarde le churn par l'autre bout : une partie des départs
+> sont INVOLONTAIRES (un prélèvement refusé que personne n'a relancé), et une facture fausse d'un centime fait perdre
+> confiance. Vous y écrivez le prorata d'un changement de formule, la répartition d'une remise au plus fort reste, la
+> facture avec `Decimal` et la TVA par taux, les jours fériés (Pâques compris), les relances en jours ouvrés et le
+> rapprochement d'un relevé bancaire. Pour aller plus loin : ajoutez à la table du modèle une variable « prélèvement
+> refusé dans les 60 derniers jours », calculée avec `rapprocher`, mesurez son importance (exercice 5.1), et notez
+> dans JOURNAL.md combien de départs du mois auraient pu être évités par une relance.
 
 ---
 
