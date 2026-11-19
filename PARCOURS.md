@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 271 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_44.py`, corrigés par
+> [défis](defis/README.md) : 277 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_45.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -299,7 +299,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > plus proche » (avec `plus_proches`) et une variable « dans la zone fibre » (avec `dans_zone`), faites dépendre le
 > churn simulé d'une antenne muette, et regardez si l'importance par permutation (onglet « Facteurs de churn ») la
 > retrouve ; notez dans JOURNAL.md ce que le modèle voit, et ce qu'une carte par geohash montrait plus vite.
-> Enfin, la série 44 (`defis/serie_44.py`, défis 266 à 271) s'occupe des clients qui appellent le support. Le tableur
+> Puis la série 44 (`defis/serie_44.py`, défis 266 à 271) s'occupe des clients qui appellent le support. Le tableur
 > affiche 79 % d'occupation et la direction se dit large ; vous y écrivez Erlang C (par récurrence, sans factorielle),
 > le nombre de conseillers à planifier pour décrocher 80 % des appels en 20 secondes (le trafic en erlangs, les
 > absents comptés en entiers), la simulation de la semaine appel par appel avec un tas (les clients qui raccrochent ne
@@ -313,6 +313,18 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > permutation ; puis adaptez `simuler_file` pour servir les appels avec une `FilePrioritaire` (les probabilités du
 > modèle comme risque), rejouez la semaine et notez dans JOURNAL.md de combien baisse le nombre de clients à risque
 > qui raccrochent, et ce que cela coûte aux autres.
+> Enfin, la série 45 (`defis/serie_45.py`, défis 272 à 277) lit ce que les clients écrivent. La règle « résili » se
+> trompe sept fois sur dix (« Pas question de résilier ») et ne voit qu'un partant sur cinq ; vous y écrivez la
+> découpe en mots (casefold, NFKD, sans accents), le marquage des négations (« non_resilier »), un Bayes naïf qui
+> compte et lisse, ses probabilités en logarithmes (un courrier de 3 000 mots ne fait pas 0 / 0), les mots qui
+> révèlent un départ (le code RIO, la fin de l'engagement, « je ne suis plus content ») et un classifieur qui apprend
+> chaque soir et oublie un client qui exerce son droit à l'effacement. Elle prolonge l'exercice 5.1 (ce que le modèle
+> retrouve) et l'exercice 5.3 (expliquer une prédiction) : les mots révélateurs sont les « coefficients » du Bayes
+> naïf. Pour aller plus loin : donnez à chaque client de `generate_customers(5000)` un commentaire tiré de
+> `generer_commentaires` (selon son churn simulé), ajoutez au modèle la variable « probabilité de départ lue dans le
+> commentaire » (calculée hors pli, pour ne pas tricher), et mesurez dans l'onglet « Facteurs de churn » ce qu'elle
+> apporte ; puis comparez votre `entrainer` à `MultinomialNB` de scikit-learn, et notez dans JOURNAL.md ce que le
+> lissage (alpha = 0,1, 1, 10) change à la précision et au rappel.
 
 ---
 
