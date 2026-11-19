@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 259 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_42.py`, corrigés par
+> [défis](defis/README.md) : 265 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_43.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -274,7 +274,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > et comparez la somme à `len(df.to_csv(index=False).encode())` ; essayez `plages` sur `contract` avant et après le
 > tri. Notez dans JOURNAL.md le gain colonne par colonne, et laquelle résiste (et pourquoi) ; si `pyarrow` est
 > installé, comparez avec la taille de `df.to_parquet()`.
-> Enfin, la série 42 (`defis/serie_42.py`, défis 254 à 259) répond à la question que pose tout modèle de churn : « combien
+> Puis la série 42 (`defis/serie_42.py`, défis 254 à 259) répond à la question que pose tout modèle de churn : « combien
 > peut-on dépenser pour garder ce client ? ». Le tableur dit 734 € pour tout le monde (marge / taux de churn) ; vous y
 > estimez une matrice de transition entre états (« Fidèle », « Actif », « À risque », « Parti ») à partir de relevés
 > mensuels en désordre (décembre et janvier se suivent, un mois perdu ne fait pas de passage), vous projetez une
@@ -288,6 +288,17 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `best_threshold_by_cost` le coût fixe d'un client perdu par sa valeur selon son état, et notez dans JOURNAL.md de
 > combien le seuil optimal bouge (et pourquoi la remise de 120 € n'est rentable que si elle convainc plus de 43 % des
 > clients à risque).
+> Enfin, la série 43 (`defis/serie_43.py`, défis 260 à 265) donne une adresse aux données. Les départs ont doublé dans
+> la vallée, et le tableau de bord du réseau est « tout vert » ; vous y écrivez la distance de haversine (des radians,
+> et pas Pythagore sur des degrés), le point dans une zone fibre GeoJSON (des positions [longitude, latitude], un
+> trou), le geohash qui transforme une carte de chaleur en `GROUP BY`, l'antenne la plus proche de 6 000 clients sans
+> tout comparer, DBSCAN pour trouver les foyers de plaintes, et la tournée du technicien. Trois antennes muettes
+> apparaissent, autour desquelles 41 % des clients sont partis, contre 7 % ailleurs. Elle prolonge l'exercice 5.2
+> (le taux de churn par service internet) : un taux par lieu, cette fois. Pour aller plus loin : donnez une position à
+> chaque client de `generate_customers(5000)` avec `generer_points`, ajoutez une variable « distance à l'antenne la
+> plus proche » (avec `plus_proches`) et une variable « dans la zone fibre » (avec `dans_zone`), faites dépendre le
+> churn simulé d'une antenne muette, et regardez si l'importance par permutation (onglet « Facteurs de churn ») la
+> retrouve ; notez dans JOURNAL.md ce que le modèle voit, et ce qu'une carte par geohash montrait plus vite.
 
 ---
 
