@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 283 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_46.py`, corrigés par
+> [défis](defis/README.md) : 289 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_47.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -325,7 +325,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > commentaire » (calculée hors pli, pour ne pas tricher), et mesurez dans l'onglet « Facteurs de churn » ce qu'elle
 > apporte ; puis comparez votre `entrainer` à `MultinomialNB` de scikit-learn, et notez dans JOURNAL.md ce que le
 > lissage (alpha = 0,1, 1, 10) change à la précision et au rappel.
-> Enfin, la série 46 (`defis/serie_46.py`, défis 278 à 283) décide qui a le droit de voir quoi. Aujourd'hui, une
+> Puis la série 46 (`defis/serie_46.py`, défis 278 à 283) décide qui a le droit de voir quoi. Aujourd'hui, une
 > permission est accordée si elle COMMENCE par un droit du compte : 36 comptes exportent les 1 200 clients, et les 7
 > comptes du support, dont la colonne « droits » était vide, peuvent tout faire. Vous y écrivez la comparaison d'une
 > permission à un droit segment par segment (« client » ne couvre pas « clients:lire »), les rôles hérités (avec un
@@ -338,6 +338,18 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > « clients:exporter » ; dans `api.py`, lisez l'identifiant du compte dans un en-tête et répondez 403 quand `decider`
 > refuse. Notez dans JOURNAL.md combien de clients voit chaque rôle, et ce qui change quand le support n'hérite plus
 > de l'équipe technique.
+> Enfin, la série 47 (`defis/serie_47.py`, défis 284 à 289) garde le CRM et l'appli mobile d'accord. Aujourd'hui, la
+> synchro de 2 h recopie la fiche la plus récente EN ENTIER : en octobre, 347 champs sont faux, les 41 clients
+> effacés à leur demande sont tous revenus, et 186 clients qui avaient refusé les SMS en recevront. Vous y écrivez la
+> comparaison de deux vecteurs de versions (avant, après, ou concurrentes), une empreinte canonique (clés triées,
+> Unicode normalisé), la recherche des fiches qui diffèrent dans un arbre de Merkle (82 allers-retours au lieu de 48
+> 000), un récepteur qui applique chaque message une fois et dans l'ordre, une horloge hybride qui ne recule pas
+> quand le serveur recule, et une fusion champ par champ avec des pierres tombales. Elle prolonge le module 6 : un
+> modèle en production lit des données qui vivent à plusieurs endroits, et un client effacé ne doit pas revenir dans
+> le prochain entraînement. Pour aller plus loin : faites écrire à `scripts/train.py`, à côté du modèle,
+> l'`empreinte` de chaque client du jeu d'entraînement ; dans l'onglet « Performance » de `app.py`, affichez combien
+> de clients ont changé depuis l'entraînement (avec `Replique` et `differences`), et notez dans JOURNAL.md à partir
+> de combien de fiches changées vous réentraîneriez.
 
 ---
 
