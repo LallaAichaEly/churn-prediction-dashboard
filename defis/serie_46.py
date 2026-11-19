@@ -80,8 +80,10 @@ clients de son agence ; la fiche d'un salarié n'est plus lisible que par 11 com
 comptes sont ceux du support informatique : le modèle a hérité de l'erreur de l'annuaire (« support_informatique »
 hérite d'« admin_technique », donc de la règle R11, « * »). La revue des droits dormants le montre : en 90 jours, aucun
 des 7 ne s'en est servi. On retire cet héritage : 20 comptes peuvent exporter, et 4 lire la fiche d'un salarié (le DPO
-et les 3 administrateurs). Restent 31 cumuls interdits, dont les 12 managers d'agence, qui proposent ET valident les
-gestes commerciaux, parce qu'un manager EST un conseiller : l'héritage donne trop, et c'est la revue qui le dit.
+et les 3 administrateurs). Restent 31 cumuls interdits (des couples compte–incompatibilité) : les 3 administrateurs et
+les 6 data scientists entraînent ET déploient les modèles, et 19 comptes proposent ET valident les gestes commerciaux,
+dont les 12 managers d'agence, parce qu'un manager EST un conseiller : l'héritage donne trop, et c'est la revue qui le
+dit.
 
 ✍️  C'EST VOTRE FICHIER. Même mode d'emploi que les autres séries :
 
@@ -164,6 +166,8 @@ def permission_couvre(motif, permission) -> bool:
       « * » (« clients » couvre « clients:lire:telephone ») ;
     - un motif plus LONG que la permission ne la couvre que si tous ses segments en trop valent « * »
       (« clients:lire:* » couvre « clients:lire », mais « clients:lire:telephone » ne la couvre pas) ;
+    - vérifiez TOUT le motif et TOUTE la permission AVANT de comparer : un motif mal écrit est refusé même si son
+      premier segment ne correspond déjà pas (« rapports:li* » face à « clients:lire » → ValueError, pas False) ;
     - rendez True ou False (un vrai `bool`).
 
     Les pièges : `permission.startswith(motif)` laisse « client » couvrir « clients:lire » (et « » couvrir tout :
@@ -468,8 +472,9 @@ class Delegations:
 
     - `__init__(annuaire, heritage, regles)` : `annuaire` est un `dict` {identifiant: compte}, où chaque compte est un
       `dict` avec "roles" (ses rôles DIRECTS) et ses attributs ("agence", "region"…) ; `heritage` comme au défi 279 ;
-      `regles` comme au défi 280. Ne COPIEZ PAS l'annuaire : c'est l'annuaire vivant (un départ, un changement de rôle
-      s'y voient aussitôt) ;
+      `regles` comme au défi 280 (TypeError si `annuaire` ou `heritage` n'est pas un `dict`, ou si `regles` n'est pas
+      une liste ou un tuple). Ne COPIEZ PAS l'annuaire : c'est l'annuaire vivant (un départ, un changement de rôle s'y
+      voient aussitôt) ;
     - `ajouter(delegant, delegue, motif, debut, fin)` : le compte `delegant` prête, de `debut` (compris) à `fin`
       (exclue), les permissions couvertes par `motif` au compte `delegue`. Rend le NUMÉRO de la délégation : 1, puis 2,
       3… dans l'ordre des ajouts ;

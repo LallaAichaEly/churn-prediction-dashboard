@@ -168,6 +168,20 @@ def test_couvre_qui_accepte_un_joker_dans_la_demande():
     _echec("permission_couvre", fonction, "PRÉCISE")
 
 
+def test_couvre_qui_ne_verifie_que_ce_qu_il_compare():
+    def fonction(motif, permission):
+        if not isinstance(motif, str) or not isinstance(permission, str):
+            raise TypeError("des textes")
+        m, p = motif.split(":"), permission.split(":")
+        if "" in m or "" in p:
+            raise ValueError("segment vide")
+        if m[0] != "*" and p[0] not in m[0].split(","):
+            return False                                    # avant d'avoir vérifié le reste
+        return corrige.permission_couvre(motif, permission)
+
+    _echec("permission_couvre", fonction, "TOUT le motif")
+
+
 def test_couvre_accepte_une_expression_reguliere():
     def fonction(motif, permission):
         corrige.permission_couvre(motif, permission)      # les mêmes erreurs
@@ -563,6 +577,31 @@ def test_delegations_qui_copie_l_annuaire():
             super().__init__(copy.deepcopy(annuaire), heritage, regles)
 
     _echec("Delegations", Delegations, "recopié l'annuaire")
+
+
+def test_delegations_compte_inconnu_qui_leve_keyerror():
+    class Delegations(_RefDelegations):
+        def decider(self, identifiant, *args, **kwargs):
+            self._annuaire[identifiant]                       # KeyError au lieu de ValueError
+            return super().decider(identifiant, *args, **kwargs)
+
+    _echec("Delegations", Delegations, "ValueError", "AVANT de lire son compte")
+
+
+def test_delegations_qui_rend_le_refus_du_delegant():
+    class Delegations(_RefDelegations):
+        def decider(self, identifiant, permission, client, maintenant, _deja=frozenset()):
+            propre = super().decider(identifiant, permission, client, maintenant)
+            if propre.autorise or propre.regle is not None:
+                return propre
+            for numero, (delegant, delegue, *_reste) in sorted(self._delegations.items()):
+                if delegue == identifiant and delegant in self._annuaire and numero not in self._revoquees:
+                    pour_lui = _ref_decider(self._compte(delegant), permission, client, self._regles)
+                    if pour_lui.regle is not None:
+                        return Decision(False, pour_lui.regle)    # le refus du délégant remonte
+            return propre
+
+    _echec("Delegations", Delegations, "le refus du délégant ne remonte pas")
 
 
 def test_delegations_sans_numero_a_partir_de_1():

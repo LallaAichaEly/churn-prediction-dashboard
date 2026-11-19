@@ -340,6 +340,12 @@ def verifier_permission_couvre(f) -> None:
             (("clients:lire,", "clients:lire"), ValueError, "« lire, » contient une valeur vide."),
             (("clients:,lire", "clients:lire"), ValueError, "« ,lire » contient une valeur vide."),
             (("clients:*,lire", "clients:lire"), ValueError, "« * » ne se met pas dans une liste."),
+            (("rapports:li*", "clients:lire"), ValueError,
+             "Le premier segment ne correspond pas, mais le motif est mal écrit : vérifiez TOUT le motif AVANT de "
+             "comparer (une configuration fausse doit se voir, même quand la réponse serait « non »)."),
+            (("rapports", "clients:*"), ValueError,
+             "Le premier segment ne correspond pas, mais la permission demandée n'est pas précise : vérifiez-la EN "
+             "ENTIER avant de comparer."),
             ((None, "clients:lire"), TypeError, "None n'est pas un motif."),
             (("clients:lire", None), TypeError, "None n'est pas une permission."),
             ((["clients", "lire"], "clients:lire"), TypeError, "Une liste n'est pas un motif : passez le texte."),
@@ -683,7 +689,7 @@ def _decrire_cas_280(utilisateur, permission, client, regles) -> str:
     elif regles == regles_exemple()[::-1]:
         nom = "regles_exemple()[::-1] (les mêmes règles, dans l'ordre inverse)"
     else:
-        nom = "regles = " + _court(regles, 300)
+        nom = "regles = " + _court(regles, 300) + " (toutes les règles : `_regles_280()` dans defis/checks_serie_46.py)"
     roles = sorted(utilisateur["roles"])
     return (f"decider({{'roles': {roles}, 'agence': {utilisateur['agence']!r}, 'region': {utilisateur['region']!r}}}, "
             f"{permission!r}, {client!r}, regles), avec {nom}")
@@ -932,7 +938,7 @@ def _decrire_cas_281(cas) -> str:
                 "REVUE_LE)")
     return (f"droits_dormants(utilisateurs, heritage, regles, journal, {maintenant.isoformat()}, {jours}), avec "
             f"utilisateurs = {_court(utilisateurs, 200)}, heritage = {heritage!r}, regles = {_court(regles, 420)}, et un "
-            f"journal de {len(journal)} entrées")
+            f"journal de {len(journal)} entrées (le cas complet : `_cas_281()` dans defis/checks_serie_46.py)")
 
 
 def _verifier_resultat_dormants(r, quoi: str) -> None:
@@ -1116,7 +1122,8 @@ def _decrire_cas_282(cas) -> str:
                                                                           "'support_informatique': []}"
         return f"conflits(utilisateurs_exemple(), {nom}, regles_exemple(), INCOMPATIBLES)"
     return (f"conflits(utilisateurs, heritage, regles, {paires!r}), avec utilisateurs = {_court(utilisateurs, 260)}, "
-            f"heritage = {heritage!r} et regles = {_court(regles, 500)}")
+            f"heritage = {heritage!r} et regles = {_court(regles, 500)} (le cas complet : `_cas_282()` dans "
+            f"defis/checks_serie_46.py)")
 
 
 def verifier_conflits(f) -> None:
@@ -1492,11 +1499,19 @@ def _verifier_delegations(classe) -> None:
                                    for p, q in zip(x, y)))
         if not conseil and isinstance(a, Decision) and not isinstance(o, (Decision, tuple)):
             conseil = "Rendez une `Decision` (la classe est dans defis/acces.py)."
-        if not conseil and isinstance(o, tuple) and o[1] == "KeyError":
+        parti_avant = any(op[0] == "partir" for op in operations[:i])
+        if not conseil and isinstance(o, tuple) and o[1] == "KeyError" and isinstance(a, Decision) and parti_avant:
             conseil = _BUGS_DELEGATIONS["delegant_parti"]
+        if not conseil and isinstance(a, tuple) and a[1] == "ValueError" and operations[i][0] == "decider":
+            conseil = ("Un compte qui n'est pas dans l'annuaire → ValueError (vérifiez `identifiant in self._annuaire` "
+                       "AVANT de lire son compte).")
         if not conseil and isinstance(o, Decision) and isinstance(a, Decision) and o.autorise == a.autorise:
-            conseil = ("La décision est juste, mais pas ses détails : `regle` est la règle qui autorise le DÉLÉGANT, et "
-                       "`delegation` le numéro de la délégation utilisée (None sans délégation).")
+            if a.regle is None and a.delegation is None and o.regle is not None:
+                conseil = ("Sans délégation qui autorise, rendez la décision PROPRE du compte (ici, le refus par "
+                           "défaut : `regle` None) : le refus du délégant ne remonte pas.")
+            else:
+                conseil = ("La décision est juste, mais pas ses détails : `regle` est la règle qui autorise le "
+                           "DÉLÉGANT, et `delegation` le numéro de la délégation utilisée (None sans délégation).")
         raise AssertionError(f"Avec d = Delegations(annuaire, heritage_exemple(), regles_exemple()) et l'annuaire de "
                              f"l'exemple : {_decrire_ops(operations, i)} : la dernière opération "
                              f"{_decrire_sortie(o)} au lieu de {_decrire_sortie(a, True)}. {conseil}".rstrip())
