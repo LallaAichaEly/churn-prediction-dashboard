@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 265 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_43.py`, corrigés par
+> [défis](defis/README.md) : 271 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_44.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -288,7 +288,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `best_threshold_by_cost` le coût fixe d'un client perdu par sa valeur selon son état, et notez dans JOURNAL.md de
 > combien le seuil optimal bouge (et pourquoi la remise de 120 € n'est rentable que si elle convainc plus de 43 % des
 > clients à risque).
-> Enfin, la série 43 (`defis/serie_43.py`, défis 260 à 265) donne une adresse aux données. Les départs ont doublé dans
+> Puis la série 43 (`defis/serie_43.py`, défis 260 à 265) donne une adresse aux données. Les départs ont doublé dans
 > la vallée, et le tableau de bord du réseau est « tout vert » ; vous y écrivez la distance de haversine (des radians,
 > et pas Pythagore sur des degrés), le point dans une zone fibre GeoJSON (des positions [longitude, latitude], un
 > trou), le geohash qui transforme une carte de chaleur en `GROUP BY`, l'antenne la plus proche de 6 000 clients sans
@@ -299,6 +299,20 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > plus proche » (avec `plus_proches`) et une variable « dans la zone fibre » (avec `dans_zone`), faites dépendre le
 > churn simulé d'une antenne muette, et regardez si l'importance par permutation (onglet « Facteurs de churn ») la
 > retrouve ; notez dans JOURNAL.md ce que le modèle voit, et ce qu'une carte par geohash montrait plus vite.
+> Enfin, la série 44 (`defis/serie_44.py`, défis 266 à 271) s'occupe des clients qui appellent le support. Le tableur
+> affiche 79 % d'occupation et la direction se dit large ; vous y écrivez Erlang C (par récurrence, sans factorielle),
+> le nombre de conseillers à planifier pour décrocher 80 % des appels en 20 secondes (le trafic en erlangs, les
+> absents comptés en entiers), la simulation de la semaine appel par appel avec un tas (les clients qui raccrochent ne
+> prennent personne), les indicateurs du tableau de bord (le bon dénominateur, un centile qui n'est pas une
+> moyenne), le planning des vacations, et une file qui sert d'abord les clients à risque sans laisser les autres
+> attendre sans fin. Entre 14 h et 17 h, un client sur cinq raccroche ; 26 % de ceux qui ont raccroché sont partis,
+> contre 6 % de ceux décrochés en moins d'une minute. Elle prolonge l'exercice 4.3 (le coût d'une action de
+> rétention) et l'exercice 5.1 : `support_calls` est l'un des moteurs du churn simulé, et la série montre d'où vient
+> l'agacement. Pour aller plus loin : donnez à chaque client de `generate_customers(5000)` une attente au support
+> tirée de `simuler_file`, ajoutez une variable « a raccroché au moins une fois », et mesurez son importance par
+> permutation ; puis adaptez `simuler_file` pour servir les appels avec une `FilePrioritaire` (les probabilités du
+> modèle comme risque), rejouez la semaine et notez dans JOURNAL.md de combien baisse le nombre de clients à risque
+> qui raccrochent, et ce que cela coûte aux autres.
 
 ---
 
