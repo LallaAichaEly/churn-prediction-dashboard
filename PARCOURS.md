@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 235 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_38.py`, corrigés par
+> [défis](defis/README.md) : 241 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_39.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -229,7 +229,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > rapprochement d'un relevé bancaire. Pour aller plus loin : ajoutez à la table du modèle une variable « prélèvement
 > refusé dans les 60 derniers jours », calculée avec `rapprocher`, mesurez son importance (exercice 5.1), et notez
 > dans JOURNAL.md combien de départs du mois auraient pu être évités par une relance.
-> Enfin, la série 38 (`defis/serie_38.py`, défis 230 à 235) pose la question que personne n'a posée au modèle : est-il
+> Puis la série 38 (`defis/serie_38.py`, défis 230 à 235) pose la question que personne n'a posée au modèle : est-il
 > juste pour TOUT LE MONDE ? Son AUC est bonne en moyenne, mais il ne repère qu'un senior sur quatre parmi ceux qui
 > partent. Vous y écrivez les taux par groupe (chacun avec son dénominateur, sans perdre les âges absents), la règle
 > des quatre cinquièmes décidée en entiers, la standardisation qui sépare l'effet de l'âge de celui des contrats
@@ -239,6 +239,17 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `senior` (`src/churn/data.py`) ; mesurez `taux_par_groupe` sur le jeu de test par `senior`, réentraînez SANS cette
 > colonne, mesurez avec `proxies` ce que les autres colonnes en disent encore, et notez dans JOURNAL.md ce que l'écart
 > de rappel est devenu (et ce que l'AUC a coûté).
+> Enfin, la série 39 (`defis/serie_39.py`, défis 236 à 241) s'occupe de ce qui arrive APRÈS le code : la livraison. Le
+> script de déploiement a pris 2.9.4 pour la dernière version (`max` sur du texte), et le nouveau score, activé pour
+> tout le monde d'un coup, a rendu le centre d'appels aveugle une matinée. Vous y écrivez la comparaison de versions
+> SemVer, le numéro de la prochaine version déduit des messages de commit (Conventional Commits), les contraintes `^`
+> et `~` de npm, Cargo et Poetry, la résolution de dépendances avec retour arrière, la répartition stable d'un
+> déploiement progressif et l'évaluation d'un drapeau de fonctionnalité. Elle prolonge l'exercice 6.2 (la version de
+> scikit-learn du modèle sauvegardé) et l'exercice 6.3 (la CI). Pour aller plus loin : écrivez `scripts/version.py`,
+> qui lit les messages de `git log --format=%B%x00 <dernier tag>..HEAD`, affiche la prochaine version avec
+> `prochaine_version`, et sort en erreur si une version installée (`importlib.metadata.version`) ne respecte pas la
+> contrainte « >= » de `requirements.txt` (complétez « 1.26 » en « 1.26.0 ») ; branchez-le dans
+> `.github/workflows/tests.yml`, et notez dans JOURNAL.md le numéro que votre dernier lot de commits aurait dû porter.
 
 ---
 
