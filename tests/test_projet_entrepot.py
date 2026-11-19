@@ -65,9 +65,9 @@ def test_les_outils_de_mes_tests_sont_identiques():
     assert outils("entrepot") == outils("entrepot_corrige")
 
 
-def test_le_projet_6_est_enregistre_apres_les_autres():
-    assert [p.numero for p in projets()] == [2, 3, 4, 5, 6]
-    assert projets()[-1] is PROJET
+def test_le_projet_6_est_enregistre_apres_le_projet_5():
+    assert [p.numero for p in projets()] == [2, 3, 4, 5, 6, 7]
+    assert projets()[4] is PROJET
 
 
 def test_les_exports_d_exemple_sont_reproductibles(tmp_path):

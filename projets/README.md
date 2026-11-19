@@ -17,8 +17,8 @@ python scripts/projet.py --projet 6            # un seul projet, et l'étape sui
 python scripts/projet.py --projet 3 --etape 4  # le détail d'une étape
 ```
 
-Les six projets forment une boucle complète, celle qu'on retrouve dans toute équipe data :
-**collecter → prédire → décider → agir → vérifier que ça a marché → réapprendre**.
+Les sept projets forment une boucle complète, celle qu'on retrouve dans toute équipe data :
+**collecter → prédire → décider → agir → vérifier que ça a marché → réapprendre → rendre compte**.
 
 | | Projet | Ce que vous construisez | Où |
 |---|---|---|---|
@@ -28,6 +28,7 @@ Les six projets forment une boucle complète, celle qu'on retrouve dans toute é
 | **4** | **Le service des conseillers** | **Le service web avec lequel l'équipe appelle les clients du plan, à plusieurs en même temps** | `projets/service/` |
 | **5** | **Réentraîner le modèle sans casser la production** | **Le programme qui, chaque mois, remplace le modèle du projet 1 seulement s'il fait mieux, et sait revenir en arrière** | `projets/reentrainement/` |
 | **6** | **L'entrepôt des clients** | **Le programme qui, chaque nuit, charge les exports bruts du CRM et du support dans une base, et fabrique la table qu'entraîne le projet 1** | `projets/entrepot/` |
+| **7** | **Le rapport du mois** | **Le programme qui, chaque début de mois, écrit pour la direction le rapport churn du mois écoulé : une page HTML autonome, juste, lisible, et sûre** | `projets/rapport/` |
 
 Dans le temps, le projet 4 se place au milieu du projet 3 : `preparer` tire le groupe témoin et écrit la
 liste des clients à appeler, les conseillers les appellent avec le service du projet 4, puis `bilan`
@@ -38,6 +39,10 @@ remplacer sans jamais mettre en production un modèle pire que l'ancien.
 Le projet 6 est le maillon qu'on oublie, en amont de tout : `data/customers.csv` ne tombe pas du ciel. Il
 faut le fabriquer, chaque nuit, à partir d'exports imparfaits, sans jamais charger deux fois le même
 fichier ni laisser passer une information du futur. Il se fait à n'importe quel moment après le projet 3.
+Le projet 7 est le dernier maillon, celui que tout le monde voit : les chiffres arrivent à la direction.
+C'est aussi le plus « développeur » : on n'y entraîne aucun modèle, on y PRODUIT quelque chose que des
+humains lisent, sans erreur de définition, d'arrondi, d'encodage ni de sécurité. Il se fait juste après
+le projet 2 si vous le souhaitez : il n'utilise aucun autre projet.
 
 ---
 
@@ -675,3 +680,122 @@ sera régénéré au prochain lancement). Comparez ensuite votre code au corrig�
   base : la chaîne complète tourne alors sur des données que vous avez fabriquées de bout en bout.
 - **Planifier.** Un `cron` (ou une GitHub Action planifiée) qui lance `charger` chaque nuit et vous écrit si
   un fichier est refusé ou si le fichier des rejets dépasse 1 % des lignes.
+
+---
+
+## Projet 7 — Le rapport du mois
+
+### Le besoin
+
+Chaque début de mois, Inès, la directrice de la relation client, reçoit un « rapport churn » fait à la main :
+un tableur, quelques copier-coller, un courriel. Elle vous montre les trois derniers :
+
+*« En août, le taux était calculé sur les clients de FIN de mois ; en septembre, sur ceux du début. Une
+cellule disait 12.3 %, une autre 0,123. En octobre, quelqu'un l'a fait le 28 : le churn avait « baissé »,
+parce qu'il manquait trois jours de départs. Et la semaine dernière, en ouvrant le fichier des clients
+partis, mon navigateur a affiché une fenêtre « coucou » : un stagiaire avait créé un client nommé
+`<script>alert("coucou")</script>` pour « essayer ». Je veux le MÊME rapport chaque mois, calculé toujours
+de la même façon, que je peux ouvrir sans réseau et transférer tel quel. Et je veux voir d'un coup d'œil
+si ça va mieux ou moins bien que le mois dernier. »*
+
+Votre programme écrit ce rapport. `projets/exemple_abonnes.csv` contient 4 436 abonnés (janvier 2024 à
+octobre 2026), avec des noms saisis en boutique (« Durand & Fils », « Café "Chez Chloé" », « Bio & Co
+<Lyon> »… et le client du stagiaire) :
+
+```console
+$ python -m projets.rapport --abonnes projets/exemple_abonnes.csv --mois 2026-10
+Octobre 2026 : 2 844 clients au début du mois, 89 départs
+Taux de churn : 3,0 % (+1,3 pt par rapport à septembre 2026)
+Rapport écrit dans rapports/rapport_2026-10.html
+
+$ python -m projets.rapport --abonnes projets/exemple_abonnes.csv --mois 2026-11
+Erreur : novembre 2026 n'est pas terminé : un rapport fait trop tôt oublie les départs des derniers jours. Revenez le 01/12/2026.
+```
+
+Ouvrez `rapports/rapport_2026-10.html` dans votre navigateur : quatre chiffres clés, la courbe des 12
+derniers mois, le tableau par segment et les dix plus gros départs. L'histoire saute aux yeux : le taux
+passe de 1,7 % à 3,0 %, le revenu mensuel perdu de 2 287,55 € à 7 821,59 €, et c'est le segment
+« Pro & TPE » qui décroche (0,8 % en septembre, 6,2 % en octobre) : les tarifs des professionnels ont
+augmenté le 1er octobre. Le client du stagiaire est dans le tableau… écrit en toutes lettres, sans
+aucune fenêtre qui s'ouvre.
+
+### L'architecture
+
+```
+exemple_abonnes.csv ─► lire_abonnes (fourni dans modeles.py)
+                               │
+                               ▼
+        periodes.py (étape 1) : « 2026-10 », la fin du mois, le mois d'avant, « octobre 2026 »
+                               ▼
+        indicateurs.py (étape 2) : les chiffres d'un mois (et par segment), avec le bon dénominateur
+                               ▼
+        formats.py (étape 3) : « 2 844 clients », « 3,0 % », « +1,3 pt », « 7 821,59 € »
+                               ▼
+        graphique.py (étape 4) : la courbe des 12 derniers mois, dessinée en SVG
+                               ▼
+        page.py (étape 5) : la page HTML, autonome et sans injection
+                               ▼
+        cli.py (étape 6) : rassembler le rapport, refuser un mois pas terminé, écrire rapports/rapport_AAAA-MM.html
+
+mes_tests.py (étape 7) protège indicateurs_du_mois. modeles.py est fourni : le format du fichier, les
+classes Abonne, Indicateurs et Rapport, les noms des mois, les espaces insécables, les dimensions du dessin.
+```
+
+Aucune bibliothèque à installer : `datetime`, `calendar`, `decimal`, `html` et `argparse`, tous dans la
+bibliothèque standard. Le graphique n'est pas une image : c'est du texte (SVG) que vous écrivez vous-même.
+
+### Les étapes
+
+| # | Fichier | Niveau | Vous construisez | Vous apprenez |
+|---|---|---|---|---|
+| 1 | `periodes.py` | 🟢 | Les mois du calendrier | `re.fullmatch` contre `re.match` et `strptime` (qui accepte « 2026-1 »), `calendar.monthrange`, décembre et les années bissextiles, compter en mois avec `//` et `%` (pas en jours), un nom de mois qui ne dépend pas de la langue de l'ordinateur |
+| 2 | `indicateurs.py` | 🟡 | Les chiffres du mois | Traduire une définition métier en conditions exactes : le 1er, le dernier jour, la veille, le lendemain ; le bon dénominateur ; `None` contre 0 ; un invariant qui vérifie vos comptes ; un générateur qu'on ne parcourt qu'une fois |
+| 3 | `formats.py` | 🟡 | Les nombres écrits à la française | `Decimal(str(x))` et `ROUND_HALF_UP` (pourquoi `round(0.125, 2)` vaut 0.12 et `round(2.675, 2)` vaut 2.67), les espaces insécables, « -0,0 » qui n'existe pas, points de pourcentage contre variation relative, le pluriel français |
+| 4 | `graphique.py` | 🔴 | La courbe en SVG | Passer des données aux pixels (et l'axe y qui va vers le bas), une échelle « ronde », un mois inconnu qui coupe la courbe au lieu de tomber à zéro, un XML bien formé, l'accessibilité (`<title>`) |
+| 5 | `page.py` | 🔴 | La page HTML | L'injection de code (XSS) et `html.escape`, échapper une fois et une seule, une page autonome (ni script, ni ressource extérieure), une sortie reproductible au caractère près |
+| 6 | `cli.py` | 🟡 | Le programme du début de mois | Assembler les étapes, refuser de produire un chiffre faux (mois pas terminé, mois sans données), `encoding="utf-8"` et le bug qui « marche sur ma machine », stdout contre stderr, codes de sortie |
+| 7 | `mes_tests.py` | 🔴 | Le test d'`indicateurs_du_mois` | Écrire un test qui protège une définition métier : viser les frontières, tester décembre et le mois vide, attraper 13 versions boguées plausibles |
+
+**Prérequis** : le projet 2 (une ligne de commande, des étapes qui s'appellent) ; les séries 07 (`datetime`
+et fins de mois), 13 (code sûr : l'injection SQL, cousine de l'injection HTML), 20 (le texte et l'Unicode)
+et 37 (`Decimal` et les arrondis au centime) aident beaucoup. Aucune notion de machine learning.
+
+### Comment travailler
+
+Comme pour les projets précédents : une branche (`git checkout -b projet-rapport`), la docstring de chaque
+étape comme cahier des charges, `python scripts/projet.py --projet 7 --etape N` après chaque essai, et un
+commit à chaque ✅. Le correcteur place des abonnés PILE sur les frontières du mois, essaie décembre et
+février 2028, fait écrire 0,125 €, 2,675 € et -0,001 €, coupe la courbe par des mois inconnus, lit votre
+SVG avec un vrai lecteur XML et votre page avec un vrai lecteur HTML, glisse un client nommé
+`<script>…</script>` dans le rapport, relit votre `cli.py` à la recherche d'un fichier ouvert sans
+encodage, et rejoue 13 versions boguées d'`indicateurs_du_mois` pour vous dire laquelle vous avez écrite.
+
+Une fois les 7 étapes réussies, rejouez la scène du besoin : le rapport d'octobre 2026, puis ouvrez-le
+dans votre navigateur, sur votre téléphone (le mode « appareil mobile » des outils de développement), et
+imprimez-le en PDF. Faites aussi les rapports de septembre et d'août : la courbe change, le reste de la
+page aussi. Comparez ensuite votre code au corrigé, `projets/rapport_corrige/`, et notez dans
+`JOURNAL.md` ce que vous feriez autrement.
+
+### Pour aller plus loin (sans correcteur : c'est votre projet)
+
+- **La version texte du courriel.** Beaucoup de logiciels de courriel affichent d'abord le texte brut.
+  Écrivez `texte_brut(rapport)` (les mêmes chiffres, alignés en colonnes avec `str.ljust` et
+  `str.rjust`), et envoyez les deux versions dans un seul message avec `email.message.EmailMessage`
+  (`set_content` puis `add_alternative(..., subtype="html")`). Pour essayer sans rien envoyer, un faux
+  serveur qui affiche les messages reçus : `pip install aiosmtpd` puis `python -m aiosmtpd -n` (le module
+  `smtpd` qui faisait la même chose a disparu de Python 3.12).
+- **L'écart par segment.** Ajoutez au tableau la colonne « écart avec le mois d'avant » : il faut les
+  segments du mois précédent dans `Rapport`, donc modifier `modeles.py` dans VOTRE copie (et le dire au
+  correcteur, qui suppose le fichier d'origine).
+- **Un seuil d'alerte honnête.** Surlignez en rouge un segment dont le taux dépasse de 2 points sa
+  moyenne des 12 derniers mois… seulement s'il compte au moins 200 clients au début du mois : avec 30
+  clients, un seul départ fait 3,3 %. La série 26 (conclure sans se tromper) dit comment faire mieux.
+- **Un test « photographie ».** Écrivez un test pytest qui compare la page d'octobre 2026 à un fichier de
+  référence enregistré dans le dépôt (*golden file*, *snapshot test*) : la moindre modification de la
+  page se verra dans la revue de code. C'est possible parce que la page ne contient ni heure ni hasard.
+- **Le rapport de chaque mois, automatiquement.** Une GitHub Action planifiée (`on: schedule`, le 2 de
+  chaque mois) qui fabrique le rapport du mois écoulé et le joint comme artefact du workflow.
+- **Des données réelles.** Fabriquez le fichier des abonnés à partir de la base du projet 6 (une requête
+  sur la table `contrats` : `client`, `debut`, `fin`, `mensualite` ; elle n'a ni nom ni segment, prenez le
+  type de `contrat` comme segment) : le rapport tourne alors sur des données que vous avez chargées de
+  bout en bout.

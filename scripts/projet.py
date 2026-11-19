@@ -1,4 +1,4 @@
-"""Corrige vos projets guidés (projets/retention/, campagne/, service/, reentrainement/, entrepot/) : ✅ / ❌ / ⬜ par étape.
+"""Corrige vos projets guidés (projets/retention/, campagne/, service/, reentrainement/, entrepot/, rapport/) : ✅ / ❌ / ⬜ par étape.
 
 Usage :
     python scripts/projet.py                         # votre progression dans tous les projets
@@ -28,7 +28,7 @@ def _modeles_modifie(projet) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--projet", type=int, help="n'afficher qu'un projet (2, 3, 4, 5 ou 6)")
+    parser.add_argument("--projet", type=int, help="n'afficher qu'un projet (2 à 7)")
     parser.add_argument("--etape", type=int, help="n'afficher qu'une étape")
     parser.add_argument("--corrige", action="store_true", help="évaluer le corrigé au lieu de votre code")
     args = parser.parse_args(argv)

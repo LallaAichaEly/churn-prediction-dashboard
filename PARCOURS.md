@@ -503,6 +503,21 @@ projet 1 telle qu'on la connaissait à une date donnée, sans rien du futur.
 la ligne « d'où viennent les données » : quels fichiers, à quelle date, combien de lignes écartées, et
 pourquoi la photo ne peut pas être plus récente que l'horizon.
 
+Le **projet 7** écrit ce que la direction lit : *« le rapport churn du mois, toujours calculé de la même
+façon »*. Un programme qui, au début de chaque mois, compte les abonnés et les départs du mois écoulé avec
+le bon dénominateur, écrit les nombres à la française, dessine la courbe des 12 derniers mois en SVG, et
+produit une page HTML autonome qu'aucun nom de client ne peut pirater.
+
+- [ ] 🟢 Étape 1 — les mois du calendrier : « 2026-10 », la fin du mois (décembre, 2028), le mois d'avant
+- [ ] 🟡 Étapes 2, 3 et 6 — les chiffres du mois aux frontières (le 1er, le dernier jour), les nombres à la
+  française (`Decimal`, espaces insécables, points de pourcentage), le programme qui refuse un mois pas terminé
+- [ ] 🔴 Étapes 4, 5 et 7 — la courbe en SVG, la page HTML protégée de l'injection (XSS), et le test qui
+  attrape 13 versions boguées du calcul du taux
+
+`python scripts/projet.py --projet 7` corrige chaque étape. Votre rapport final (module 7) gagne une
+annexe : le rapport du dernier mois, produit par votre programme, et une phrase qui définit le taux de
+churn que vous y montrez.
+
 ## 📚 Ressources
 
 - Documentation scikit-learn — *User Guide* (pipelines, métriques, inspection)
