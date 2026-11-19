@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 277 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_45.py`, corrigés par
+> [défis](defis/README.md) : 283 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_46.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -313,7 +313,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > permutation ; puis adaptez `simuler_file` pour servir les appels avec une `FilePrioritaire` (les probabilités du
 > modèle comme risque), rejouez la semaine et notez dans JOURNAL.md de combien baisse le nombre de clients à risque
 > qui raccrochent, et ce que cela coûte aux autres.
-> Enfin, la série 45 (`defis/serie_45.py`, défis 272 à 277) lit ce que les clients écrivent. La règle « résili » se
+> Puis la série 45 (`defis/serie_45.py`, défis 272 à 277) lit ce que les clients écrivent. La règle « résili » se
 > trompe sept fois sur dix (« Pas question de résilier ») et ne voit qu'un partant sur cinq ; vous y écrivez la
 > découpe en mots (casefold, NFKD, sans accents), le marquage des négations (« non_resilier »), un Bayes naïf qui
 > compte et lisse, ses probabilités en logarithmes (un courrier de 3 000 mots ne fait pas 0 / 0), les mots qui
@@ -325,6 +325,19 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > commentaire » (calculée hors pli, pour ne pas tricher), et mesurez dans l'onglet « Facteurs de churn » ce qu'elle
 > apporte ; puis comparez votre `entrainer` à `MultinomialNB` de scikit-learn, et notez dans JOURNAL.md ce que le
 > lissage (alpha = 0,1, 1, 10) change à la précision et au rappel.
+> Enfin, la série 46 (`defis/serie_46.py`, défis 278 à 283) décide qui a le droit de voir quoi. Aujourd'hui, une
+> permission est accordée si elle COMMENCE par un droit du compte : 36 comptes exportent les 1 200 clients, et les 7
+> comptes du support, dont la colonne « droits » était vide, peuvent tout faire. Vous y écrivez la comparaison d'une
+> permission à un droit segment par segment (« client » ne couvre pas « clients:lire »), les rôles hérités (avec un
+> ensemble des rôles déjà vus), la décision (refus par défaut, un refus l'emporte, toutes les règles vérifiées
+> d'abord), la revue des droits dormants (le journal lu une seule fois), la séparation des tâches (le cumul de rôles,
+> pas un rôle seul) et des délégations datées qui ne donnent jamais plus que ce que le délégant a encore. Elle
+> prolonge le module 6 : un modèle mis en ligne (exercices 6.4 et 6.5) doit savoir QUI l'interroge. Pour aller plus
+> loin : dans l'onglet « Clients à risque » de `app.py`, choisissez un compte de `utilisateurs_exemple()` dans la
+> barre latérale et n'affichez (et n'exportez) que les clients pour lesquels `decider` autorise « clients:lire » ou
+> « clients:exporter » ; dans `api.py`, lisez l'identifiant du compte dans un en-tête et répondez 403 quand `decider`
+> refuse. Notez dans JOURNAL.md combien de clients voit chaque rôle, et ce qui change quand le support n'hérite plus
+> de l'équipe technique.
 
 ---
 
