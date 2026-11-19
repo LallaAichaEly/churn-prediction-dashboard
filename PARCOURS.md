@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 265 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_43.py`, corrigés par
+> [défis](defis/README.md) : 271 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_44.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -288,7 +288,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `best_threshold_by_cost` le coût fixe d'un client perdu par sa valeur selon son état, et notez dans JOURNAL.md de
 > combien le seuil optimal bouge (et pourquoi la remise de 120 € n'est rentable que si elle convainc plus de 43 % des
 > clients à risque).
-> Enfin, la série 43 (`defis/serie_43.py`, défis 260 à 265) donne une adresse aux données. Les départs ont doublé dans
+> Puis la série 43 (`defis/serie_43.py`, défis 260 à 265) donne une adresse aux données. Les départs ont doublé dans
 > la vallée, et le tableau de bord du réseau est « tout vert » ; vous y écrivez la distance de haversine (des radians,
 > et pas Pythagore sur des degrés), le point dans une zone fibre GeoJSON (des positions [longitude, latitude], un
 > trou), le geohash qui transforme une carte de chaleur en `GROUP BY`, l'antenne la plus proche de 6 000 clients sans
@@ -299,6 +299,19 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > plus proche » (avec `plus_proches`) et une variable « dans la zone fibre » (avec `dans_zone`), faites dépendre le
 > churn simulé d'une antenne muette, et regardez si l'importance par permutation (onglet « Facteurs de churn ») la
 > retrouve ; notez dans JOURNAL.md ce que le modèle voit, et ce qu'une carte par geohash montrait plus vite.
+> Enfin, la série 44 (`defis/serie_44.py`, défis 266 à 271) répond à la question « combien de personnes faut-il ? ».
+> Le service client est passé à 10 conseillers par créneau, le tableau de bord affiche 57 % d'appels décrochés en 20 s
+> et des conseillers occupés 70 % du temps ; vous y calculez les indicateurs sur TOUS les appels (48 %, et 15 % des
+> clients raccrochent), le nombre moyen de clients en attente comme une moyenne dans le temps (la loi de Little),
+> Erlang C sans que les factorielles débordent, le plus petit nombre de conseillers qui tient « 80 % en 20 s », un
+> planning de vacations de 4 heures au plus juste, et une simulation qui rejoue la journée avec ce planning. Ceux qui
+> ont raccroché sont partis à 16 %, contre 6 % de ceux qu'on a pris tout de suite. Elle prolonge l'exercice 4.3 (le
+> seuil selon les coûts métier) : on ne choisit plus seulement QUI appeler, mais avec combien de monde. Pour aller
+> plus loin : avec `generer_demande`, simulez quatre lundis de plus, ajoutez à chaque client une variable « a
+> raccroché » et « attente en minutes », faites-en dépendre le churn simulé de `generate_customers`, et regardez si
+> l'importance par permutation (onglet « Facteurs de churn ») les retrouve ; puis chiffrez dans JOURNAL.md ce que
+> coûtent 6 vacations de plus par jour, et ce que rapportent les départs évités (avec la valeur d'un client de la
+> série 42).
 
 ---
 
