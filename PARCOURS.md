@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 247 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_40.py`, corrigés par
+> [défis](defis/README.md) : 253 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_41.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -250,7 +250,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > `prochaine_version`, et sort en erreur si une version installée (`importlib.metadata.version`) ne respecte pas la
 > contrainte « >= » de `requirements.txt` (complétez « 1.26 » en « 1.26.0 ») ; branchez-le dans
 > `.github/workflows/tests.yml`, et notez dans JOURNAL.md le numéro que votre dernier lot de commits aurait dû porter.
-> Enfin, la série 40 (`defis/serie_40.py`, défis 242 à 247) vous prépare au jour où vos données ne tiendront plus en
+> Puis la série 40 (`defis/serie_40.py`, défis 242 à 247) vous prépare au jour où vos données ne tiendront plus en
 > mémoire. Le `set` des 40 millions de numéros déjà contactés a fait tomber le service d'envoi, le tableau de bord
 > additionne des visiteurs « uniques », et passer de 4 à 5 serveurs avec `% n` a déplacé 80 % des clients. Vous y
 > écrivez le dimensionnement et le filtre de Bloom, les éléments fréquents de Misra-Gries, le Count-Min, HyperLogLog
@@ -262,6 +262,18 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > 1,04 / √4096 ≈ 1,6 % ; puis remplissez un `FiltreBloom` avec les valeurs des colonnes catégorielles du train, et
 > alertez quand une valeur jamais vue apparaît dans un lot du jour : c'est une dérive que
 > `handle_unknown="ignore"` (exercice 2.4) rendrait silencieuse.
+> Enfin, la série 41 (`defis/serie_41.py`, défis 248 à 253) ouvre la boîte de Parquet. L'instantané des clients part
+> chaque nuit en CSV (1,9 Go), le journal des événements n'arrive plus des zones rurales, et le fichier tronqué du
+> partenaire a arrêté la chaîne de nuit sur un `IndexError` à 3 h du matin. Vous y écrivez le codage par plages et par
+> dictionnaire (sans confondre `True` et `1`, avec tous les NaN ensemble), les bits collés de Parquet, les écarts, le
+> zigzag et les varints de Protobuf, le code de Huffman canonique de gzip, et un lecteur qui refuse proprement un
+> fichier tronqué, abîmé ou malveillant. Elle prolonge l'exercice 6.2 (relire exactement ce qu'on a enregistré). Pour
+> aller plus loin : prenez `generate_customers(5000)` rangé par `contract`, encodez chaque colonne catégorielle avec
+> `dictionnaire` puis `empaqueter` (largeur `(len(distinctes) - 1).bit_length()`), chaque colonne entière avec
+> `encoder_entiers` (et `monthly_charges` en centimes, comme à la série 37), vérifiez que tout se relit à l'identique,
+> et comparez la somme à `len(df.to_csv(index=False).encode())` ; essayez `plages` sur `contract` avant et après le
+> tri. Notez dans JOURNAL.md le gain colonne par colonne, et laquelle résiste (et pourquoi) ; si `pyarrow` est
+> installé, comparez avec la taille de `df.to_parquet()`.
 
 ---
 
