@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 217 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_35.py`, corrigés par
+> [défis](defis/README.md) : 223 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_36.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -203,7 +203,7 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > une valeur manque, et ce sont souvent les plus faciles à reconnaître. Pour aller plus loin : l'exercice 1.5 (le vrai
 > jeu Telco) se fait sur des données publiques ; avant de faire la même chose avec celles d'une entreprise, passez
 > l'export par `preparer_export` et `audit`, et notez le k et le l obtenus dans JOURNAL.md.
-> Enfin, la série 35 (`defis/serie_35.py`, défis 212 à 217) revient à la question de départ, mais posée autrement :
+> Puis la série 35 (`defis/serie_35.py`, défis 212 à 217) revient à la question de départ, mais posée autrement :
 > le modèle dit QUI va partir, pas QUI un appel peut retenir. Vous y écrivez l'effet de l'offre segment par segment,
 > le T-learner, l'issue transformée (une campagne tirée selon le score), la courbe de Qini, le plan de contact en
 > euros et la validation croisée à la main. Son défi 212 prolonge l'exercice 1.2 (un taux par groupe, mais ici la
@@ -212,6 +212,16 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > l'exercice 3.4 (le modèle jugé sur ses propres clients bat la vérité elle-même). Pour aller plus loin : un onglet
 > « Qui appeler ? » dans le tableau de bord, qui trace la courbe de Qini du score et celle du T-learner, et répond à
 > l'auto-évaluation du module 5 (trois actions de rétention) avec les départs évités, pas les départs prédits.
+> Enfin, la série 36 (`defis/serie_36.py`, défis 218 à 223) surveille l'API que les conseillers utilisent pour de vrai :
+> un tableau de bord tout vert (« temps moyen : 150 ms ») pendant qu'une requête sur cent attend plus de 4 secondes.
+> Vous y écrivez la lecture d'un journal d'accès (par route, les 5xx seulement, sans planter sur une ligne abîmée), le
+> quantile d'un histogramme comme Prometheus (et pourquoi la moyenne des p99 ment), l'augmentation d'un compteur qui
+> redémarre, le budget d'erreur d'un objectif de 99.9 %, les alertes à deux fenêtres et le temps propre de chaque
+> service dans une trace. Son défi 218 prolonge l'exercice 6.4 (le journal de l'API que vous avez lancée), et ses
+> défis 221 et 222 l'exercice 7.6 (une tâche planifiée qui décide seule s'il faut prévenir quelqu'un). Pour aller plus
+> loin : ajoutez à `api.py` un intergiciel (`@app.middleware("http")`) qui écrit une ligne de journal par requête au
+> format du défi 218, et une route `/metrics` qui expose l'histogramme des durées ; branchez-y vos fonctions et notez
+> dans JOURNAL.md le p99 de `/predict` mesuré pendant les tests.
 
 ---
 
