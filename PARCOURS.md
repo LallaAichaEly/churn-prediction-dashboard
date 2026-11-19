@@ -26,7 +26,7 @@ Ce parcours transforme ce dépôt en terrain d'entraînement. Chaque module :
 Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 
 > ⚡ **Entraînement corrigé automatiquement.** En parallèle des modules, faites les
-> [défis](defis/README.md) : 229 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_37.py`, corrigés par
+> [défis](defis/README.md) : 235 fonctions, classes, requêtes SQL, tests et routes d'API courts dans `defis/serie_00.py` à `defis/serie_38.py`, corrigés par
 > `python scripts/defis.py`. Les exercices marqués **⚡** ci-dessous ont un défi associé :
 > faites le défi d'abord, puis l'exercice dans le vrai projet. Le coach (`scripts/progression.py`)
 > affiche aussi votre score aux défis.
@@ -222,13 +222,23 @@ Niveaux : 🟢 débutant · 🟡 intermédiaire · 🔴 avancé
 > loin : ajoutez à `api.py` un intergiciel (`@app.middleware("http")`) qui écrit une ligne de journal par requête au
 > format du défi 218, et une route `/metrics` qui expose l'histogramme des durées ; branchez-y vos fonctions et notez
 > dans JOURNAL.md le p99 de `/predict` mesuré pendant les tests.
-> Enfin, la série 37 (`defis/serie_37.py`, défis 224 à 229) regarde le churn par l'autre bout : une partie des départs
+> Puis la série 37 (`defis/serie_37.py`, défis 224 à 229) regarde le churn par l'autre bout : une partie des départs
 > sont INVOLONTAIRES (un prélèvement refusé que personne n'a relancé), et une facture fausse d'un centime fait perdre
 > confiance. Vous y écrivez le prorata d'un changement de formule, la répartition d'une remise au plus fort reste, la
 > facture avec `Decimal` et la TVA par taux, les jours fériés (Pâques compris), les relances en jours ouvrés et le
 > rapprochement d'un relevé bancaire. Pour aller plus loin : ajoutez à la table du modèle une variable « prélèvement
 > refusé dans les 60 derniers jours », calculée avec `rapprocher`, mesurez son importance (exercice 5.1), et notez
 > dans JOURNAL.md combien de départs du mois auraient pu être évités par une relance.
+> Enfin, la série 38 (`defis/serie_38.py`, défis 230 à 235) pose la question que personne n'a posée au modèle : est-il
+> juste pour TOUT LE MONDE ? Son AUC est bonne en moyenne, mais il ne repère qu'un senior sur quatre parmi ceux qui
+> partent. Vous y écrivez les taux par groupe (chacun avec son dénominateur, sans perdre les âges absents), la règle
+> des quatre cinquièmes décidée en entiers, la standardisation qui sépare l'effet de l'âge de celui des contrats
+> (Simpson), le V de Cramér qui montre que le chèque trahit l'âge, le test de situation (la même cliente avec 40 ans)
+> et les seuils de l'égalité des chances. Elle prolonge l'exercice 4.2 (une seule métrique globale ment) et
+> l'exercice 5.1 (le modèle a-t-il appris la bonne cause ?). Pour aller plus loin : le modèle du projet lit la colonne
+> `senior` (`src/churn/data.py`) ; mesurez `taux_par_groupe` sur le jeu de test par `senior`, réentraînez SANS cette
+> colonne, mesurez avec `proxies` ce que les autres colonnes en disent encore, et notez dans JOURNAL.md ce que l'écart
+> de rappel est devenu (et ce que l'AUC a coûté).
 
 ---
 
